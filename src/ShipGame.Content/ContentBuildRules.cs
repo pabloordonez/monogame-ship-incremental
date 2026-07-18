@@ -9,20 +9,13 @@ public static class ContentBuildRules
     public const string TextureProcessorVersion = "p1-texture-v1";
     public const string SoundProcessorVersion = "p1-sound-v1";
 
-    public sealed record BuildItem(
-        string AssetId,
-        string Kind,
-        string SourceRelativePath,
-        string OutputRelativePath,
-        string ProcessorKey);
-
-    public static IReadOnlyList<BuildItem> Enumerate(AssetManifestV1 manifest)
+    public static IReadOnlyList<ContentBuildItem> Enumerate(AssetManifestV1 manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
         if (manifest.Assets is null)
             throw new ContentValidationException([new("manifest.assets-required", "Manifest assets must be an array.")]);
 
-        var items = new List<BuildItem>();
+        var items = new List<ContentBuildItem>();
         foreach (var asset in manifest.Assets.OrderBy(asset => asset.Id, StringComparer.Ordinal))
         {
             var source = asset.Source.Replace('\\', '/');
@@ -56,12 +49,4 @@ public static class ContentBuildRules
         ColorKeyEnabled: false,
         PremultiplyAlpha: true,
         SamplerHint: "PointClamp");
-
-    public sealed record TextureBuildOptions(
-        bool GenerateMipmaps,
-        bool ResizeToPowerOfTwo,
-        bool MakeSquare,
-        bool ColorKeyEnabled,
-        bool PremultiplyAlpha,
-        string SamplerHint);
 }

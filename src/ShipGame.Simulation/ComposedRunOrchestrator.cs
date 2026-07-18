@@ -4,35 +4,11 @@ using ShipGame.Ecs;
 
 namespace ShipGame.Simulation;
 
-public enum ComposedRunStatus
-{
-    Inactive,
-    Active,
-    Terminal
-}
-
-public readonly record struct ComposedPickupView(int X, int Y, ContentId ResourceId, int Quantity);
-public readonly record struct ComposedAsteroidView(int CellId, int X, int Y, AsteroidCellKind Kind, bool Broken);
-
-public readonly record struct ComposedRunHud(
-    long RunTick,
-    RunPhase Phase,
-    float Hull,
-    float Shield,
-    int FerriteHeld,
-    int LumenHeld,
-    int DataCoresHeld,
-    int ObjectiveFerrite,
-    int ObjectiveKills,
-    int ExtractionProgressTicks,
-    int ExtractionHoldTicks,
-    int ThreatCap);
-
 /// <summary>
 /// P5 composition root: co-steps FlightCombat + WorldRun + mining/loot ECS and produces
 /// exactly-once <see cref="RewardProposal"/> via <see cref="RewardHandoff"/>.
 /// </summary>
-public sealed class ComposedRunOrchestrator
+public sealed class ComposedRunOrchestrator : IWorldRunEventHost
 {
     public const int MiningRangeWorldUnits = 70;
     public const int BaseCollectionRadius = 90;
@@ -43,6 +19,7 @@ public sealed class ComposedRunOrchestrator
     private readonly MiningSystem _mining = new();
     private readonly LootGenerationSystem _loot;
     private readonly CollectionSystem _collection = new();
+    private readonly WorldRunEventHandlerRegistry _worldEventHandlers = WorldRunEventHandlerRegistry.Create();
     private readonly Dictionary<int, EntityId> _asteroidEntities = new();
     private readonly List<RunFact> _factBuffer = new(64);
     private readonly List<CombatSnapshot> _snapshotBuffer = new(256);
@@ -53,7 +30,6 @@ public sealed class ComposedRunOrchestrator
     private long _normalKills;
     private long _eliteKills;
     private long _ferriteCollected;
-    private long _cellsBroken;
     private bool _eliteSpawnRequested;
     private bool _rewardMapped;
     private TemporaryModifiers _appliedModifiers = TemporaryModifiers.Identity;
@@ -425,15 +401,14 @@ public sealed class ComposedRunOrchestrator
 
         foreach (var cell in broken)
         {
-            _cellsBroken++;
             var resource = cell.Kind switch
             {
                 AsteroidCellKind.Ferrite => WorldRunIds.Ferrite,
                 AsteroidCellKind.Lumen => WorldRunIds.Lumen,
                 _ => default
             };
-            if (resource != default)
-                _factBuffer.Add(new(_nextFactId++, RunFactKind.ResourceCellBroken, resource, 1));
+            // Every broken cell routes through the fact pipeline for lifetime accounting.
+            _factBuffer.Add(new(_nextFactId++, RunFactKind.ResourceCellBroken, resource, 1));
         }
 
         var spawned = _loot.Spawn(_miningWorld, broken, _appliedModifiers.FractureLens);
@@ -469,46 +444,33 @@ public sealed class ComposedRunOrchestrator
     private void HandleWorldEvents(IReadOnlyList<WorldRunEvent> events)
     {
         foreach (var worldEvent in events)
-        {
-            switch (worldEvent.Kind)
-            {
-                case WorldRunEventKind.HazardDamageRequested:
-                    if (Combat.Player != default)
-                        Combat.InflictDamage(Combat.Player, Combat.Player, Math.Max(1, worldEvent.Amount), projectile: false);
-                    break;
-                case WorldRunEventKind.EliteActivationRequested when !_eliteSpawnRequested:
-                    _eliteSpawnRequested = true;
-                    _eliteEntity = Combat.SpawnEnemy(
-                        new ContentId("ENM_GUNSHIP"),
-                        CellToWorld(Descriptor.EliteArena.Center),
-                        elite: true);
-                    NoteCheckpoint("elite_spawned");
-                    break;
-                case WorldRunEventKind.DataCoreDropRequested:
-                    var player = SafePlayerSnapshot();
-                    _loot.SpawnEliteDataCore(
-                        _miningWorld,
-                        new WorldPosition
-                        {
-                            X = (int)MathF.Round(player.Position.X),
-                            Y = (int)MathF.Round(player.Position.Y)
-                        });
-                    break;
-                case WorldRunEventKind.ObjectiveCompleted:
-                    NoteCheckpoint("objective_complete");
-                    break;
-                case WorldRunEventKind.ExtractionActivated:
-                    NoteCheckpoint("extraction_ready");
-                    break;
-                case WorldRunEventKind.RunSucceeded:
-                    NoteCheckpoint("run_succeeded");
-                    break;
-                case WorldRunEventKind.RunFailed:
-                    NoteCheckpoint("run_failed");
-                    break;
-            }
-        }
+            _worldEventHandlers.Dispatch(in worldEvent, this);
     }
+
+    EntityId IWorldRunEventHost.PlayerEntity => Combat.Player;
+
+    Vector2 IWorldRunEventHost.EliteArenaWorldCenter => CellToWorld(Descriptor.EliteArena.Center);
+
+    Vector2 IWorldRunEventHost.PlayerWorldPosition => SafePlayerSnapshot().Position;
+
+    void IWorldRunEventHost.InflictDamage(EntityId target, EntityId source, float amount, bool projectile) =>
+        Combat.InflictDamage(target, source, amount, projectile);
+
+    bool IWorldRunEventHost.TrySpawnEliteEnemy(ContentId enemyId, Vector2 worldPosition, out EntityId eliteEntity)
+    {
+        eliteEntity = default;
+        if (_eliteSpawnRequested)
+            return false;
+        _eliteSpawnRequested = true;
+        _eliteEntity = Combat.SpawnEnemy(enemyId, worldPosition, elite: true);
+        eliteEntity = _eliteEntity;
+        return true;
+    }
+
+    void IWorldRunEventHost.SpawnEliteDataCore(WorldPosition position) =>
+        _loot.SpawnEliteDataCore(_miningWorld, position);
+
+    void IWorldRunEventHost.NoteCheckpoint(string name) => NoteCheckpoint(name);
 
     private void ApplyUpgradeModifiersIfChanged()
     {
@@ -533,7 +495,7 @@ public sealed class ComposedRunOrchestrator
             NormalKills: _normalKills,
             EliteKills: _eliteKills,
             FerriteCollected: Math.Max(_ferriteCollected, WorldRun.HeldResources.Ferrite),
-            ResourceCellsBroken: _cellsBroken,
+            ResourceCellsBroken: WorldRun.ResourceCellsBroken,
             IonVeilExtractions: ion);
         MappedReward = RewardHandoff.ToProfileProposal(
             WorldRun.Reward,

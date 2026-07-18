@@ -1,38 +1,5 @@
 namespace ShipGame.Game;
 
-public enum UiControlState : byte
-{
-    Normal,
-    Focused,
-    Hovered,
-    Pressed,
-    Disabled
-}
-
-public readonly record struct UiRect(int X, int Y, int Width, int Height)
-{
-    public bool Contains(int x, int y) =>
-        x >= X && y >= Y && x < X + Width && y < Y + Height;
-}
-
-public sealed class UiControl
-{
-    public UiControl(string id, UiRect bounds, string label, bool enabled, Action activate)
-    {
-        Id = id ?? throw new ArgumentNullException(nameof(id));
-        Bounds = bounds;
-        Label = label ?? throw new ArgumentNullException(nameof(label));
-        Enabled = enabled;
-        Activate = activate ?? throw new ArgumentNullException(nameof(activate));
-    }
-
-    public string Id { get; }
-    public UiRect Bounds { get; }
-    public string Label { get; }
-    public bool Enabled { get; }
-    public Action Activate { get; }
-}
-
 /// <summary>
 /// Thin focus/hover/press shell for 640×360 virtual UI. Host rebuilds controls per screen;
 /// presentation reads states for chrome.
@@ -227,15 +194,3 @@ public sealed class UiShell
         return -1;
     }
 }
-
-public readonly record struct RunPresentationHints(
-    System.Numerics.Vector2 MoveIntent,
-    System.Numerics.Vector2 AimDirection,
-    System.Numerics.Vector2 MouseVirtual,
-    bool ShowCursor,
-    bool ShowAimReticle,
-    bool FlashesEnabled,
-    float MaxHull,
-    float MaxShield,
-    bool FireHeld,
-    bool MineHeld);

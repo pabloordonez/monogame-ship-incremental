@@ -3,26 +3,6 @@ using ShipGame.Ecs;
 
 namespace ShipGame.Simulation;
 
-public enum AppState
-{
-    Title,
-    Lobby,
-    Run,
-    Summary
-}
-
-public readonly record struct CommandFrame(
-    long TargetTick,
-    short MoveX = 0,
-    short MoveY = 0,
-    short AimX = 0,
-    short AimY = 0,
-    bool Confirm = false,
-    bool Return = false)
-{
-    public static CommandFrame Neutral(long tick) => new(tick);
-}
-
 public sealed class FoundationSimulation
 {
     public const int TickRate = 60;
@@ -141,33 +121,5 @@ public sealed class FoundationSimulation
     {
         public string Name => name;
         public void Update(World world, long tick) => update(world, tick);
-    }
-}
-
-public sealed class FixedStepDriver(FoundationSimulation simulation)
-{
-    public const double TickSeconds = 1d / FoundationSimulation.TickRate;
-    public const int MaxCatchUpTicks = 8;
-    private double _accumulator;
-
-    public double InterpolationAlpha => _accumulator / TickSeconds;
-    public double DroppedSeconds { get; private set; }
-
-    public int Advance(double elapsedSeconds)
-    {
-        _accumulator += Math.Clamp(elapsedSeconds, 0, 0.25);
-        var count = 0;
-        while (_accumulator >= TickSeconds && count < MaxCatchUpTicks)
-        {
-            simulation.Step();
-            _accumulator -= TickSeconds;
-            count++;
-        }
-        if (_accumulator >= TickSeconds)
-        {
-            DroppedSeconds += _accumulator - (_accumulator % TickSeconds);
-            _accumulator %= TickSeconds;
-        }
-        return count;
     }
 }

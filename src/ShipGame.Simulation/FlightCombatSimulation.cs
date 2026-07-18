@@ -19,6 +19,10 @@ public sealed class FlightCombatSimulation
 
     private readonly World _world = new();
     private readonly FlightCombatBehaviorRegistry _registry;
+    private readonly EnemyAiStrategyRegistry _enemyAiStrategies;
+    private readonly WeaponStrategyRegistry _weaponStrategies;
+    private readonly EnemyAiCombatActions _enemyAiCombat;
+    private readonly WeaponFireActions _weaponFireActions;
     private readonly RandomStreams _random;
     private readonly SystemScheduler _scheduler = new();
     private readonly FlightCommandFrame[] _commandSlots = new FlightCommandFrame[FlightCombatConstants.CommandSlotCount];
@@ -48,6 +52,10 @@ public sealed class FlightCombatSimulation
         FlightCombatBehaviorRegistry? registry = null)
     {
         _registry = registry ?? FlightCombatBehaviorRegistry.CreateMvp();
+        _enemyAiStrategies = EnemyAiStrategyRegistry.CreateMvp();
+        _weaponStrategies = WeaponStrategyRegistry.CreateMvp();
+        _enemyAiCombat = new EnemyAiCombatActions(SpawnHostileProjectile, SpawnMine);
+        _weaponFireActions = new WeaponFireActions(FindTargetInCone, QueueDamage, AddEvent, SpawnPlayerProjectiles);
         _random = new RandomStreams(seed);
         _eventView = _events.AsReadOnly();
         // Schedule is the exact ordered projection of Step(); Step only runs this registration.
@@ -492,50 +500,20 @@ public sealed class FlightCombatSimulation
             ref var weapon = ref _world.Get<WeaponState>(entity);
             var move = Vector2.Zero;
             var actions = FlightAction.None;
-
-            switch (brain.Behavior)
-            {
-                case EnemyBehavior.Interceptor:
-                    if (brain.StateTicks > 0)
-                    {
-                        move = -direction;
-                        brain = brain with { StateTicks = brain.StateTicks - 1 };
-                    }
-                    else
-                    {
-                        move = distance > definition.PreferredRange ? direction : Perpendicular(direction);
-                        if (weapon.CooldownTicks == 0)
-                        {
-                            brain = brain with { BurstShotsRemaining = 3, StateTicks = 60 };
-                            weapon = weapon with { CooldownTicks = definition.CadenceTicks };
-                        }
-                    }
-                    if (brain.BurstShotsRemaining > 0 && Tick % 9 == 0)
-                    {
-                        SpawnHostileProjectile(entity, direction, definition.Damage, 520);
-                        brain = brain with { BurstShotsRemaining = brain.BurstShotsRemaining - 1 };
-                    }
-                    break;
-                case EnemyBehavior.Gunship:
-                    move = distance > definition.PreferredRange + 20
-                        ? direction
-                        : distance < definition.PreferredRange - 20 ? -direction : Perpendicular(direction);
-                    if (weapon.CooldownTicks == 0)
-                    {
-                        SpawnHostileProjectile(entity, direction, EffectiveEnemyDamage(entity, definition.Damage), 420);
-                        weapon = weapon with { CooldownTicks = EffectiveEnemyCadence(entity, definition.CadenceTicks) };
-                    }
-                    break;
-                case EnemyBehavior.Sapper:
-                    move = distance > definition.PreferredRange ? direction : -direction;
-                    if (weapon.CooldownTicks == 0 && brain.ActiveMines < 2)
-                    {
-                        SpawnMine(entity, transform.Position, EffectiveEnemyDamage(entity, definition.Damage));
-                        brain = brain with { ActiveMines = brain.ActiveMines + 1 };
-                        weapon = weapon with { CooldownTicks = EffectiveEnemyCadence(entity, definition.CadenceTicks) };
-                    }
-                    break;
-            }
+            _enemyAiStrategies.Get(brain.Behavior).Update(
+                Tick,
+                entity,
+                definition,
+                transform.Position,
+                distance,
+                direction,
+                EffectiveEnemyDamage(entity, definition.Damage),
+                EffectiveEnemyCadence(entity, definition.CadenceTicks),
+                ref brain,
+                ref weapon,
+                ref move,
+                ref actions,
+                _enemyAiCombat);
             intent = new ControlIntent(move, direction, actions, intent.Actions);
         }
 
@@ -727,51 +705,15 @@ public sealed class FlightCombatSimulation
             ref var state = ref _world.Get<WeaponState>(entity);
             var definition = _registry.Weapon(_world.Get<WeaponMount>(entity).BehaviorId);
             var modifiers = _world.Get<TemporaryCombatModifiers>(entity);
-
-            if (definition.Behavior == WeaponBehavior.Beam)
-            {
-                if (!firing)
-                {
-                    var heat = MathF.Max(0, state.Heat - definition.CoolPerTick);
-                    state = state with { Heat = heat, HeatLocked = state.HeatLocked && heat > 0 };
-                    continue;
-                }
-                if (state.HeatLocked)
-                    continue;
-                var target = FindTargetInCone(entity, intent.Aim, definition.Range, 4);
-                if (target != default)
-                {
-                    QueueDamage(
-                        target,
-                        entity,
-                        definition.Damage * FlightCombatConstants.TickSeconds * modifiers.DamageMultiplier * modifiers.FireRateMultiplier,
-                        false);
-                    AddEvent(CombatEvent.Create(
-                        CombatEventKind.WeaponFired,
-                        Tick,
-                        entity,
-                        target,
-                        definition.Id));
-                }
-                var nextHeat = MathF.Min(180, state.Heat + definition.HeatPerTick);
-                state = state with { Heat = nextHeat, HeatLocked = nextHeat >= 180, Target = target };
-                continue;
-            }
-
-            if (!firing || state.CooldownTicks > 0)
-                continue;
-            var cadence = Math.Max(1, (int)MathF.Round(definition.CadenceTicks / modifiers.FireRateMultiplier));
-            if (definition.Behavior == WeaponBehavior.Pulse)
-            {
-                SpawnPlayerProjectiles(entity, intent.Aim, definition, modifiers, default);
-                state = state with { CooldownTicks = cadence };
-                continue;
-            }
-            var lockTarget = FindTargetInCone(entity, intent.Aim, definition.Range, definition.LockConeDegrees);
-            if (lockTarget == default)
-                continue;
-            SpawnPlayerProjectiles(entity, intent.Aim, definition, modifiers, lockTarget);
-            state = state with { CooldownTicks = cadence, Target = lockTarget };
+            _weaponStrategies.Get(definition.Behavior).Resolve(
+                Tick,
+                entity,
+                firing,
+                intent.Aim,
+                definition,
+                modifiers,
+                ref state,
+                _weaponFireActions);
         }
     }
 
@@ -857,14 +799,11 @@ public sealed class FlightCombatSimulation
         // Destruction is marked in stable damage order and physically removed next tick.
     }
 
-    private void SpawnPlayerProjectiles(
-        EntityId source,
-        Vector2 aim,
-        WeaponDefinition definition,
-        TemporaryCombatModifiers modifiers,
-        EntityId target)
+    private void SpawnPlayerProjectiles(PlayerProjectileSpawnRequest request)
     {
-        var direction = NormalizeOr(aim, Vector2.UnitX);
+        var direction = NormalizeOr(request.Aim, Vector2.UnitX);
+        var definition = request.Definition;
+        var modifiers = request.Modifiers;
         var count = definition.BurstCount + modifiers.ExtraProjectiles;
         for (var index = 0; index < count; index++)
         {
@@ -872,22 +811,22 @@ public sealed class FlightCombatSimulation
             var shotDirection = Rotate(direction, angle);
             var multiplier = index < definition.BurstCount ? 1 : modifiers.ExtraProjectileDamageMultiplier;
             SpawnProjectile(
-                source,
+                request.Source,
                 shotDirection,
                 definition.Damage * modifiers.DamageMultiplier * multiplier,
                 definition.ProjectileSpeed,
                 definition.Range,
                 Faction.Player,
                 modifiers.PierceCount,
-                definition.Behavior == WeaponBehavior.Seeker,
-                target,
-                definition.TurnDegreesPerSecond);
+                request.Homing,
+                request.Target,
+                request.TurnDegreesPerSecond);
         }
         AddEvent(CombatEvent.Create(
             CombatEventKind.WeaponFired,
             Tick,
-            source,
-            target,
+            request.Source,
+            request.Target,
             definition.Id,
             amount: count));
     }
@@ -1223,9 +1162,9 @@ public sealed class FlightCombatSimulation
     }
 
     private static Vector2 NormalizeOr(Vector2 value, Vector2 fallback) =>
-        value.LengthSquared() > 0.0001f ? Vector2.Normalize(value) : fallback;
+        FlightCombatMath.NormalizeOr(value, fallback);
 
-    private static Vector2 Perpendicular(Vector2 value) => new(-value.Y, value.X);
+    private static Vector2 Perpendicular(Vector2 value) => FlightCombatMath.Perpendicular(value);
     private static Vector2 Rotate(Vector2 value, float angle) =>
         new(value.X * MathF.Cos(angle) - value.Y * MathF.Sin(angle),
             value.X * MathF.Sin(angle) + value.Y * MathF.Cos(angle));
