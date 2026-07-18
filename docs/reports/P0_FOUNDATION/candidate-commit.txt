@@ -15,3 +15,14 @@ Implementation remediation SHA: 5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46
 Remediation implementation range: 2bce17f86019b3da471c9259af44db3638032b95..5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46
 
 The original candidate SHA above remains unchanged. The remediation SHA is the code/test correction submitted for independent recheck; it does not self-accept the package.
+
+P0_FOUNDATION final acceptance recheck remediation
+
+Final acceptance recheck verdict: REMEDIATE
+Rechecked evidence baseline SHA: 9575c1adb295ca7616dbcc0128e50bc0bd686c32
+Second remediation implementation SHA: 3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a
+Second remediation implementation range: 9575c1adb295ca7616dbcc0128e50bc0bd686c32..3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a
+Second remediation evidence SHA: 82432cf66ed4f18da030f38477a065e97b182b9d
+Second remediation evidence range: 3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a..82432cf66ed4f18da030f38477a065e97b182b9d
+
+This metadata update follows the evidence commit only so its immutable SHA and exact range can be recorded. The package remains `READY_FOR_RECHECK`, not accepted.
