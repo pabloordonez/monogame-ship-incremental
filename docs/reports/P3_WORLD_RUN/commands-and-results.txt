@@ -1,18 +1,23 @@
-P3_WORLD_RUN COMMANDS AND OBSERVED RESULTS
+P3_WORLD_RUN COMMANDS AND OBSERVED RESULTS (REMEDIATION)
 Environment: Windows 10.0.26200, bash host, Windows PowerShell, .NET SDK 9.0.x
 Date: 2026-07-18
 Branch: phase2-p3-world-run
 Worktree: C:\Repositories\github\ship-game-p3
 Pinned base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+Prior candidate (pre-remediation): 6d0f131915263f6f183788e6107617e536519788
 
 FOCUSED P3 SUITE
 Command: dotnet test tests/ShipGame.Simulation.Tests/ShipGame.Simulation.Tests.csproj --filter "FullyQualifiedName~P3WorldRunTests" --configuration Release --verbosity normal
 Exit: 0
-Observed: Passed 17 / 17.
-  - TenThousandSeedsPerEnvironmentSatisfyGenerationInvariants(ENV_CINDER_BELT): 10,000 seeds, ~933 ms
-  - TenThousandSeedsPerEnvironmentSatisfyGenerationInvariants(ENV_ION_VEIL): 10,000 seeds, ~627 ms
-  - Total generation sweep: 20,000 seeds for generation version 1
-  - Also passed: fallback determinism, RNG isolation, mining conservation, hazards, four offers, four upgrades in one run, threat transitions, collapse warning, objective/elite/extraction/reward order, pause/extraction reset, terminal precedence, failure retention, same-seed determinism, bounds
+Observed: Passed 19 / 19.
+  - TenThousandSeedsPerEnvironmentSatisfyWorldRunInvariants(ENV_CINDER_BELT): 10,000 seeds, ~1–2 s
+  - TenThousandSeedsPerEnvironmentSatisfyWorldRunInvariants(ENV_ION_VEIL): 10,000 seeds, ~1–2 s
+  - Combined world-run invariant sweep: 20,000 / 20,000 for GenerationVersion=1
+  - Per seed: validator pass, Ferrite floor (OBJ_FIELD_PROOF), elite/extraction reachability, lightweight headless reward resolution (injected RunFacts; not full combat)
+  - HardGenerateFallbackFingerprintIsDeterministic: Attempt==4, FallbackUsed, fingerprint equality
+  - SoftRetryFallbackFingerprintIsDeterministic: Attempt==1 soft retry
+  - ReleasingInteractInZoneResetsExtractionAndRejectsDiscontinuousHold: continuous hold regression
+  - Also passed: RNG isolation, mining conservation, hazards, four offers, threat, collapse, terminal precedence, failure retention, same-seed determinism, bounds
 
 FULL PACKAGE / SOLUTION GATE
 Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
@@ -24,21 +29,13 @@ Observed: content builder 2 succeeded / 0 failed; build 0 Warning(s) / 0 Error(s
   ShipGame.Content.Tests: 8 passed
   ShipGame.Game.Smoke.Tests: 2 passed
   ShipGame.Architecture.Tests: 8 passed
-  ShipGame.Simulation.Tests: 29 passed
-  Total: 78 passed, 0 failed
+  ShipGame.Simulation.Tests: 31 passed
+  Total: 80 passed, 0 failed
 
-HEADLESS SMOKE
-Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -Smoke
-Exit: 0
-Observed: content rebuild + Release build succeeded; smoke process exited 0.
-
-GRAPHICAL WINDOW SMOKE
-Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -WindowSmoke
-Exit: 0
-Observed: DESKTOPVK_CONTENT_READY; DESKTOPVK_WALKING_SKELETON_COMPLETE; Vulkan/SDL surface path initialized (NVIDIA GeForce RTX 3090).
-
-GENERATION SWEEP COUNTS (authoritative from executed Theory)
-  ENV_CINDER_BELT: 10000 / 10000 pass
+WORLD-RUN SWEEP COUNTS (authoritative from executed Theory)
+  ENV_CINDER_BELT: 10000 / 10000 pass (validator + Ferrite floor + elite/extraction reachability + lightweight reward)
   ENV_ION_VEIL: 10000 / 10000 pass
   Combined: 20000 / 20000 pass
   GenerationVersion: 1
+  Honesty: lightweight headless resolution injects combat/mining facts; does not simulate full combat AI.
+  Natural hard GenerateFallback (Attempt>=4) historically 0 in 20k; forced path covered by HardGenerateFallbackFingerprintIsDeterministic.

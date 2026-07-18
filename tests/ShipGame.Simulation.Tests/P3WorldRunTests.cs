@@ -5,43 +5,82 @@ namespace ShipGame.Simulation.Tests;
 
 public class P3WorldRunTests
 {
+    /// <summary>
+    /// Authoritative 10k×2 package gate. Per seed this asserts validator pass, OBJ_FIELD_PROOF Ferrite
+    /// floor, elite/extraction reachability (via validator flood-fill), and reward-bound sanity via a
+    /// lightweight headless resolution that injects combat facts (not full combat AI/spawning).
+    /// Natural hard GenerateFallback is tracked but may be zero; that path is proven by
+    /// <see cref="HardGenerateFallbackFingerprintIsDeterministic"/>.
+    /// </summary>
     [Theory]
     [InlineData("ENV_CINDER_BELT")]
     [InlineData("ENV_ION_VEIL")]
-    public void TenThousandSeedsPerEnvironmentSatisfyGenerationInvariants(string environment)
+    public void TenThousandSeedsPerEnvironmentSatisfyWorldRunInvariants(string environment)
     {
         var generator = new EncounterGenerator();
         var environmentId = new ContentId(environment);
         var validated = 0;
-        var fallbackCount = 0;
+        var softOrHardFallbackCount = 0;
+        var hardFallbackCount = 0;
         for (ulong seed = 0; seed < 10_000; seed++)
         {
             var result = generator.Generate(GenerationIdentity.Current(environmentId, seed));
             var descriptor = result.Descriptor;
             if (result.FallbackUsed)
-                fallbackCount++;
+                softOrHardFallbackCount++;
+            if (descriptor.Attempt >= 4)
+                hardFallbackCount++;
+
             var validation = EncounterValidator.Validate(descriptor);
             Assert.True(validation.IsValid, $"seed {seed}: {string.Join("; ", validation.Issues)}");
             Assert.Equal(EncounterGenerator.CurrentGenerationVersion, descriptor.Identity.GenerationVersion);
             Assert.Equal(3, descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Objective));
             Assert.InRange(descriptor.AsteroidCells.Count, 15, FieldDescriptor.MaximumAsteroidCells);
             Assert.InRange(descriptor.Hazards.Count, 1, FieldDescriptor.MaximumHazards);
-            Assert.True(descriptor.AsteroidCells.Count(cell => cell.Kind == AsteroidCellKind.Ferrite) * 2 >= 30);
+
+            var ferriteCells = descriptor.AsteroidCells.Count(cell => cell.Kind == AsteroidCellKind.Ferrite);
+            // Standard Ferrite yield 2–4; objective needs 30 collected Ferrite.
+            var minFerriteYield = ferriteCells * 2;
+            var maxFerriteYield = ferriteCells * 4;
+            Assert.True(minFerriteYield >= 30, $"seed {seed}: Ferrite floor {minFerriteYield} < 30");
             Assert.Equal(1, descriptor.Sectors.Count(sector => sector.Kind == SectorKind.EliteArena));
             Assert.Equal(1, descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Extraction));
             Assert.Contains(descriptor.Sectors, sector => sector.Kind == SectorKind.Spawn);
+            Assert.Contains(descriptor.Sectors, sector => sector.Kind == SectorKind.EliteArena);
+            Assert.Contains(descriptor.Sectors, sector => sector.Kind == SectorKind.Extraction);
+
             if (environmentId == WorldRunIds.CinderBelt)
                 Assert.All(descriptor.Hazards, hazard => Assert.Equal(25, hazard.Damage));
             else
                 Assert.All(descriptor.Hazards, hazard => Assert.Equal(30, hazard.Damage));
+
+            // Lightweight headless resolution: inject RunFacts for combat/mining outcomes; no combat sim.
+            var reward = ResolveSeedHeadlessLightweight(descriptor, seed);
+            Assert.Equal(RunOutcome.Success, reward.Outcome);
+            Assert.Equal(reward.Held, reward.Banked);
+            Assert.Equal(0, reward.Lost.Ferrite);
+            Assert.Equal(0, reward.Lost.Lumen);
+            Assert.Equal(0, reward.Lost.DataCores);
+            Assert.True(reward.Banked.Ferrite >= 30, $"seed {seed}: banked Ferrite {reward.Banked.Ferrite}");
+            Assert.InRange(reward.Banked.Ferrite, 30, maxFerriteYield);
+            Assert.Equal(1, reward.Banked.DataCores);
+            Assert.InRange(reward.Banked.Lumen, 0, descriptor.AsteroidCells.Count(cell => cell.Kind == AsteroidCellKind.Lumen));
+            Assert.NotEqual(0UL, reward.ProposalId);
+
             validated++;
         }
+
         Assert.Equal(10_000, validated);
-        Assert.True(fallbackCount >= 0);
+        // Natural soft/hard fallback counts are recorded for evidence only. Soft retry and hard
+        // GenerateFallback (Attempt == 4) fingerprint determinism are proven by dedicated tests;
+        // natural 10k×2 historically yields hardFallbackCount == 0 for generation version 1.
+        Assert.True(
+            softOrHardFallbackCount <= 10_000 && hardFallbackCount <= softOrHardFallbackCount,
+            $"fallback telemetry out of range: softOrHard={softOrHardFallbackCount}, hard={hardFallbackCount}");
     }
 
     [Fact]
-    public void FallbackAndDescriptorsAreDeterministic()
+    public void SoftRetryFallbackFingerprintIsDeterministic()
     {
         var generator = new EncounterGenerator();
         var identity = GenerationIdentity.Current(WorldRunIds.CinderBelt, 982_451);
@@ -51,7 +90,33 @@ public class P3WorldRunTests
 
         Assert.True(first.FallbackUsed);
         Assert.Equal(1, first.Descriptor.Attempt);
+        Assert.True(first.Descriptor.Attempt < 4);
         Assert.Equal(Fingerprint(first.Descriptor), Fingerprint(second.Descriptor));
+    }
+
+    [Fact]
+    public void HardGenerateFallbackFingerprintIsDeterministic()
+    {
+        var generator = new EncounterGenerator();
+        var identity = GenerationIdentity.Current(WorldRunIds.CinderBelt, 982_451);
+
+        var first = generator.Generate(identity, invalidateAllAttemptsForTest: true);
+        var second = generator.Generate(identity, invalidateAllAttemptsForTest: true);
+
+        Assert.True(first.FallbackUsed);
+        Assert.True(second.FallbackUsed);
+        Assert.Equal(4, first.Descriptor.Attempt);
+        Assert.Equal(4, second.Descriptor.Attempt);
+        Assert.True(EncounterValidator.Validate(first.Descriptor).IsValid);
+        Assert.Equal(Fingerprint(first.Descriptor), Fingerprint(second.Descriptor));
+
+        var ion = generator.Generate(
+            GenerationIdentity.Current(WorldRunIds.IonVeil, 982_451),
+            invalidateAllAttemptsForTest: true);
+        Assert.True(ion.FallbackUsed);
+        Assert.Equal(4, ion.Descriptor.Attempt);
+        Assert.True(EncounterValidator.Validate(ion.Descriptor).IsValid);
+        Assert.NotEqual(Fingerprint(first.Descriptor), Fingerprint(ion.Descriptor));
     }
 
     [Fact]
@@ -307,6 +372,32 @@ public class P3WorldRunTests
     }
 
     [Fact]
+    public void ReleasingInteractInZoneResetsExtractionAndRejectsDiscontinuousHold()
+    {
+        var run = ReadyForExtraction(89);
+        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks / 2; tick++)
+            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+        Assert.Equal(WorldRunSimulation.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
+
+        // Still in zone but interact released — must reset (continuous hold required).
+        var events = run.Step(new(PlayerInExtractionZone: true, InteractHeld: false));
+        Assert.Equal(0, run.ExtractionProgressTicks);
+        Assert.Contains(events, item => item.Kind == WorldRunEventKind.ExtractionReset);
+
+        // Discontinuous 180+180 must NOT succeed: only continuous hold completes extraction.
+        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks / 2; tick++)
+            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+        Assert.Equal(WorldRunSimulation.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
+        Assert.Equal(RunPhase.Extraction, run.Phase);
+        Assert.Null(run.Reward);
+
+        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks / 2; tick++)
+            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+        Assert.Equal(RunPhase.Succeeded, run.Phase);
+        Assert.Equal(RunOutcome.Success, run.Reward!.Outcome);
+    }
+
+    [Fact]
     public void TerminalPriorityIsDeathThenExtractionThenDeadline()
     {
         var deathRace = ReadyForExtraction(101);
@@ -399,6 +490,32 @@ public class P3WorldRunTests
                 ContractVersions.Content,
                 ContractVersions.Generation,
                 ContractVersions.Rng)));
+    }
+
+    /// <summary>
+    /// Lightweight headless resolution: injects objective/elite facts and continuous extraction hold.
+    /// Does not simulate combat AI, weapon contacts, or enemy pathing.
+    /// </summary>
+    private static RewardProposal ResolveSeedHeadlessLightweight(FieldDescriptor descriptor, ulong seed)
+    {
+        var run = new WorldRunSimulation(descriptor, new RandomStreams(seed));
+        var facts = new List<RunFact>
+        {
+            new(1, RunFactKind.ResourceCollected, WorldRunIds.Ferrite, 30)
+        };
+        for (ulong index = 0; index < 8; index++)
+            facts.Add(new(10 + index, RunFactKind.NormalEnemyDestroyed));
+        run.Step(new(Facts: facts));
+        while (run.Upgrades.PendingOffer is not null)
+            run.Step(new(UpgradeChoiceIndex: 0));
+        run.Step(new(Facts: [new(100, RunFactKind.EliteDestroyed)]));
+        while (run.Upgrades.PendingOffer is not null)
+            run.Step(new(UpgradeChoiceIndex: 0));
+        run.Step(new(Facts: [new(101, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1)]));
+        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks; tick++)
+            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+        Assert.Equal(RunPhase.Succeeded, run.Phase);
+        return run.Reward!;
     }
 
     private static WorldRunSimulation CreateRun(ulong seed)

@@ -330,12 +330,13 @@ public sealed class WorldRunSimulation
     {
         if (Phase != RunPhase.Extraction)
             return;
+        // Continuous hold: zone + interact. Leaving the zone OR releasing interact resets.
         if (input.PlayerInExtractionZone && input.InteractHeld)
         {
             ExtractionProgressTicks = Math.Min(ExtractionHoldTicks, ExtractionProgressTicks + 1);
             Emit(events, WorldRunEventKind.ExtractionProgressed, amount: ExtractionProgressTicks);
         }
-        else if (!input.PlayerInExtractionZone && ExtractionProgressTicks != 0)
+        else if (ExtractionProgressTicks != 0)
         {
             ExtractionProgressTicks = 0;
             Emit(events, WorldRunEventKind.ExtractionReset);

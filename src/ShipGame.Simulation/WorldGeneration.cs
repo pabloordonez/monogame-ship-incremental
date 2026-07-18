@@ -89,13 +89,22 @@ public sealed class EncounterGenerator
     public const int CurrentGenerationVersion = 1;
     private const int MaximumAttempts = 4;
 
-    public GenerationResult Generate(GenerationIdentity identity, bool invalidatePrimaryForTest = false)
+    /// <param name="invalidatePrimaryForTest">
+    /// Forces attempt 0 invalid so soft retry (Attempt 1–3) can be exercised in tests.
+    /// </param>
+    /// <param name="invalidateAllAttemptsForTest">
+    /// Forces attempts 0–3 invalid so the hard GenerateFallback path (Attempt == 4) is exercised in tests.
+    /// </param>
+    public GenerationResult Generate(
+        GenerationIdentity identity,
+        bool invalidatePrimaryForTest = false,
+        bool invalidateAllAttemptsForTest = false)
     {
         ValidateIdentity(identity);
         for (var attempt = 0; attempt < MaximumAttempts; attempt++)
         {
             var descriptor = GenerateAttempt(identity, attempt);
-            if (attempt == 0 && invalidatePrimaryForTest)
+            if (invalidateAllAttemptsForTest || (attempt == 0 && invalidatePrimaryForTest))
                 descriptor = descriptor with { Corridors = Array.Empty<CorridorDescriptor>() };
             if (EncounterValidator.Validate(descriptor).IsValid)
                 return new(descriptor, attempt > 0);
@@ -199,11 +208,12 @@ public sealed class EncounterGenerator
             new CorridorDescriptor(new(54, 24), new(59, 24)),
             new CorridorDescriptor(new(59, 24), new(59, 6))
         };
-        var asteroids = Enumerable.Range(0, 20)
+        // Validator requires Ferrite cells * 2 >= 30 (OBJ_FIELD_PROOF floor); keep ≥15 Ferrite cells.
+        var asteroids = Enumerable.Range(0, 24)
             .Select(index => new AsteroidCellDescriptor(
                 index,
                 new GridPoint(10 + index * 2, index % 2 == 0 ? 15 : 33),
-                index < 12 ? AsteroidCellKind.Ferrite : AsteroidCellKind.Ordinary,
+                index < 16 ? AsteroidCellKind.Ferrite : AsteroidCellKind.Ordinary,
                 45,
                 identity.EnvironmentId == WorldRunIds.CinderBelt && index % 4 == 0))
             .ToArray();
