@@ -157,3 +157,11 @@ Focused adversarial probes (outside suite):
 ## Verdict
 
 **REMEDIATE**
+
+---
+
+## Final acceptance recheck
+
+Independent recheck verdict: **ACCEPT**
+Accepted implementation/remediation SHA: `9f30f7e6bea9fc3d17f1581b09d99e569bccb485`
+Full recheck body: `recheck-report.md`.
