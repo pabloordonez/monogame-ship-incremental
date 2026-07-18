@@ -39,8 +39,12 @@ public class EcsTests
         static EntityId[] Build(bool reverse)
         {
             var world = new World();
-            var entities = Enumerable.Range(0, 4).Select(_ => world.Create()).ToArray();
-            foreach (var entity in reverse ? entities.Reverse() : entities)
+            var entities = Enumerable.Range(0, 4).Select(_ => world.Create()).ToArray() ?? [];
+
+            if (reverse) 
+                entities.Reverse();
+
+            foreach (var entity in entities)
             {
                 world.Set(entity, new Position(entity.Index));
                 if (entity.Index % 2 == 0)
