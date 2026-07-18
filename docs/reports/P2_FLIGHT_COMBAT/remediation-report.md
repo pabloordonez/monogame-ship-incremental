@@ -8,6 +8,7 @@
 - Branch: `phase2-p2-flight-combat`
 - Pinned base: `0b12902972d5a98ff785c78a9e0c10728b2a2df0`
 - Original candidate: `724079562a565e9585096d0a926d931320df3a50`
+- Remediation commit: `6c5ffc0be6103bc2d806217f9c4adc820db0f027`
 - Reviewer verdict: `REMEDIATE` (`docs/reports/P2_FLIGHT_COMBAT/reviewer-report.md`)
 - Evidence HEAD at review: `e69bb8a0c3fafee287c29701146d3f005904d3d2`
 
