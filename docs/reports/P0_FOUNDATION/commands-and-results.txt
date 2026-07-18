@@ -1,0 +1,115 @@
+P0_FOUNDATION COMMANDS AND OBSERVED RESULTS
+Environment: Windows 10.0.26200, bash host, Windows PowerShell 5.1, .NET SDK 9.0.316
+Date: 2026-07-18
+
+BASELINE
+Command: git status --short --branch && git rev-parse HEAD && git branch --show-current
+Exit: 0
+Observed: branch p0-foundation; clean tree; HEAD a443f89c920e37b2d46385a1d18b2e34efe4892f.
+
+SDK/PACKAGE DISCOVERY
+Command: dotnet --info && dotnet nuget list source
+Exit: 0
+Observed: SDKs 9.0.119, 9.0.316, 10.0.302; nuget.org enabled.
+
+Command: curl -fsSL https://api.nuget.org/v3-flatcontainer/<package>/index.json
+Packages queried: monogame.framework.native, monogame.runtime.windows.vulkan, monogame.framework.content.pipeline
+Exit: 0 for each relevant package query (the combined probe ended 22 only for the nonexistent monogame.framework.content.pipeline.builder package name).
+Observed: stable 3.8.5 exists for all three required packages; Builder APIs are in MonoGame.Framework.Content.Pipeline.
+
+Command: dotnet new install MonoGame.Templates.CSharp::3.8.5 && dotnet new list monogame
+Exit: 0
+Observed: official 3.8.5 templates installed; mgdesktopvk and new console-style mgcb templates listed.
+
+Command: dotnet new mgdesktopvk -n VerifyGame -o C:/Users/PC/AppData/Local/Temp/ship-game-mgverify/VerifyGame
+Exit: 0
+Observed: template restored; csproj uses net9.0, DesktopVK, Framework.Native 3.8.5, and Windows.Vulkan 3.8.5.
+
+Command: dotnet new mgcb -n VerifyContent -o C:/Users/PC/AppData/Local/Temp/ship-game-mgverify/VerifyContent
+Exit: 0
+Observed: template restored; csproj uses Content.Pipeline 3.8.5 and Framework.Native 3.8.5 PrivateAssets=All; Builder.cs uses ContentBuilderParams and IncludeCopy<WildcardRule>.
+
+CONTENT BUILDER IMPLEMENTATION ITERATIONS
+Command: dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release -- --rebuild
+Initial exit: 127
+Observed: official Pipeline assembly required MonoGame.Framework.Native at execution; corrected by adding the exact official package with PrivateAssets=All.
+
+Same command, second initial exit: 127
+Observed: repository-root traversal was one directory short; corrected by locating ShipGame.sln.
+
+Same command after correction, exit: 0
+Observed:
+[I] Starting Content Builder
+[I] content/source/data/asset-manifest.json: content/generated/DesktopVK/Content/data/asset-manifest.json
+[I] content/source/data/title-placeholder.json: content/generated/DesktopVK/Content/data/title-placeholder.json
+[I] Content Builder Finished
+[I]   2 succeeded, 0 failed
+
+Command: dotnet clean tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release && dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release -- --rebuild
+Exit: 0
+Observed: clean completed with 0 warnings/0 errors; content 2 succeeded/0 failed. UseRidGraph=true resolves the official pipeline's old Libuv RID graph warning without suppressing diagnostics.
+
+Command: dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release
+Exit: 0
+Observed: incremental content build completed, 2 succeeded/0 failed, with no rebuild/deletion output.
+
+RESTORE/BUILD/TEST
+Command attempted: pwsh -NoProfile -File scripts/test.ps1
+Exit: 127
+Observed: pwsh executable is not installed in this local shell environment. This was an environment command-name issue, not a repository test failure.
+
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
+Final exit: 0
+Observed:
+- dotnet restore ShipGame.sln: all projects up to date.
+- released Content Builder rebuild: 2 succeeded, 0 failed.
+- dotnet build ShipGame.sln --configuration Release --no-restore: 0 warnings, 0 errors.
+- dotnet test ShipGame.sln --configuration Release --no-build --no-restore:
+  Architecture 4/4; Content 4/4; ECS 5/5; Game Smoke 1/1; Persistence 5/5; Simulation 4/4; Telemetry 3/3.
+  Total: 26 passed, 0 failed, 0 skipped.
+
+BOUNDED HEADLESS LAUNCH
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -Smoke
+Exit: 0
+Observed: restore/content/build succeeded with 0 build warnings/errors; process completed the asset load, title/lobby/run/summary/lobby flow, save, and continue assertions.
+
+BOUNDED DESKTOPVK GRAPHICAL LAUNCH
+Command: dotnet build ShipGame.sln --configuration Release --no-restore && dotnet run --project src/ShipGame.Game/ShipGame.Game.csproj --configuration Release --no-build -- --window-smoke
+Exit: 0
+Observed:
+- build: 0 warnings, 0 errors.
+- "Initializing volk."
+- SDL required VK_KHR_surface and VK_KHR_win32_surface.
+- "DESKTOPVK_CONTENT_READY"
+- "DESKTOPVK_WALKING_SKELETON_COMPLETE"
+- Vulkan instance version 1.4.303.
+- Selected GPU: NVIDIA GeForce RTX 3090.
+- "Swapchain out of date. Recreating swapchain..."
+The bounded host initialized the DesktopVK graphics path and completed the walking skeleton before clean exit.
+
+LEGACY PIPELINE SCAN
+Command: rg -n "MonoGame\.Content\.Builder\.Task|MonoGameContentReference|\.mgcb" --glob "*.csproj" --glob "*.props" --glob "*.targets" --glob "*.cs" --glob "*.yml" .; test $? -eq 1
+Exit: 0
+Observed: no matches.
+
+PACKAGE RESOLUTION
+Command: dotnet list ShipGame.sln package --include-transitive
+Exit: 0
+Observed: Game resolved Framework.Native 3.8.5 and Runtime.Windows.Vulkan 3.8.5; ContentBuilder resolved Content.Pipeline 3.8.5 and Framework.Native 3.8.5.
+
+Command: dotnet list ShipGame.sln package --vulnerable --include-transitive
+Exit: 0
+Observed: no vulnerable packages in runtime/test projects. Official Content.Pipeline transitive metadata reported high advisories for Microsoft.NETCore.App 1.0.5, Microsoft.NETCore.Jit 1.0.7, System.Net.Http 4.1.2, and X509Certificates 4.1.0. Recorded as a tooling risk in implementer-report.md.
+
+STATIC CHECKS
+Command: git diff --check
+Exit: 0
+Observed: no whitespace errors.
+
+IDE diagnostics: ReadLints on src/, tools/, tests/
+Observed: no linter errors.
+
+CANDIDATE COMMIT
+Command: git commit -m "Implement P0 foundation walking skeleton" && git rev-parse HEAD
+Exit: 0
+Observed: 38f2db9b429533653883a3d031299359b5d9fe7e.

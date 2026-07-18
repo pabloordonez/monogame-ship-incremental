@@ -1,0 +1,8 @@
+P0_FOUNDATION candidate implementation
+
+Pinned base SHA: a443f89c920e37b2d46385a1d18b2e34efe4892f
+Candidate implementation SHA: 38f2db9b429533653883a3d031299359b5d9fe7e
+Branch: p0-foundation
+Review diff range: a443f89c920e37b2d46385a1d18b2e34efe4892f..38f2db9b429533653883a3d031299359b5d9fe7e
+
+The candidate implementation commit is immutable for review. Evidence is committed separately and is not part of the review implementation diff.
