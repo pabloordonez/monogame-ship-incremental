@@ -9,7 +9,8 @@
 - Branch: `phase2-p4-meta-ui`
 - Reviewer candidate: `61e1c80e43fb5964ba03dee736f7a38de8ef76ae`
 - Reviewer report: `5324dffb96bbc6622a4072bd76a54faa77570026`
-- Remediation commit: `b398b26f23dd3dfdf24a80ceeea2dca6c2517242`
+- Remediation code commit: `b398b26f23dd3dfdf24a80ceeea2dca6c2517242`
+- READY_FOR_RECHECK tip: `252660a7c5d2b24028697ffcea9d3f082a27318c`
 
 ## Major fixes
 
