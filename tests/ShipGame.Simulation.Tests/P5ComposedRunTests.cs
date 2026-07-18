@@ -101,6 +101,94 @@ public sealed class P5ComposedRunTests
         Assert.Equal(a.TransactionId, b.TransactionId);
     }
 
+    [Fact]
+    public void LiveMineAction_BreaksResourceCellWithoutHarnessFacts()
+    {
+        var profile = ProfileAggregate.CreateNew(88);
+        profile.BeginRun("TX_BEGIN_MINE");
+        var run = new ComposedRunOrchestrator(
+            WorldRunIds.CinderBelt,
+            profile.Snapshot.ProfileSeed,
+            profile.Snapshot.RunIndex,
+            profile.ResolveLoadout(),
+            profile.DeriveStatistics(),
+            recoveryProtocols: false,
+            enableThreatDirector: false);
+        var playerStart = run.Combat.Snapshot(run.Combat.Player).Position;
+        var target = run.Asteroids
+            .Where(a => a.Kind == AsteroidCellKind.Ferrite && !a.Broken)
+            .OrderBy(a => Dist2(playerStart, a.X, a.Y))
+            .First();
+
+        for (var i = 0; i < 2_400; i++)
+        {
+            var player = run.Combat.Snapshot(run.Combat.Player).Position;
+            var delta = new Vector2(target.X - player.X, target.Y - player.Y);
+            if (delta.Length() <= ComposedRunOrchestrator.MiningRangeWorldUnits * 0.8f)
+                break;
+            var dir = Vector2.Normalize(delta);
+            run.Step(new FlightCommandFrame(
+                run.Combat.Tick,
+                FlightCommandFrame.Quantize(dir.X),
+                FlightCommandFrame.Quantize(dir.Y),
+                FlightCommandFrame.Quantize(dir.X),
+                FlightCommandFrame.Quantize(dir.Y),
+                FlightAction.None));
+            Assert.NotEqual(ComposedRunStatus.Terminal, run.Status);
+        }
+
+        var brokenBefore = run.Asteroids.Count(a => a.Broken);
+        for (var i = 0; i < 1_200; i++)
+        {
+            var player = run.Combat.Snapshot(run.Combat.Player).Position;
+            var delta = new Vector2(target.X - player.X, target.Y - player.Y);
+            var dir = delta.LengthSquared() < 0.001f ? Vector2.UnitX : Vector2.Normalize(delta);
+            run.Step(new FlightCommandFrame(
+                run.Combat.Tick,
+                FlightCommandFrame.Quantize(dir.X * 0.2f),
+                FlightCommandFrame.Quantize(dir.Y * 0.2f),
+                FlightCommandFrame.Quantize(dir.X),
+                FlightCommandFrame.Quantize(dir.Y),
+                FlightAction.Mine));
+            if (run.Asteroids.Count(a => a.Broken) > brokenBefore || run.Pickups.Any() || run.Hud.FerriteHeld > 0)
+                break;
+        }
+
+        Assert.True(
+            run.Asteroids.Count(a => a.Broken) > brokenBefore ||
+            run.Pickups.Any() ||
+            run.Hud.FerriteHeld > 0,
+            "Live Mine action should damage/break a resource cell or spawn/collect loot.");
+    }
+
+    private static float Dist2(Vector2 origin, int x, int y)
+    {
+        var dx = origin.X - x;
+        var dy = origin.Y - y;
+        return dx * dx + dy * dy;
+    }
+
+    [Fact]
+    public void ReliabilityProbe_TenHarnessExtracts_NoDuplicateRewardCorruption()
+    {
+        for (var i = 0; i < 10; i++)
+        {
+            var profile = ProfileAggregate.CreateNew(1000UL + (ulong)i);
+            Assert.Equal(ProfileMutationStatus.Applied, profile.BeginRun($"TX_BEGIN_REL_{i}").Status);
+            var run = new ComposedRunOrchestrator(
+                WorldRunIds.CinderBelt,
+                profile.Snapshot.ProfileSeed,
+                profile.Snapshot.RunIndex,
+                profile.ResolveLoadout(),
+                profile.DeriveStatistics(),
+                recoveryProtocols: false);
+            var reward = run.CompleteViaHarness(succeed: true);
+            Assert.Equal(ProfileMutationStatus.Applied, profile.CommitAcceptedReward(reward).Status);
+            Assert.Equal(ProfileMutationStatus.Duplicate, profile.CommitAcceptedReward(reward).Status);
+            Assert.Equal(1, profile.Snapshot.Counters.Extractions);
+        }
+    }
+
     private static ComposedRunOrchestrator CreateRun(ulong seed)
     {
         var profile = ProfileAggregate.CreateNew(seed);

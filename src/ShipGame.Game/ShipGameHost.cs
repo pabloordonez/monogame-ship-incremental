@@ -83,7 +83,9 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             steps++;
         }
 
-        if (_windowSmoke && _presentation?.DrewSpritesThisFrame == true)
+        if (_windowSmoke &&
+            _presentation?.DrewAtlasRegionThisFrame == true &&
+            _presentation.TexturesLoaded > 0)
             _windowSmokeContentVisible = true;
 
         if (_windowSmoke &&
@@ -115,7 +117,9 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             GraphicsDevice.Viewport.Width,
             GraphicsDevice.Viewport.Height);
         Window.Title = $"{_title} — {_session.Screen}";
-        if (_windowSmoke && _presentation.DrewSpritesThisFrame)
+        if (_windowSmoke &&
+            _presentation.DrewAtlasRegionThisFrame &&
+            _presentation.TexturesLoaded > 0)
             _windowSmokeContentVisible = true;
         base.Draw(gameTime);
     }

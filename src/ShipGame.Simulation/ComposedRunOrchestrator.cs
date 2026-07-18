@@ -61,6 +61,7 @@ public sealed class ComposedRunOrchestrator
     private string _runId = "";
     private string _environmentId = "";
     private bool _paused;
+    private readonly bool _threatEnabled;
 
     public ComposedRunOrchestrator(
         ContentId environmentId,
@@ -68,10 +69,12 @@ public sealed class ComposedRunOrchestrator
         long runIndex,
         ResolvedLoadout loadout,
         DerivedShipStatistics statistics,
-        bool recoveryProtocols)
+        bool recoveryProtocols,
+        bool enableThreatDirector = true)
     {
         ArgumentNullException.ThrowIfNull(loadout);
         ArgumentNullException.ThrowIfNull(statistics);
+        _threatEnabled = enableThreatDirector;
         EnvironmentId = environmentId;
         RunSeed = FoundationSimulation.DeriveRunSeed(profileSeed, runIndex);
         _environmentId = environmentId.Value;
@@ -91,7 +94,8 @@ public sealed class ComposedRunOrchestrator
         Combat.SpawnPlayer(spawn, weapon, mobility);
         foreach (var sector in Descriptor.Sectors)
             Combat.AddSpawnAnchor(CellToWorld(sector.Center), outsideCamera: sector.Kind != SectorKind.Spawn);
-        Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
+        if (enableThreatDirector)
+            Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
 
         SeedAsteroids();
         _collector = _miningWorld.Create();
@@ -296,7 +300,8 @@ public sealed class ComposedRunOrchestrator
 
         if (!paused)
         {
-            Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
+            if (_threatEnabled)
+                Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
             Combat.Queue(command);
             Combat.Step();
             TranslateCombatEvents();

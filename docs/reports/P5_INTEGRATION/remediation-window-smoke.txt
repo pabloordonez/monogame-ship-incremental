@@ -1,0 +1,101 @@
+  Determining projects to restore...
+  Restored C:\Repositories\github\ship-game\src\ShipGame.Ecs\ShipGame.Ecs.csproj (in 113 ms).
+  Restored C:\Repositories\github\ship-game\src\ShipGame.Simulation\ShipGame.Simulation.csproj (in 113 ms).
+  Restored C:\Repositories\github\ship-game\src\ShipGame.Game\ShipGame.Game.csproj (in 149 ms).
+  Restored c:\Repositories\github\ship-game\tests\ShipGame.Persistence.Tests\ShipGame.Persistence.Tests.csproj (in 153 ms).
+  Restored C:\Repositories\github\ship-game\tests\ShipGame.Simulation.Tests\ShipGame.Simulation.Tests.csproj (in 153 ms).
+  Restored C:\Repositories\github\ship-game\tests\ShipGame.Game.Smoke.Tests\ShipGame.Game.Smoke.Tests.csproj (in 153 ms).
+  Restored C:\Repositories\github\ship-game\tests\ShipGame.Ecs.Tests\ShipGame.Ecs.Tests.csproj (in 153 ms).
+  Restored C:\Repositories\github\ship-game\tests\ShipGame.Architecture.Tests\ShipGame.Architecture.Tests.csproj (in 153 ms).
+  7 of 15 projects are up-to-date for restore.
+Validated catalog mvp-p1-v1 (4ecbb2e7e8584f94f0ec52ac6e0b28811606425cb33db986c64a892ab51aa955).
+[I] Starting Content Builder
+[I] Deleting: Content/backgrounds/ion-veil.xnb
+[I] Deleting: Content/backgrounds/cinder-belt.xnb
+[I] Deleting: Content/atlases/ui-icons.xnb
+[I] Deleting: Content/atlases/player-modules.xnb
+[I] Deleting: Content/atlases/enemies-telegraphs.xnb
+[I] Deleting: Content/art/contact-sheet.xnb
+[I] Deleting: Content/atlases/asteroids-resources.xnb
+[I] Deleting: Content/audio/essential-cues.xnb
+[I] Deleting: Content/data/title-placeholder.json
+[I] Deleting: Content/data/sfx-cues.json
+[I] Deleting: Content/data/atlas-ui-icons.json
+[I] Deleting: Content/data/atlas-player-modules.json
+[I] Deleting: Content/data/atlas-enemies-telegraphs.json
+[I] Deleting: Content/data/atlas-asteroids-resources.json
+[I] Deleting: Content/data/asset-manifest.json
+[I] Deleting: Content/data/mvp-catalog.json
+[I] content/definitions/mvp-catalog.json: content/generated/DesktopVK/Content/data/mvp-catalog.json
+[I] content/source/data/asset-manifest.json: content/generated/DesktopVK/Content/data/asset-manifest.json
+[I] content/source/data/atlas-asteroids-resources.json: content/generated/DesktopVK/Content/data/atlas-asteroids-resources.json
+[I] content/source/data/atlas-enemies-telegraphs.json: content/generated/DesktopVK/Content/data/atlas-enemies-telegraphs.json
+[I] content/source/data/atlas-player-modules.json: content/generated/DesktopVK/Content/data/atlas-player-modules.json
+[I] content/source/data/atlas-ui-icons.json: content/generated/DesktopVK/Content/data/atlas-ui-icons.json
+[I] content/source/data/sfx-cues.json: content/generated/DesktopVK/Content/data/sfx-cues.json
+[I] content/source/data/title-placeholder.json: content/generated/DesktopVK/Content/data/title-placeholder.json
+[I] content/source/sfx/essential-cues.wav: content/generated/DesktopVK/Content/audio/essential-cues.xnb
+[I] content/source/textures/atlases/asteroids-resources.png: content/generated/DesktopVK/Content/atlases/asteroids-resources.xnb
+[I] content/source/textures/atlases/contact-sheet.png: content/generated/DesktopVK/Content/art/contact-sheet.xnb
+[I] content/source/textures/atlases/enemies-telegraphs.png: content/generated/DesktopVK/Content/atlases/enemies-telegraphs.xnb
+[I] content/source/textures/atlases/player-modules.png: content/generated/DesktopVK/Content/atlases/player-modules.xnb
+[I] content/source/textures/atlases/ui-icons.png: content/generated/DesktopVK/Content/atlases/ui-icons.xnb
+[I] content/source/textures/backgrounds/cinder-belt.png: content/generated/DesktopVK/Content/backgrounds/cinder-belt.xnb
+[I] content/source/textures/backgrounds/ion-veil.png: content/generated/DesktopVK/Content/backgrounds/ion-veil.xnb
+[I] Content Builder Finished
+[I]   16 succeeded, 0 failed
+  ShipGame.Domain -> C:\Repositories\github\ship-game\src\ShipGame.Domain\bin\Release\net9.0\ShipGame.Domain.dll
+  ShipGame.Ecs -> C:\Repositories\github\ship-game\src\ShipGame.Ecs\bin\Release\net9.0\ShipGame.Ecs.dll
+  ShipGame.Telemetry -> c:\Repositories\github\ship-game\src\ShipGame.Telemetry\bin\Release\net9.0\ShipGame.Telemetry.dll
+  ShipGame.Ecs.Tests -> C:\Repositories\github\ship-game\tests\ShipGame.Ecs.Tests\bin\Release\net9.0\ShipGame.Ecs.Tests.dll
+  ShipGame.Content -> C:\Repositories\github\ship-game\src\ShipGame.Content\bin\Release\net9.0\ShipGame.Content.dll
+  ShipGame.Telemetry.Tests -> C:\Repositories\github\ship-game\tests\ShipGame.Telemetry.Tests\bin\Release\net9.0\ShipGame.Telemetry.Tests.dll
+  ShipGame.Simulation -> C:\Repositories\github\ship-game\src\ShipGame.Simulation\bin\Release\net9.0\ShipGame.Simulation.dll
+  ShipGame.ContentBuilder -> C:\Repositories\github\ship-game\tools\ShipGame.ContentBuilder\bin\Release\net9.0\ShipGame.ContentBuilder.dll
+  ShipGame.Persistence -> C:\Repositories\github\ship-game\src\ShipGame.Persistence\bin\Release\net9.0\ShipGame.Persistence.dll
+  ShipGame.Content.Tests -> C:\Repositories\github\ship-game\tests\ShipGame.Content.Tests\bin\Release\net9.0\ShipGame.Content.Tests.dll
+  ShipGame.Simulation.Tests -> C:\Repositories\github\ship-game\tests\ShipGame.Simulation.Tests\bin\Release\net9.0\ShipGame.Simulation.Tests.dll
+  ShipGame.Game -> C:\Repositories\github\ship-game\src\ShipGame.Game\bin\Release\net9.0\ShipGame.Game.dll
+  ShipGame.Persistence.Tests -> C:\Repositories\github\ship-game\tests\ShipGame.Persistence.Tests\bin\Release\net9.0\ShipGame.Persistence.Tests.dll
+  ShipGame.Game.Smoke.Tests -> C:\Repositories\github\ship-game\tests\ShipGame.Game.Smoke.Tests\bin\Release\net9.0\ShipGame.Game.Smoke.Tests.dll
+  ShipGame.Architecture.Tests -> C:\Repositories\github\ship-game\tests\ShipGame.Architecture.Tests\bin\Release\net9.0\ShipGame.Architecture.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.79
+
+Workload updates are available. Run `dotnet workload list` for more information.
+Initializing volk.
+Found 19 Vulkan instance extensions.
+Supported Vulkan instance extensions:
+- VK_KHR_device_group_creation
+- VK_KHR_display
+- VK_KHR_external_fence_capabilities
+- VK_KHR_external_memory_capabilities
+- VK_KHR_external_semaphore_capabilities
+- VK_KHR_get_display_properties2
+- VK_KHR_get_physical_device_properties2
+- VK_KHR_get_surface_capabilities2
+- VK_KHR_surface
+- VK_KHR_surface_protected_capabilities
+- VK_KHR_win32_surface
+- VK_EXT_debug_report
+- VK_EXT_debug_utils
+- VK_EXT_direct_mode_display
+- VK_EXT_surface_maintenance1
+- VK_EXT_swapchain_colorspace
+- VK_NV_external_memory_capabilities
+- VK_KHR_portability_enumeration
+- VK_LUNARG_direct_driver_loading
+Found 2 Vulkan instance extensions required by SDL.
+Retrieved Vulkan instance extensions required by SDL:
+- VK_KHR_surface
+- VK_KHR_win32_surface
+DESKTOPVK_CONTENT_READY
+DESKTOPVK_COMPOSED_LOOP_COMPLETE
+Vulkan instance version: 1.4.303
+Selected GPU: NVIDIA GeForce RTX 3090
+Supported Vulkan API version: 1.4.303
+Swapchain out of date. Recreating swapchain...

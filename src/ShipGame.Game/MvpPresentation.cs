@@ -23,6 +23,8 @@ public sealed class MvpPresentation : IDisposable
     private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.Ordinal);
     private readonly Texture2D _pixel;
     private bool _drewSprites;
+    private bool _drewAtlasRegion;
+    private int _texturesLoaded;
 
     public MvpPresentation(GraphicsDevice device, RuntimeContentCatalog catalog)
     {
@@ -34,10 +36,13 @@ public sealed class MvpPresentation : IDisposable
     }
 
     public bool DrewSpritesThisFrame => _drewSprites;
+    public bool DrewAtlasRegionThisFrame => _drewAtlasRegion;
+    public int TexturesLoaded => _texturesLoaded;
 
     public void LoadTextures(Microsoft.Xna.Framework.Content.ContentManager content)
     {
         ArgumentNullException.ThrowIfNull(content);
+        _texturesLoaded = 0;
         foreach (var assetId in _catalog.AssetIds)
         {
             var asset = _catalog.GetAsset(assetId);
@@ -46,6 +51,7 @@ public sealed class MvpPresentation : IDisposable
             try
             {
                 _textures[assetId] = content.Load<Texture2D>(assetId);
+                _texturesLoaded++;
             }
             catch (Exception)
             {
@@ -54,7 +60,11 @@ public sealed class MvpPresentation : IDisposable
         }
     }
 
-    public void BeginFrame() => _drewSprites = false;
+    public void BeginFrame()
+    {
+        _drewSprites = false;
+        _drewAtlasRegion = false;
+    }
 
     public void DrawMetaScreen(
         MetaScreen screen,
@@ -289,6 +299,7 @@ public sealed class MvpPresentation : IDisposable
         var source = new XnaRectangle(region.X, region.Y, region.Width, region.Height);
         _spriteBatch.Draw(texture, new XnaRectangle(x, y, width, height), source, XnaColor.White);
         _drewSprites = true;
+        _drewAtlasRegion = true;
     }
 
     private void DrawTexture(string assetId, int x, int y, int width, int height, XnaColor color)

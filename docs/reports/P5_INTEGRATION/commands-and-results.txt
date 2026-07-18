@@ -29,8 +29,25 @@ scripts/launch.ps1 -WindowSmoke
 Evidence: preflight-window-smoke.txt
 - Note: proves P0 walking skeleton only (solid-color clears); see manual-evidence/empty-window-baseline/
 
-## Post-implementation results
-(filled by implementer)
+## Remediation / recheck
+
+### Full suite
+scripts/test.ps1
+- Architecture 8, Content 19, Ecs 10, Game.Smoke 14, Persistence 24, Simulation 73, Telemetry 11
+- Total: 159 passed / 0 failed
+Evidence: remediation-full-suite.txt
+
+### Headless smoke
+Exit 0
+
+### Window smoke
+DESKTOPVK_CONTENT_READY
+DESKTOPVK_COMPOSED_LOOP_COMPLETE
+Exit 0
+Evidence: remediation-window-smoke.txt
+
+### Reviewer
+REMEDIATE → remediation READY_FOR_RECHECK → recheck ACCEPT
 
 ## Post-implementation
 
