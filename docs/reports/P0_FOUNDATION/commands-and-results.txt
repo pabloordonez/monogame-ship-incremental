@@ -113,3 +113,73 @@ CANDIDATE COMMIT
 Command: git commit -m "Implement P0 foundation walking skeleton" && git rev-parse HEAD
 Exit: 0
 Observed: 38f2db9b429533653883a3d031299359b5d9fe7e.
+
+REMEDIATION
+Reviewer verdict: REMEDIATE
+Original candidate: 38f2db9b429533653883a3d031299359b5d9fe7e
+Original evidence: 2bce17f86019b3da471c9259af44db3638032b95
+Implementation remediation: 5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46
+Remediation range: 2bce17f86019b3da471c9259af44db3638032b95..5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46
+
+Command: dotnet build ShipGame.sln --configuration Release
+Exit: 0
+Observed: all projects restored/built; 0 warnings, 0 errors.
+
+Command: dotnet test ShipGame.sln --configuration Release --no-build --no-restore
+Initial exit: 1
+Observed: one new ECS regression incorrectly inspected runtime reflection visibility instead of the public interface; 57 passed, 1 failed. Production behavior was unchanged; the test was corrected to inspect `IComponentView<T>`.
+
+Command: dotnet test ShipGame.sln --configuration Release
+Exit: 0
+Observed: Architecture 8/8; Content 8/8; ECS 9/9; Game Smoke 1/1; Persistence 14/14; Simulation 12/12; Telemetry 6/6. Total: 58 passed, 0 failed, 0 skipped.
+
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
+Exit: 0
+Observed:
+- restore: all projects up to date;
+- released Content Builder rebuild: 2 succeeded, 0 failed;
+- Release build: 0 warnings, 0 errors;
+- Architecture 8/8; Content 8/8; ECS 9/9; Game Smoke 1/1; Persistence 14/14; Simulation 12/12; Telemetry 6/6;
+- Total: 58 passed, 0 failed, 0 skipped.
+
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -Smoke
+Exit: 0
+Observed: restore, content rebuild (2 succeeded/0 failed), and Release build (0 warnings/0 errors) succeeded; headless saved-profile Continue asserted profile seed, run index, and first continued Encounter RNG output.
+
+Command: dotnet run --project src/ShipGame.Game/ShipGame.Game.csproj --configuration Release --no-build -- --window-smoke
+Exit: 0
+Observed:
+- volk initialized;
+- SDL required `VK_KHR_surface` and `VK_KHR_win32_surface`;
+- `DESKTOPVK_CONTENT_READY`;
+- `DESKTOPVK_WALKING_SKELETON_COMPLETE`;
+- Vulkan 1.4.303;
+- NVIDIA GeForce RTX 3090 selected;
+- swapchain recreation observed.
+
+Command: dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release --no-build
+Exit: 0
+Observed: incremental manifest-driven content build completed; 2 succeeded, 0 failed.
+
+Command: dotnet list ShipGame.sln package --include-transitive
+Exit: 0
+Observed: Game resolved `MonoGame.Framework.Native` and `MonoGame.Runtime.Windows.Vulkan` exactly 3.8.5; ContentBuilder resolved `MonoGame.Framework.Content.Pipeline` and `MonoGame.Framework.Native` exactly 3.8.5.
+
+Command: rg -n "MonoGame\.Content\.Builder\.Task|MonoGameContentReference|\.mgcb" --glob "*.csproj" --glob "*.props" --glob "*.targets" --glob "*.cs" --glob "*.yml" .; test $? -eq 1
+Exit: 0
+Observed: no legacy content-pipeline matches.
+
+Command: git diff --check && git status --short
+Exit: 0
+Observed before implementation commit: no whitespace errors; only intended remediation files were modified/untracked.
+
+IDE diagnostics: ReadLints on src/, tools/, tests/
+Observed: no linter errors.
+
+Command: git add docs/reports/P0_FOUNDATION/reviewer-report.md docs/reports/P0_FOUNDATION/extension-note.md src tools tests && git commit -m "Remediate P0 foundation review findings" && git rev-parse HEAD
+Exit: 0
+Observed: implementation remediation commit `5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46`.
+
+Command: git status --short --branch && git rev-parse HEAD && git diff --check 2bce17f86019b3da471c9259af44db3638032b95..HEAD
+Exit: 0
+Observed: branch `p0-foundation`; clean tree; HEAD `5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46`; remediation range has no whitespace errors.

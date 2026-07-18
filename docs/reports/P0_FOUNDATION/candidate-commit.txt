@@ -6,3 +6,12 @@ Branch: p0-foundation
 Review diff range: a443f89c920e37b2d46385a1d18b2e34efe4892f..38f2db9b429533653883a3d031299359b5d9fe7e
 
 The candidate implementation commit is immutable for review. Evidence is committed separately and is not part of the review implementation diff.
+
+P0_FOUNDATION remediation
+
+Independent review verdict: REMEDIATE
+Original evidence SHA: 2bce17f86019b3da471c9259af44db3638032b95
+Implementation remediation SHA: 5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46
+Remediation implementation range: 2bce17f86019b3da471c9259af44db3638032b95..5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46
+
+The original candidate SHA above remains unchanged. The remediation SHA is the code/test correction submitted for independent recheck; it does not self-accept the package.
