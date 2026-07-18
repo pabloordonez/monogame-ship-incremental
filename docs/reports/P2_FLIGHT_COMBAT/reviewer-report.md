@@ -165,3 +165,11 @@ No dedicated friendly-fire, shock-transit-once, or tunneling regressions. Curren
 `REMEDIATE`
 
 Suites and ownership are green, and several adversarial combat behaviors hold, but three major contract/architecture gaps (schedule honesty, combat allocation evidence, pending-command hash) block acceptance. No critical crash/security finding; no unresolved shared-contract BLOCK — remediation within package-owned files is sufficient.
+
+---
+
+## Final acceptance recheck
+
+Independent recheck verdict: **ACCEPT**
+Accepted implementation/remediation SHA: `6c5ffc0be6103bc2d806217f9c4adc820db0f027`
+Full recheck body: `recheck-report.md`.
