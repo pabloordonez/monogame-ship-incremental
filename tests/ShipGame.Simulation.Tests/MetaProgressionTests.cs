@@ -114,6 +114,15 @@ public class MetaProgressionTests
     }
 
     [Fact]
+    public void SeekerGateCountsNormalPlusEliteLifetimeKills()
+    {
+        Assert.True(ResearchCatalog.TryGet(ResearchCatalog.WeaponSeeker, out var seeker));
+        Assert.False(seeker.Gate(new LifetimeCounters(0, 15, 0, 0, 0, 0)));
+        Assert.True(seeker.Gate(new LifetimeCounters(0, 15, 5, 0, 0, 0)));
+        Assert.True(seeker.Gate(new LifetimeCounters(0, 20, 0, 0, 0, 0)));
+    }
+
+    [Fact]
     public void IonVeilAccessQueriesSemanticCapability()
     {
         var withoutCapability = RichProfile();

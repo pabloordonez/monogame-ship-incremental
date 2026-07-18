@@ -109,26 +109,37 @@ public sealed record MetaSaveLoadResult(
 
 public sealed class MetaSaveRepository
 {
+    public const string MetaFileName = "profile-v2.json";
+    public const string FoundationFileName = "profile.json";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         MaxDepth = 32
     };
 
+    private readonly string _root;
     private readonly string _path;
     private readonly string _backupPath;
+    private readonly string _foundationPath;
+    private readonly string _foundationBackupPath;
 
-    public MetaSaveRepository(string saveDirectory, string fileName = "profile-v2.json")
+    public MetaSaveRepository(string saveDirectory, string fileName = MetaFileName)
     {
         if (string.IsNullOrWhiteSpace(saveDirectory))
             throw new ArgumentException("A save directory is required.", nameof(saveDirectory));
         if (Path.GetFileName(fileName) != fileName)
             throw new ArgumentException("Save file name cannot contain a path.", nameof(fileName));
-        var root = Path.GetFullPath(saveDirectory);
-        Directory.CreateDirectory(root);
-        _path = Path.Combine(root, fileName);
+        _root = Path.GetFullPath(saveDirectory);
+        Directory.CreateDirectory(_root);
+        _path = Path.Combine(_root, fileName);
         _backupPath = _path + ".bak";
+        _foundationPath = Path.Combine(_root, FoundationFileName);
+        _foundationBackupPath = _foundationPath + ".bak";
     }
+
+    public string MetaPath => _path;
+    public string FoundationPath => _foundationPath;
 
     public MetaSaveEnvelope CreateEnvelope(
         MetaProfileSnapshot profile,
@@ -193,30 +204,106 @@ public sealed class MetaSaveRepository
         MetaContentCompatibility? knownContent = null)
     {
         ValidateText(expectedCatalogFingerprint, nameof(expectedCatalogFingerprint));
-        if (!File.Exists(_path) && !File.Exists(_backupPath))
+        var metaExists = File.Exists(_path) || File.Exists(_backupPath);
+        if (metaExists)
+        {
+            var primary = TryRead(_path, expectedCatalogFingerprint, knownContent);
+            if (primary.Status is CompatibilityStatus.Supported or
+                CompatibilityStatus.IncompatibleNewer or
+                CompatibilityStatus.MissingContent)
+                return PersistMigratedIfNeeded(primary, expectedCatalogFingerprint);
+
+            var backup = TryRead(_backupPath, expectedCatalogFingerprint, knownContent);
+            if (backup.Status == CompatibilityStatus.Supported)
+            {
+                var recovered = backup with
+                {
+                    RecoveredFromBackup = true,
+                    Diagnostics = (backup.Diagnostics ?? [])
+                        .Prepend("Primary was invalid; loaded the known-good backup.")
+                        .ToArray()
+                };
+                return PersistMigratedIfNeeded(recovered, expectedCatalogFingerprint);
+            }
+
+            return primary with
+            {
+                Diagnostics = (primary.Diagnostics ?? [])
+                    .Concat((backup.Diagnostics ?? []).Select(message => "Backup: " + message))
+                    .ToArray()
+            };
+        }
+
+        return LoadFoundationAndMigrate(expectedCatalogFingerprint, knownContent);
+    }
+
+    private MetaSaveLoadResult LoadFoundationAndMigrate(
+        string expectedCatalogFingerprint,
+        MetaContentCompatibility? knownContent)
+    {
+        if (!File.Exists(_foundationPath) && !File.Exists(_foundationBackupPath))
             return new(CompatibilityStatus.Missing, Diagnostics: ["No profile save exists."]);
 
-        var primary = TryRead(_path, expectedCatalogFingerprint, knownContent);
+        var primary = TryRead(_foundationPath, expectedCatalogFingerprint, knownContent);
         if (primary.Status is CompatibilityStatus.Supported or
             CompatibilityStatus.IncompatibleNewer or
             CompatibilityStatus.MissingContent)
-            return primary;
+            return PersistMigratedIfNeeded(primary with
+            {
+                Diagnostics = (primary.Diagnostics ?? [])
+                    .Prepend("Loaded foundation profile.json for schema migration.")
+                    .ToArray()
+            }, expectedCatalogFingerprint);
 
-        var backup = TryRead(_backupPath, expectedCatalogFingerprint, knownContent);
+        var backup = TryRead(_foundationBackupPath, expectedCatalogFingerprint, knownContent);
         if (backup.Status == CompatibilityStatus.Supported)
-            return backup with
+        {
+            return PersistMigratedIfNeeded(backup with
             {
                 RecoveredFromBackup = true,
                 Diagnostics = (backup.Diagnostics ?? [])
-                    .Prepend("Primary was invalid; loaded the known-good backup.")
+                    .Prepend("Foundation primary was invalid; migrated the known-good foundation backup.")
                     .ToArray()
-            };
+            }, expectedCatalogFingerprint);
+        }
+
         return primary with
         {
             Diagnostics = (primary.Diagnostics ?? [])
-                .Concat((backup.Diagnostics ?? []).Select(message => "Backup: " + message))
+                .Concat((backup.Diagnostics ?? []).Select(message => "Foundation backup: " + message))
+                .Prepend("Foundation profile.json was unreadable.")
                 .ToArray()
         };
+    }
+
+    private MetaSaveLoadResult PersistMigratedIfNeeded(
+        MetaSaveLoadResult loaded,
+        string expectedCatalogFingerprint)
+    {
+        if (loaded.Status != CompatibilityStatus.Supported ||
+            loaded.Profile is null ||
+            !loaded.Migrated)
+            return loaded;
+
+        try
+        {
+            Write(CreateEnvelope(loaded.Profile, "P4_META_UI", expectedCatalogFingerprint));
+            return loaded with
+            {
+                Diagnostics = (loaded.Diagnostics ?? [])
+                    .Append("Migrated save written atomically to profile-v2.json.")
+                    .ToArray()
+            };
+        }
+        catch (Exception exception) when (exception is
+            IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        {
+            return new(
+                CompatibilityStatus.Corrupt,
+                Diagnostics: (loaded.Diagnostics ?? [])
+                    .Append("Migration succeeded in memory but durable write failed: " + exception.Message)
+                    .ToArray());
+        }
     }
 
     private static MetaSaveLoadResult TryRead(

@@ -30,7 +30,7 @@ public sealed class MetaPersistenceTests : IDisposable
     [Fact]
     public void FoundationSaveMigratesToMetaSchema()
     {
-        WriteFoundationSave(new ProfileSnapshot(99, 4), "catalog");
+        WriteFoundationSave(new ProfileSnapshot(99, 4), "catalog", atFoundationPath: false);
         var repository = new MetaSaveRepository(_root);
 
         var result = repository.Load("catalog", KnownContent());
@@ -42,6 +42,52 @@ public sealed class MetaPersistenceTests : IDisposable
         Assert.Equal(ResourceAmounts.Zero, result.Profile.Balances);
         Assert.Equal(GameSettings.Default, result.Profile.Settings);
         Assert.Contains(MetaContentIds.CinderBelt, result.Profile.UnlockedEnvironmentIds);
+        Assert.True(File.Exists(Path.Combine(_root, MetaSaveRepository.MetaFileName)));
+    }
+
+    [Fact]
+    public void FoundationProfileJsonPathMigratesAtomicallyPreservingSeedAndRunIndex()
+    {
+        WriteFoundationSave(new ProfileSnapshot(99, 4), "catalog", atFoundationPath: true);
+        var repository = new MetaSaveRepository(_root);
+
+        var result = repository.Load("catalog", KnownContent());
+
+        Assert.Equal(CompatibilityStatus.Supported, result.Status);
+        Assert.True(result.Migrated);
+        Assert.Equal(99UL, result.Profile!.ProfileSeed);
+        Assert.Equal(4, result.Profile.RunIndex);
+        Assert.True(File.Exists(Path.Combine(_root, MetaSaveRepository.MetaFileName)));
+        Assert.True(File.Exists(Path.Combine(_root, MetaSaveRepository.FoundationFileName)));
+
+        var continued = repository.Load("catalog", KnownContent());
+        Assert.Equal(CompatibilityStatus.Supported, continued.Status);
+        Assert.False(continued.Migrated);
+        Assert.Equal(99UL, continued.Profile!.ProfileSeed);
+        Assert.Equal(4, continued.Profile.RunIndex);
+    }
+
+    [Fact]
+    public void GoldenFoundationFixtureAtProfileJsonMigratesToSchema2()
+    {
+        var fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "golden-foundation-profile.json");
+        Assert.True(File.Exists(fixture), $"Missing golden fixture at {fixture}");
+        Directory.CreateDirectory(_root);
+        File.Copy(fixture, Path.Combine(_root, MetaSaveRepository.FoundationFileName));
+
+        var repository = new MetaSaveRepository(_root);
+        var result = repository.Load("foundation-catalog-v1", KnownContent());
+
+        Assert.Equal(CompatibilityStatus.Supported, result.Status);
+        Assert.True(result.Migrated);
+        Assert.Equal(12648430UL, result.Profile!.ProfileSeed);
+        Assert.Equal(7, result.Profile.RunIndex);
+        Assert.Equal(ResourceAmounts.Zero, result.Profile.Balances);
+        Assert.Equal(GameSettings.Default, result.Profile.Settings);
+        Assert.Contains(MetaContentIds.CinderBelt, result.Profile.UnlockedEnvironmentIds);
+
+        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(_root, MetaSaveRepository.MetaFileName)));
+        Assert.Equal(MetaSaveSchema.Current, document.RootElement.GetProperty("Versions").GetProperty("Save").GetInt32());
     }
 
     [Fact]
@@ -126,7 +172,7 @@ public sealed class MetaPersistenceTests : IDisposable
             Directory.Delete(_root, true);
     }
 
-    private void WriteFoundationSave(ProfileSnapshot profile, string fingerprint)
+    private void WriteFoundationSave(ProfileSnapshot profile, string fingerprint, bool atFoundationPath)
     {
         const string buildId = "P0_FOUNDATION";
         var versions = DurableVersions.Current;
@@ -134,7 +180,10 @@ public sealed class MetaPersistenceTests : IDisposable
         var checksum = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         var envelope = new SaveEnvelope(versions, buildId, fingerprint, profile, checksum);
         Directory.CreateDirectory(_root);
-        File.WriteAllText(Path.Combine(_root, "profile-v2.json"), JsonSerializer.Serialize(envelope));
+        var fileName = atFoundationPath
+            ? MetaSaveRepository.FoundationFileName
+            : MetaSaveRepository.MetaFileName;
+        File.WriteAllText(Path.Combine(_root, fileName), JsonSerializer.Serialize(envelope));
     }
 
     private void WriteRaw(MetaSaveVersions versions, MetaProfileDto profile, string fingerprint)

@@ -51,3 +51,30 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -WindowSm
 => DESKTOPVK_WALKING_SKELETON_COMPLETE
 => Selected GPU: NVIDIA GeForce RTX 3090
 => Exit 0.
+
+---
+
+5) Remediation re-validation (post M1–M5 fixes)
+
+dotnet test tests/ShipGame.Persistence.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 10
+
+dotnet test tests/ShipGame.Simulation.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 11
+
+dotnet test tests/ShipGame.Telemetry.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 4
+
+dotnet test tests/ShipGame.Game.Smoke.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 7
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
+=> Build succeeded. 0 Warning(s). 0 Error(s).
+=> ShipGame.Telemetry.Tests: Passed 11
+=> ShipGame.Simulation.Tests: Passed 23
+=> ShipGame.Persistence.Tests: Passed 24
+=> ShipGame.Game.Smoke.Tests: Passed 8
+=> ShipGame.Ecs.Tests: Passed 10
+=> ShipGame.Content.Tests: Passed 8
+=> ShipGame.Architecture.Tests: Passed 8
+=> Total: 92 passed, 0 failed. Exit 0.

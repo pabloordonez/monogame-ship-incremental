@@ -1,0 +1,17 @@
+{
+  "Versions": {
+    "Save": 1,
+    "Content": 1,
+    "Generation": 1,
+    "Rng": 1,
+    "Replay": 1,
+    "Telemetry": 1
+  },
+  "BuildId": "P0_FOUNDATION",
+  "CatalogFingerprint": "foundation-catalog-v1",
+  "Profile": {
+    "ProfileSeed": 12648430,
+    "RunIndex": 7
+  },
+  "Checksum": "5B6DFA9DE664EEF6AA3988A3A0363D81F46D792FEA3BAA0B84D2DBFA733C7A54"
+}

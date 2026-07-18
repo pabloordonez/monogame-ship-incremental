@@ -31,7 +31,9 @@ public static class ResearchCatalog
         Node(HullReinforcement, "Layered Bulkheads", 25, 0, 0, [], "None", _ => true, "STAT_HULL_15"),
         Node(ShieldReflective, "Reflective Harmonics", 45, 1, 1, [HullReinforcement], "1 extraction", c => c.Extractions >= 1, "MOD_SHIELD_REFLECTIVE"),
         Node(WeaponBeam, "Coherent Emitters", 35, 0, 1, [], "1 extraction", c => c.Extractions >= 1, "MOD_WEAPON_BEAM"),
-        Node(WeaponSeeker, "Seeker Telemetry", 60, 2, 2, [WeaponBeam], "20 lifetime kills", c => c.NormalKills >= 20, "MOD_WEAPON_SEEKER"),
+        // Catalog "20 lifetime kills" = normal + elite (all combat kills).
+        Node(WeaponSeeker, "Seeker Telemetry", 60, 2, 2, [WeaponBeam], "20 lifetime kills",
+            c => checked(c.NormalKills + c.EliteKills) >= 20, "MOD_WEAPON_SEEKER"),
         Node(MiningSeismic, "Resonance Charges", 30, 0, 1, [], "60 lifetime Ferrite", c => c.FerriteCollected >= 60, "MOD_MINING_CHARGE"),
         Node(MiningAssay, "Spectral Assay", 50, 2, 1, [MiningSeismic], "40 resource cells", c => c.ResourceCellsBroken >= 40, "STAT_FERRITE_YIELD_15"),
         Node(EngineTuning, "Vector Calibration", 25, 0, 0, [], "None", _ => true, "STAT_SPEED_8_PERCENT"),
@@ -208,6 +210,13 @@ public sealed class ProfileAggregate
     }
 
     public MetaProfileSnapshot Snapshot => Clone(_snapshot);
+
+    /// <summary>Restores durable in-memory state after a failed persist (same aggregate instance).</summary>
+    public void Restore(MetaProfileSnapshot snapshot)
+    {
+        ValidateSnapshot(snapshot);
+        _snapshot = Clone(snapshot);
+    }
 
     public static ProfileAggregate CreateNew(ulong profileSeed) =>
         new(new(

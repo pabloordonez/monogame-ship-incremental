@@ -27,6 +27,16 @@ Foundation `ProfileSnapshot` only stores `ProfileSeed` and `RunIndex`. Meta prog
 
 ## Compatibility tests already covering the bridge
 
-- Foundation schema 1 → meta schema 2 migration.
+- Foundation schema 1 → meta schema 2 migration from both `profile-v2.json` (legacy placement) and the real foundation path `profile.json` (+ `.bak`), with atomic write of `profile-v2.json`.
+- Golden foundation fixture at `tests/ShipGame.Persistence.Tests/Fixtures/golden-foundation-profile.json`.
 - Unknown research/module IDs preserved with diagnostics.
 - Newer save schema rejected as `IncompatibleNewer`.
+- Corrupt/unreadable dual meta saves surface `RequiresExplicitNewProfile` (no silent `CreateNew` overwrite).
+
+## Host composition deferral
+
+`MetaSession` / `MetaUiController` are package-owned and covered by smoke tests, but **`ShipGameHost` still runs the foundation walking-skeleton loop only**. Wiring title/lobby/map/loadout/research into DesktopVK navigation is explicitly deferred to `P5_INTEGRATION` so P4 stays additive and does not rewrite the shared host mid-flight.
+
+## Lifetime kills gate clarification
+
+Catalog text for `RES_WEAPON_SEEKER` says “20 lifetime kills.” Implementation counts `NormalKills + EliteKills` (all combat kills). Elite-only gates (e.g. utility drone, Ion Veil nav) remain elite-specific.
