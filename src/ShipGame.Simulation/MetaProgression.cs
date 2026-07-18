@@ -231,6 +231,30 @@ public sealed class ProfileAggregate
             GameSettings.Default,
             null));
 
+    /// <summary>
+    /// Locks the next run index before field entry (P5 host composition).
+    /// Idempotent for a given transaction ID.
+    /// </summary>
+    public ProfileMutationResult BeginRun(string transactionId)
+    {
+        if (!TryValidateIdentity(transactionId, out var identityError))
+            return Rejected("run.invalid-transaction", identityError!);
+        var fingerprint = Fingerprint("begin_run", _snapshot.RunIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (!TryBegin(transactionId, "begin_run", fingerprint, out var existing))
+            return existing!;
+        if (_snapshot.RunIndex == long.MaxValue)
+            return Rejected("run.index-overflow", "Run index would overflow.");
+        var receipts = _snapshot.Transactions
+            .Append(new(transactionId, "begin_run", fingerprint))
+            .ToArray();
+        _snapshot = _snapshot with
+        {
+            RunIndex = _snapshot.RunIndex + 1,
+            Transactions = receipts
+        };
+        return Applied("run.begun", $"Locked run index {_snapshot.RunIndex}.");
+    }
+
     public ProfileMutationResult CommitAcceptedReward(RewardProposal proposal)
     {
         if (!TryValidateIdentity(proposal.TransactionId, out var identityError))

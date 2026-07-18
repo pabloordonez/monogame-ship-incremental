@@ -1,0 +1,54 @@
+# P5_INTEGRATION commands and results
+
+## Pre-flight (pinned tip c9993bbbb38294b167b7bcfcd4bde0a904c26a07)
+
+Branch: phase3-p5-integration
+
+### Content rebuild + Release build
+scripts/build.ps1
+- Content Builder: 16 succeeded, 0 failed
+- Build succeeded. 0 Warning(s), 0 Error(s)
+Evidence: preflight-build.txt
+
+### Full test suite
+scripts/test.ps1
+- Architecture 8, Content 19, Ecs 10, Game.Smoke 11, Persistence 24, Simulation 65, Telemetry 11
+- Total: 148 passed / 0 failed
+Evidence: preflight-test.txt
+
+### Headless smoke
+scripts/launch.ps1 -Smoke
+- Exit 0
+Evidence: preflight-smoke.txt
+
+### Window smoke
+scripts/launch.ps1 -WindowSmoke
+- DESKTOPVK_CONTENT_READY
+- DESKTOPVK_WALKING_SKELETON_COMPLETE
+- Exit 0
+Evidence: preflight-window-smoke.txt
+- Note: proves P0 walking skeleton only (solid-color clears); see manual-evidence/empty-window-baseline/
+
+## Post-implementation results
+(filled by implementer)
+
+## Post-implementation
+
+### Full suite
+dotnet test ShipGame.sln --configuration Release
+- Architecture 8, Content 19, Ecs 10, Game.Smoke 14, Persistence 24, Simulation 71, Telemetry 11
+- Total: 157 passed / 0 failed
+
+### Content rebuild
+scripts/build.ps1 / Content Builder: 16 succeeded, 0 failed
+
+### Headless smoke
+dotnet run --project src/ShipGame.Game --configuration Release -- --smoke
+- Exit 0 (composed MetaSession + ComposedRunOrchestrator fresh+continue)
+
+### Window smoke
+scripts/launch.ps1 -WindowSmoke
+- DESKTOPVK_CONTENT_READY
+- DESKTOPVK_COMPOSED_LOOP_COMPLETE
+- Exit 0
+Evidence: post-window-smoke.txt

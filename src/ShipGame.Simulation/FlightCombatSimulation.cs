@@ -238,6 +238,36 @@ public sealed class FlightCombatSimulation
             _world.Store<Destroyed>().Has(entity));
     }
 
+    /// <summary>Ordered live combat snapshots for presentation (P5).</summary>
+    public void CollectSnapshots(List<CombatSnapshot> into)
+    {
+        ArgumentNullException.ThrowIfNull(into);
+        into.Clear();
+        for (var i = 0; i < _entities.Count; i++)
+        {
+            var entity = _entities[i];
+            if (!_world.IsAlive(entity) || !Has<Transform2>(entity))
+                continue;
+            into.Add(Snapshot(entity));
+        }
+    }
+
+    public bool IsElite(EntityId entity) =>
+        entity != default && _world.IsAlive(entity) && Has<Elite>(entity);
+
+    public bool TryGetPlayerAim(out Vector2 aim)
+    {
+        aim = Vector2.UnitX;
+        if (_player == default || !_world.IsAlive(_player) || !Has<ControlIntent>(_player))
+            return false;
+        aim = _world.Get<ControlIntent>(_player).Aim;
+        if (aim.LengthSquared() < 0.0001f)
+            aim = Vector2.UnitX;
+        else
+            aim = Vector2.Normalize(aim);
+        return true;
+    }
+
     public WeaponState WeaponStatus(EntityId entity)
     {
         if (!_world.IsAlive(entity) || !Has<WeaponState>(entity))

@@ -183,8 +183,7 @@ public sealed class MetaUiController
 
 /// <summary>
 /// Composes profile, screen model, versioned meta saves, and consent-aware telemetry
-/// without replacing the foundation walking-skeleton host loop.
-/// Host composition into <c>ShipGameHost</c> is deferred to P5_INTEGRATION.
+/// for the P5 DesktopVK host loop.
 /// </summary>
 public sealed class MetaSession : IDisposable
 {
@@ -382,14 +381,30 @@ public sealed class MetaSession : IDisposable
     {
         if (RequiresExplicitNewProfile)
             return RejectedUnrecoverable();
-        var result = _ui.Launch();
-        if (result.Accepted)
+        if (_ui.Screen is not MetaScreen.Map and not MetaScreen.Lobby)
+            return Rejected("navigation.invalid", "Launch is only available from the lobby or map.");
+        var access = _profile.ValidateDestination(_ui.SelectedEnvironmentId);
+        if (access.Status != ProfileMutationStatus.Applied)
+            return Rejected(access.Code, access.Message);
+
+        var prior = _profile.Snapshot;
+        var begin = _profile.BeginRun($"TX_BEGIN_RUN_{prior.RunIndex + 1}");
+        if (begin.Status is not ProfileMutationStatus.Applied and not ProfileMutationStatus.Duplicate)
+            return Rejected(begin.Code, begin.Message);
+        if (!TryPersist("launch"))
         {
-            // Launch does not mutate durable profile fields; persist is best-effort only.
-            TryPersist("launch");
-            Record(MetaTelemetryFactKind.RunStarted, subjectCode: _ui.SelectedEnvironmentId.GetHashCode());
+            _profile.Restore(prior);
+            return Rejected("save.failed", "Launch could not persist the locked run index.");
         }
 
+        var result = _ui.Launch();
+        if (!result.Accepted)
+        {
+            // Screen mutation failed after durable lock; keep index (run was reserved) but report failure.
+            return result;
+        }
+
+        Record(MetaTelemetryFactKind.RunStarted, subjectCode: _ui.SelectedEnvironmentId.GetHashCode());
         return result;
     }
 
