@@ -2,7 +2,7 @@
 
 Pinned P0 base: `0b12902972d5a98ff785c78a9e0c10728b2a2df0`  
 Integration branch: `phase2-integration`  
-Final merged tip: `c7ffff0c4fa9eb8fccc0cedd264c25c08a0d5ac5`.
+Final merged tip:  (branch HEAD; pin file updated in same commit)`c7ffff0c4fa9eb8fccc0cedd264c25c08a0d5ac5`.
 
 ## Accepted package commits
 
