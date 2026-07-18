@@ -1,0 +1,58 @@
+P2_FLIGHT_COMBAT COMMANDS AND OBSERVED RESULTS
+Environment: Windows 10.0.26200, bash host, Windows PowerShell 5.1, .NET SDK 9.0.x
+Date: 2026-07-18
+Worktree: C:\Repositories\github\ship-game-p2
+Branch: phase2-p2-flight-combat
+Pinned base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+
+=== IMPLEMENTER (historical) ===
+
+PACKAGE FILTER
+Command: dotnet test tests/ShipGame.Simulation.Tests --filter FlightCombat --configuration Release --no-build
+Exit: 0
+Observed: Passed! Failed: 0, Passed: 19, Skipped: 0, Total: 19.
+
+FULL SUITE
+Command: powershell -NoProfile -File scripts/test.ps1
+Exit: 0
+Observed: 81 passed / 0 failed (31 Simulation).
+
+=== REMEDIATION (2026-07-18) ===
+
+BASELINE
+Command: git status && git rev-parse HEAD && git branch --show-current
+Exit: 0
+Observed: branch phase2-p2-flight-combat; clean tree at e69bb8a0c3fafee287c29701146d3f005904d3d2 (reviewer evidence) before remediation edits.
+
+PACKAGE FILTER
+Command: dotnet test tests/ShipGame.Simulation.Tests --filter "FullyQualifiedName~FlightCombat" -c Release
+Exit: 0
+Observed: Passed! Failed: 0, Passed: 21, Skipped: 0, Total: 21.
+
+Command: dotnet test tests/ShipGame.Game.Smoke.Tests --filter "FullyQualifiedName~FlightCombat" -c Release
+Exit: 0
+Observed: Passed! Failed: 0, Passed: 2, Skipped: 0, Total: 2.
+
+FULL SUITE
+Command: powershell -NoProfile -File scripts/test.ps1
+Exit: 0
+Observed:
+- Content Builder: 2 succeeded, 0 failed
+- Build succeeded: 0 Warning(s), 0 Error(s)
+- ShipGame.Ecs.Tests: 10 passed
+- ShipGame.Telemetry.Tests: 7 passed
+- ShipGame.Content.Tests: 8 passed
+- ShipGame.Persistence.Tests: 14 passed
+- ShipGame.Game.Smoke.Tests: 3 passed
+- ShipGame.Simulation.Tests: 33 passed
+- ShipGame.Architecture.Tests: 8 passed
+Total: 83 passed / 0 failed.
+
+ALLOCATION (remediation)
+Warm idle Step × 20,000 after warmup/GC: 0 bytes.
+Warm Queue(move/aim)+Step × 5,000 with obstacle (no entity-spawn weapons/AI): 0 bytes.
+Control: same Queue+Step without Fire = 0 bytes; with Fire = >0 bytes only while WeaponFired spawns projectiles (entity create transient, not per-tick command-queue growth).
+
+SCHEDULE / HASH
+PackageScheduleIsExactOrderedProjectionOfStep asserts mobility before movement and mines after weapons; Step driven solely by SystemScheduler registration matching Schedule.
+PendingCommandsAreIncludedInAuthoritativeHash: future Fire queue diverges LastStateHash immediately.

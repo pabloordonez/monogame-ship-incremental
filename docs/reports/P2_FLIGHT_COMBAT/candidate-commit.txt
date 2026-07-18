@@ -1,0 +1,21 @@
+P2_FLIGHT_COMBAT candidate and remediation
+
+Pinned base SHA: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+Package-spec freeze SHA: 74828f1a3e3c40490a58c43fa05f200697f98661
+Original candidate implementation SHA: 724079562a565e9585096d0a926d931320df3a50
+Remediation SHA: 6c5ffc0be6103bc2d806217f9c4adc820db0f027
+Branch: phase2-p2-flight-combat
+Original review range: 0b12902972d5a98ff785c78a9e0c10728b2a2df0..724079562a565e9585096d0a926d931320df3a50
+Remediation range: 724079562a565e9585096d0a926d931320df3a50..6c5ffc0be6103bc2d806217f9c4adc820db0f027
+
+The original candidate implementation commit remains immutable for the first review.
+Remediation is additive on package-owned files; independent recheck is required.
+
+
+PACCEPTANCE
+Independent final recheck verdict: ACCEPT
+Accepted implementation SHA: 6c5ffc0be6103bc2d806217f9c4adc820db0f027
+
+Final acceptance
+Independent final recheck verdict: ACCEPT
+Accepted implementation SHA: 6c5ffc0be6103bc2d806217f9c4adc820db0f027
