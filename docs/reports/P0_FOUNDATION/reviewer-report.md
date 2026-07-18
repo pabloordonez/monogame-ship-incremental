@@ -126,7 +126,7 @@ The independent acceptance recheck returned `REMEDIATE`. Three major findings re
 
 Architecture tests inspect only emitted assembly references, omit `ShipGame.ContentBuilder`, and use a hand-built invalid dictionary that does not exercise production project-graph policy. Parse actual production `.csproj` files, including `tools/ShipGame.ContentBuilder`; enforce allowed `ProjectReference` and `PackageReference` edges, exact MonoGame placement and 3.8.5 pins, and cycle freedom. Exercise that same validator with representative invalid project XML/graph inputs. Keep tests platform/path robust.
 
-### Downstream impact
+### First recheck downstream impact
 
 - M1 permits external corruption of sparse/dense ECS alignment despite the intended read-only API.
 - M4 permits post-validation insertion and persistence of prohibited PII/raw strings.
@@ -137,3 +137,57 @@ Architecture tests inspect only emitted assembly references, omit `ShipGame.Cont
 `REMEDIATE`
 
 The first remediation is not accepted. M1, M4, and M8 require correction and another independent recheck.
+
+## Final Acceptance Recheck — Second Remediation
+
+### Identity and integrity
+
+- Base: `a443f89c920e37b2d46385a1d18b2e34efe4892f`
+- Second remediation implementation: `3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a`
+- Evidence: `82432cf66ed4f18da030f38477a065e97b182b9d`
+- Metadata baseline: `77d0348a5398f37ae7bba9f62b8ab259c12b9907`
+- Ancestry, report-only evidence/metadata commits, and all reviewed ranges were verified.
+- Initial and final repository status were clean. The reviewer made no tracked edits.
+
+### Prior-finding resolution
+
+- **C1 — RESOLVED.** Required save members are validated before dereference; malformed primary and backup saves return `Corrupt` or recover safely.
+- **M1 — RESOLVED.** ECS entity views return detached, non-castable snapshots. Direct mutable casts fail, and focused sparse/dense alignment regressions pass.
+- **M2 — RESOLVED.** Every durable version and the catalog fingerprint are classified after checksum validation.
+- **M3 — RESOLVED.** Continue reconstructs simulation and fixed-step state from the saved profile identity; smoke coverage verifies seed, run index, and Encounter RNG output.
+- **M4 — RESOLVED.** Validated telemetry is copied into an immutable backing collection behind a non-castable wrapper. Source mutation cannot alter persisted output or inject prohibited values.
+- **M5 — RESOLVED.** Authoritative hashes include deterministically ordered pending commands and every command field.
+- **M6 — RESOLVED.** The C# Content Builder derives supported data inputs from the validated manifest.
+- **M7 — RESOLVED.** Definitions and references use validated, nonempty `ContentId` values.
+- **M8 — RESOLVED.** The architecture policy parses every production/tool `.csproj`, including `ShipGame.ContentBuilder`, and enforces project edges, cycles, package placement, required packages, and exact MonoGame 3.8.5 pins. The same validator rejects representative invalid inputs.
+- **m1 — RESOLVED.** Completed and throwing commands are consumed without replay.
+- **m2 — RESOLVED.** Null or missing manifest assets produce the defined content validation error.
+
+### Fresh gate evidence
+
+- `dotnet clean ShipGame.sln --configuration Release`: exit 0; 0 warnings, 0 errors.
+- `dotnet restore ShipGame.sln --force-evaluate`: exit 0; all 15 projects restored with SDK `9.0.316`.
+- `powershell.exe ... scripts/test.ps1`: exit 0; content 2/2, build 0 warnings/errors, 60 tests passed, 0 failed, 0 skipped.
+- Explicit clean/rebuild and incremental Content Builder runs: exit 0; each reported 2 succeeded, 0 failed.
+- `scripts/launch.ps1 -Smoke`: exit 0; deterministic save/Continue walking skeleton completed.
+- `scripts/launch.ps1 -WindowSmoke`: exit 0; Vulkan/Win32 surface, DesktopVK content-ready and walking-skeleton markers, GPU selection, and swapchain recreation were observed.
+- Architecture suite: exit 0; 8/8 passed, including actual-project policy and negative validator tests.
+- Package/dependency checks: exit 0; Game and ContentBuilder MonoGame packages resolve exactly to `3.8.5`.
+- Legacy pipeline scan: no `.mgcb`, `MonoGame.Content.Builder.Task`, or `MonoGameContentReference` match.
+- Diff, diagnostics, and final repository-status checks passed.
+
+The official MonoGame Content Pipeline retains documented legacy transitive advisories. They remain isolated to build tooling; runtime and test projects report no vulnerable packages.
+
+### Scope and findings
+
+The second remediation changes only ECS exposure, telemetry immutability, architecture policy/tests, focused regressions, and P0 reports. It adds no Phase 2 gameplay, production content, enemies, mining, research, plugins, or deferred mechanics.
+
+- Critical findings: none.
+- Major findings: none.
+- New minor findings: none.
+
+### Final verdict
+
+`ACCEPT`
+
+Every P0 gate has evidence, all substantiated critical and major findings are resolved, and `P0_FOUNDATION` is accepted.

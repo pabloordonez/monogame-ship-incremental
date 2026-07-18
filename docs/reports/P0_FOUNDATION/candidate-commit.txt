@@ -26,3 +26,13 @@ Second remediation evidence SHA: 82432cf66ed4f18da030f38477a065e97b182b9d
 Second remediation evidence range: 3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a..82432cf66ed4f18da030f38477a065e97b182b9d
 
 This metadata update follows the evidence commit only so its immutable SHA and exact range can be recorded. The package remains `READY_FOR_RECHECK`, not accepted.
+
+P0_FOUNDATION acceptance
+
+Independent final recheck verdict: ACCEPT
+Accepted implementation baseline SHA: 3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a
+Accepted evidence baseline SHA: 82432cf66ed4f18da030f38477a065e97b182b9d
+Pre-acceptance metadata SHA: 77d0348a5398f37ae7bba9f62b8ab259c12b9907
+Accepted implementation diff: a443f89c920e37b2d46385a1d18b2e34efe4892f..3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a
+
+The independent reviewer found no remaining critical, major, or new minor findings. The final ACCEPT report is stored in reviewer-report.md.
