@@ -23,9 +23,13 @@ public sealed class MvpPresentation : IDisposable
     private readonly PixelFont _font;
     private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.Ordinal);
     private readonly Texture2D _pixel;
+    private readonly CombatPresentationBinding _combatCues = new();
     private bool _drewSprites;
     private bool _drewAtlasRegion;
     private int _texturesLoaded;
+    private float _flashAlpha;
+    private XnaColor _flashColor = XnaColor.White;
+    private long _lastFlashTick = -1;
 
     public MvpPresentation(GraphicsDevice device, RuntimeContentCatalog catalog)
     {
@@ -72,6 +76,8 @@ public sealed class MvpPresentation : IDisposable
         MetaScreen screen,
         MetaSession session,
         ComposedRunOrchestrator? run,
+        UiShell ui,
+        RunPresentationHints hints,
         int backBufferWidth,
         int backBufferHeight)
     {
@@ -90,31 +96,31 @@ public sealed class MvpPresentation : IDisposable
         switch (screen)
         {
             case MetaScreen.Title:
-                DrawTitle();
+                DrawTitle(ui);
                 break;
             case MetaScreen.Lobby:
-                DrawLobby(session);
+                DrawLobby(session, ui);
                 break;
             case MetaScreen.Map:
-                DrawMap(session);
+                DrawMap(session, ui);
                 break;
             case MetaScreen.Loadout:
-                DrawLoadout(session);
+                DrawLoadout(session, ui);
                 break;
             case MetaScreen.Research:
-                DrawResearch(session);
+                DrawResearch(session, ui);
                 break;
             case MetaScreen.Summary:
-                DrawSummary(session);
+                DrawSummary(session, ui);
                 break;
             case MetaScreen.Settings:
-                DrawPanel("SETTINGS", "Telemetry and volumes.", "[Esc] back");
+                DrawSettings(session, ui);
                 break;
             case MetaScreen.Pause:
-                DrawPanel("PAUSED", "Simulation clock stopped.", "[Esc] resume");
+                DrawPause(ui);
                 break;
             case MetaScreen.Run:
-                DrawRun(run);
+                DrawRun(run, ui, hints, session);
                 break;
         }
 
@@ -122,99 +128,88 @@ public sealed class MvpPresentation : IDisposable
         _spriteBatch.End();
     }
 
-    private void DrawTitle()
+    private void DrawTitle(UiShell ui)
     {
         DrawRegion("ui/icons/objective", 296, 48, 48, 48);
         DrawText(220, 110, "SHIP GAME", new XnaColor(240, 245, 255), 2);
-        DrawPanel(
-            "TITLE",
-            "Enter  start / lobby",
-            "C      continue save",
-            "Esc    quit");
+        DrawText(200, 150, "Mouse or keyboard to choose", new XnaColor(160, 180, 200));
+        DrawShellButtons(ui);
         DrawRegion("ui/icons/interact", 304, 300, 32, 32);
     }
 
-    private void DrawLobby(MetaSession session)
+    private void DrawLobby(MetaSession session, UiShell ui)
     {
         var lobby = session.Lobby;
         DrawText(24, 16, "LOBBY", new XnaColor(230, 240, 255), 2);
         DrawRegion("ships/player/wayfarer", 520, 40, 72, 72);
-        DrawText(24, 48, $"Ferrite {lobby.Balances.Ferrite}", new XnaColor(220, 200, 160));
-        DrawText(24, 64, $"Lumen   {lobby.Balances.Lumen}", new XnaColor(180, 220, 255));
-        DrawText(24, 80, $"Cores   {lobby.Balances.DataCores}", new XnaColor(200, 180, 255));
+        DrawRegion("ui/icons/resource-ferrite", 24, 48, 16, 16);
+        DrawText(46, 50, $"{lobby.Balances.Ferrite}", new XnaColor(220, 200, 160));
+        DrawRegion("ui/icons/resource-lumen", 24, 70, 16, 16);
+        DrawText(46, 72, $"{lobby.Balances.Lumen}", new XnaColor(180, 220, 255));
+        DrawRegion("ui/icons/resource-data-core", 24, 92, 16, 16);
+        DrawText(46, 94, $"{lobby.Balances.DataCores}", new XnaColor(200, 180, 255));
         if (lobby.PreviousRun is { } previous)
             DrawText(
                 24,
-                104,
+                120,
                 previous.Succeeded ? "Last run: EXTRACTED" : "Last run: FAILED",
                 previous.Succeeded ? new XnaColor(140, 220, 160) : new XnaColor(220, 140, 140));
 
-        DrawText(24, 160, "Controls", new XnaColor(180, 200, 220));
-        DrawText(24, 180, "M  environment map / launch", XnaColor.White);
-        DrawText(24, 196, "L  loadout", XnaColor.White);
-        DrawText(24, 212, "R  research", XnaColor.White);
-        DrawText(24, 228, "Enter  open map", XnaColor.White);
-        DrawText(24, 260, "Goal: mine Ferrite, fight, extract.", new XnaColor(180, 200, 160));
+        DrawText(24, 148, "Destinations", new XnaColor(180, 200, 220));
+        DrawShellButtons(ui);
+        DrawText(24, 330, "Arrows focus  Enter/click activate  Esc unused", new XnaColor(140, 150, 160));
     }
 
-    private void DrawMap(MetaSession session)
+    private void DrawMap(MetaSession session, UiShell ui)
     {
         DrawText(24, 16, "SELECT ENVIRONMENT", new XnaColor(230, 240, 255), 2);
-        var y = 56;
         foreach (var env in session.Map)
         {
-            var label = env.EnvironmentId.Replace("ENV_", "", StringComparison.Ordinal);
-            var color = env.Accessible ? new XnaColor(140, 220, 180) : new XnaColor(120, 120, 130);
-            Fill(24, y, 592, 44, color * 0.25f);
-            if (env.Selected)
-                Frame(24, y, 592, 44, new XnaColor(220, 230, 240), 1);
-            DrawText(36, y + 8, env.Selected ? $"> {label}" : $"  {label}", color);
-            DrawText(36, y + 24, env.Accessible ? "Enter to launch" : Truncate(env.Explanation, 70), new XnaColor(180, 180, 190));
-            y += 52;
+            var id = $"env:{env.EnvironmentId}";
+            var control = FindControl(ui, id);
+            if (control is null)
+                continue;
+            var state = ui.GetState(id);
+            DrawButton(control.Bounds, control.Label, state);
+            if (!env.Accessible)
+            {
+                DrawRegion("ui/icons/lock", control.Bounds.X + control.Bounds.Width - 36, control.Bounds.Y + 10, 20, 20);
+                DrawText(
+                    control.Bounds.X + 12,
+                    control.Bounds.Y + 28,
+                    Truncate(env.Explanation, 64),
+                    new XnaColor(160, 160, 170));
+            }
+            else
+                DrawText(
+                    control.Bounds.X + 12,
+                    control.Bounds.Y + 28,
+                    env.Selected ? "Selected — Launch when ready" : "Select then Launch",
+                    new XnaColor(180, 190, 200));
         }
 
-        DrawText(24, 320, "Esc back to lobby", new XnaColor(160, 170, 180));
+        DrawShellButtons(ui, skipPrefix: "env:");
+        DrawText(24, 340, "Up/Down select  Enter/click Launch  Esc lobby", new XnaColor(140, 150, 160));
     }
 
-    private void DrawLoadout(MetaSession session)
+    private void DrawLoadout(MetaSession session, UiShell ui)
     {
-        var loadout = session.Profile.ResolveLoadout().Effective;
         DrawText(24, 16, "LOADOUT", new XnaColor(230, 240, 255), 2);
         DrawRegion("ships/player/wayfarer", 520, 40, 72, 72);
-        DrawText(24, 56, $"Weapon  {ShortId(loadout.Weapon)}", XnaColor.White);
-        DrawText(24, 72, $"Mining  {ShortId(loadout.Mining)}", XnaColor.White);
-        DrawText(24, 88, $"Shield  {ShortId(loadout.Shield)}", XnaColor.White);
-        DrawText(24, 104, $"Engine  {ShortId(loadout.Engine)}", XnaColor.White);
-        DrawText(24, 120, $"Utility {ShortId(loadout.Utility)}", XnaColor.White);
-        DrawText(24, 160, "Equip changes persist on save.", new XnaColor(180, 200, 160));
-        DrawText(24, 320, "Esc back", new XnaColor(160, 170, 180));
+        DrawShellButtons(ui);
+        DrawText(24, 340, "Enter/click equip unlocked module  Esc lobby", new XnaColor(140, 150, 160));
+        _ = session;
     }
 
-    private void DrawResearch(MetaSession session)
+    private void DrawResearch(MetaSession session, UiShell ui)
     {
         DrawText(24, 16, "RESEARCH", new XnaColor(230, 240, 255), 2);
-        var y = 48;
-        foreach (var node in session.Research.Take(8))
-        {
-            var tint = node.Purchased ? new XnaColor(120, 200, 150) :
-                node.Affordable && node.PrerequisitesMet && node.GateMet
-                    ? new XnaColor(220, 200, 120)
-                    : new XnaColor(120, 120, 130);
-            DrawText(24, y, ShortId(node.Definition.Id), tint);
-            DrawText(
-                280,
-                y,
-                node.Purchased ? "OWNED" :
-                node.Affordable && node.PrerequisitesMet && node.GateMet ? "READY" : "LOCKED",
-                tint);
-            y += 16;
-        }
-
-        DrawText(24, 300, "Purchases use banked resources after runs.", new XnaColor(180, 200, 160));
-        DrawText(24, 320, "Esc back", new XnaColor(160, 170, 180));
+        DrawShellButtons(ui);
+        DrawText(24, 340, "Enter/click purchase when READY  Esc lobby", new XnaColor(140, 150, 160));
+        _ = session;
     }
 
-    private void DrawSummary(MetaSession session)
+    private void DrawSummary(MetaSession session, UiShell ui)
     {
         var previous = session.Profile.Snapshot.PreviousRun;
         DrawText(24, 16, "RUN SUMMARY", new XnaColor(230, 240, 255), 2);
@@ -237,10 +232,32 @@ public sealed class MvpPresentation : IDisposable
         }
 
         DrawRegion("ui/icons/objective", 520, 56, 48, 48);
-        DrawText(24, 320, "Enter  return to lobby", new XnaColor(180, 200, 220));
+        DrawShellButtons(ui);
     }
 
-    private void DrawRun(ComposedRunOrchestrator? run)
+    private void DrawSettings(MetaSession session, UiShell ui)
+    {
+        DrawText(24, 16, "SETTINGS", new XnaColor(230, 240, 255), 2);
+        DrawText(24, 44, "Toggle accessibility and audio options.", new XnaColor(180, 200, 220));
+        DrawShellButtons(ui);
+        DrawText(24, 340, "Enter/click toggle  Esc back", new XnaColor(140, 150, 160));
+        _ = session;
+    }
+
+    private void DrawPause(UiShell ui)
+    {
+        Fill(0, 0, VirtualWidth, VirtualHeight, new XnaColor(0, 0, 0, 140));
+        DrawRegion("ui/icons/pause", 304, 48, 32, 32);
+        DrawText(260, 90, "PAUSED", new XnaColor(230, 240, 255), 2);
+        DrawText(200, 120, "Simulation clock stopped.", new XnaColor(180, 200, 220));
+        DrawShellButtons(ui);
+    }
+
+    private void DrawRun(
+        ComposedRunOrchestrator? run,
+        UiShell ui,
+        RunPresentationHints hints,
+        MetaSession session)
     {
         if (run is null)
         {
@@ -251,12 +268,13 @@ public sealed class MvpPresentation : IDisposable
         var bgId = run.EnvironmentId.Value == MetaContentIds.IonVeil
             ? "backgrounds/ion-veil"
             : "backgrounds/cinder-belt";
-        DrawTexture(bgId, 0, 0, VirtualWidth, VirtualHeight, XnaColor.White * 0.9f);
-
         var hud = run.Hud;
         var camera = run.Combat.Player != default
             ? run.Combat.Snapshot(run.Combat.Player).Position
             : System.Numerics.Vector2.Zero;
+
+        DrawParallaxBackground(bgId, camera);
+        UpdateCombatFlash(run, hints);
 
         foreach (var asteroid in run.Asteroids)
         {
@@ -288,6 +306,7 @@ public sealed class MvpPresentation : IDisposable
             DrawRegion(region, (int)screen.X - 6, (int)screen.Y - 6, 12, 12);
         }
 
+        var playerScreen = new XnaVector2(VirtualWidth / 2f, VirtualHeight / 2f);
         foreach (var item in run.LiveRenderItems)
         {
             var screen = WorldToScreen(item.Position, camera);
@@ -296,7 +315,13 @@ public sealed class MvpPresentation : IDisposable
             switch (item.Kind)
             {
                 case CombatRenderKind.PlayerShip:
+                    playerScreen = screen;
+                    DrawThrustTrail(screen, hints.MoveIntent, hud.RunTick);
                     DrawRegionRotated("ships/player/wayfarer", screen, item.Rotation, 32);
+                    if (hints.FireHeld)
+                        DrawMuzzleFlash(screen, hints.AimDirection, hud.RunTick);
+                    if (hints.MineHeld)
+                        DrawMineRay(screen, hints.AimDirection);
                     break;
                 case CombatRenderKind.EnemyShip:
                     DrawRegionRotated(
@@ -314,7 +339,6 @@ public sealed class MvpPresentation : IDisposable
             }
         }
 
-        // Extraction marker
         var extract = WorldToScreen(
             new System.Numerics.Vector2(
                 run.Descriptor.Extraction.Center.X * FieldDescriptor.WorldUnitsPerCell,
@@ -323,32 +347,266 @@ public sealed class MvpPresentation : IDisposable
         if (OnScreen(extract, 40))
             DrawRegion("field/extraction-marker", (int)extract.X - 16, (int)extract.Y - 16, 32, 32);
 
-        Fill(0, 0, VirtualWidth, 40, new XnaColor(0, 0, 0, 180));
-        DrawText(
-            8,
-            6,
-            $"Hull {hud.Hull:0}  Shield {hud.Shield:0}  Ferrite {hud.FerriteHeld}  Obj {hud.ObjectiveFerrite}/30 kills {hud.ObjectiveKills}/8",
-            XnaColor.White);
-        DrawText(
-            8,
-            22,
-            $"{hud.Phase}  t{hud.RunTick}  WASD move  LMB fire  RMB mine  Space dash  E extract  Esc pause",
-            new XnaColor(180, 200, 220));
+        if (hints.ShowAimReticle)
+            DrawAimReticle(hints.MouseVirtual);
 
-        if (hud.PendingOffer is not null)
+        if (_flashAlpha > 0.01f && hints.FlashesEnabled)
         {
-            Fill(120, 120, 400, 80, new XnaColor(10, 14, 22, 230));
-            Frame(120, 120, 400, 80, new XnaColor(220, 200, 120), 1);
-            DrawText(140, 140, "UPGRADE OFFER", new XnaColor(240, 220, 140), 2);
-            DrawText(140, 168, "Press 1 / 2 / 3 to choose", XnaColor.White);
+            Fill(0, 0, VirtualWidth, VirtualHeight, _flashColor * _flashAlpha);
+            _flashAlpha = MathF.Max(0f, _flashAlpha - 0.08f);
         }
+
+        DrawRunHud(hud, hints, playerScreen);
 
         if (hud.Phase == RunPhase.Extraction)
             DrawText(
                 8,
-                44,
+                52,
                 $"Hold E in extract zone: {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks}",
                 new XnaColor(160, 220, 180));
+
+        if (hud.PendingOffer is not null)
+        {
+            Fill(80, 70, 480, 220, new XnaColor(10, 14, 22, 230));
+            Frame(80, 70, 480, 220, new XnaColor(220, 200, 120), 2);
+            DrawText(100, 84, "UPGRADE OFFER", new XnaColor(240, 220, 140), 2);
+            DrawText(100, 110, "Choose one — 1/2/3, Enter, or click", new XnaColor(200, 210, 220));
+            DrawShellButtons(ui);
+            DrawUpgradeIcons(ui, hud.PendingOffer);
+        }
+
+        _ = session;
+    }
+
+    private void DrawRunHud(ComposedRunHud hud, RunPresentationHints hints, XnaVector2 playerScreen)
+    {
+        Fill(0, 0, VirtualWidth, 48, new XnaColor(0, 0, 0, 180));
+        DrawRegion("ui/icons/hull", 8, 6, 16, 16);
+        DrawBar(28, 8, 90, 10, hints.MaxHull <= 0 ? 0 : hud.Hull / hints.MaxHull, new XnaColor(200, 90, 90));
+        DrawText(122, 6, $"{hud.Hull:0}", XnaColor.White);
+
+        DrawRegion("ui/icons/shield", 160, 6, 16, 16);
+        DrawBar(180, 8, 90, 10, hints.MaxShield <= 0 ? 0 : hud.Shield / Math.Max(1f, hints.MaxShield), new XnaColor(80, 180, 220));
+        DrawText(274, 6, $"{hud.Shield:0}", XnaColor.White);
+
+        DrawRegion("ui/icons/resource-ferrite", 320, 6, 16, 16);
+        DrawText(340, 6, $"{hud.FerriteHeld}", new XnaColor(220, 200, 160));
+        DrawText(400, 6, $"Obj {hud.ObjectiveFerrite}/30  K {hud.ObjectiveKills}/8", XnaColor.White);
+
+        DrawText(
+            8,
+            28,
+            $"{hud.Phase}  t{hud.RunTick}  WASD move  mouse aim  LMB fire  RMB mine  Space dash  E extract",
+            new XnaColor(180, 200, 220));
+
+        // Move-direction tick near the ship so strafe is visible while camera-locked.
+        if (hints.MoveIntent.LengthSquared() > 0.01f)
+        {
+            var dir = System.Numerics.Vector2.Normalize(hints.MoveIntent);
+            var tip = new XnaVector2(playerScreen.X + dir.X * 22f, playerScreen.Y + dir.Y * 22f);
+            Fill((int)tip.X - 2, (int)tip.Y - 2, 4, 4, new XnaColor(120, 220, 160));
+        }
+    }
+
+    private void DrawUpgradeIcons(UiShell ui, UpgradeOffer offer)
+    {
+        for (var i = 0; i < offer.Choices.Count && i < 3; i++)
+        {
+            var id = $"upgrade:{i}";
+            var control = FindControl(ui, id);
+            if (control is null)
+                continue;
+            var icon = UpgradeIcon(offer.Choices[i].Value);
+            DrawRegion(icon, control.Bounds.X + 8, control.Bounds.Y + 10, 24, 24);
+        }
+    }
+
+    private void DrawShellButtons(UiShell ui, string? skipPrefix = null)
+    {
+        foreach (var control in ui.Controls)
+        {
+            if (skipPrefix is not null && control.Id.StartsWith(skipPrefix, StringComparison.Ordinal))
+                continue;
+            if (control.Id.StartsWith("env:", StringComparison.Ordinal))
+                continue;
+            DrawButton(control.Bounds, control.Label, ui.GetState(control.Id));
+        }
+    }
+
+    private void DrawButton(UiRect bounds, string label, UiControlState state)
+    {
+        var fill = state switch
+        {
+            UiControlState.Disabled => new XnaColor(28, 32, 40, 220),
+            UiControlState.Pressed => new XnaColor(70, 110, 140, 240),
+            UiControlState.Focused => new XnaColor(40, 70, 96, 230),
+            UiControlState.Hovered => new XnaColor(36, 58, 78, 230),
+            _ => new XnaColor(20, 28, 40, 220)
+        };
+        var frame = state switch
+        {
+            UiControlState.Disabled => new XnaColor(80, 85, 95),
+            UiControlState.Pressed => new XnaColor(255, 240, 180),
+            UiControlState.Focused => new XnaColor(240, 250, 255),
+            UiControlState.Hovered => new XnaColor(200, 220, 240),
+            _ => new XnaColor(120, 140, 160)
+        };
+        var text = state switch
+        {
+            UiControlState.Disabled => new XnaColor(120, 125, 135),
+            UiControlState.Pressed => new XnaColor(255, 255, 240),
+            _ => XnaColor.White
+        };
+
+        var inset = state == UiControlState.Pressed ? 2 : 0;
+        Fill(bounds.X + inset, bounds.Y + inset, bounds.Width - inset * 2, bounds.Height - inset * 2, fill);
+        Frame(bounds.X, bounds.Y, bounds.Width, bounds.Height, frame, state is UiControlState.Focused or UiControlState.Pressed ? 2 : 1);
+        if (state is UiControlState.Focused or UiControlState.Hovered)
+            Frame(bounds.X - 2, bounds.Y - 2, bounds.Width + 4, bounds.Height + 4, frame * 0.65f, 1);
+
+        DrawText(bounds.X + 12 + inset, bounds.Y + Math.Max(6, (bounds.Height - 8) / 2) + inset, label, text);
+    }
+
+    private void DrawParallaxBackground(string bgId, System.Numerics.Vector2 camera)
+    {
+        const float parallax = 0.18f;
+        var ox = (int)MathF.Floor(-camera.X * parallax);
+        var oy = (int)MathF.Floor(-camera.Y * parallax);
+        ox %= VirtualWidth;
+        oy %= VirtualHeight;
+        if (ox > 0) ox -= VirtualWidth;
+        if (oy > 0) oy -= VirtualHeight;
+        for (var y = oy; y < VirtualHeight; y += VirtualHeight)
+        {
+            for (var x = ox; x < VirtualWidth; x += VirtualWidth)
+                DrawTexture(bgId, x, y, VirtualWidth, VirtualHeight, XnaColor.White * 0.9f);
+        }
+    }
+
+    private void DrawThrustTrail(XnaVector2 shipCenter, System.Numerics.Vector2 move, long tick)
+    {
+        if (move.LengthSquared() < 0.01f)
+            return;
+        var dir = System.Numerics.Vector2.Normalize(move);
+        var back = new XnaVector2(-dir.X, -dir.Y);
+        var flicker = (tick / 3) % 2 == 0;
+        var length = flicker ? 18 : 14;
+        for (var i = 1; i <= 3; i++)
+        {
+            var px = (int)(shipCenter.X + back.X * (8 + i * 5));
+            var py = (int)(shipCenter.Y + back.Y * (8 + i * 5));
+            var size = Math.Max(2, length / i - 2);
+            Fill(px - size / 2, py - size / 2, size, size, new XnaColor((byte)255, (byte)180, (byte)80, (byte)(200 - i * 40)));
+        }
+    }
+
+    private void DrawMuzzleFlash(XnaVector2 shipCenter, System.Numerics.Vector2 aim, long tick)
+    {
+        if (aim.LengthSquared() < 0.01f)
+            return;
+        var dir = System.Numerics.Vector2.Normalize(aim);
+        var tip = new XnaVector2(shipCenter.X + dir.X * 18f, shipCenter.Y + dir.Y * 18f);
+        var pulse = (tick % 4) < 2;
+        Fill((int)tip.X - 2, (int)tip.Y - 2, pulse ? 5 : 3, pulse ? 5 : 3, new XnaColor(255, 230, 140));
+    }
+
+    private void DrawMineRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim)
+    {
+        if (aim.LengthSquared() < 0.01f)
+            return;
+        var dir = System.Numerics.Vector2.Normalize(aim);
+        for (var i = 1; i <= 8; i++)
+        {
+            var px = (int)(shipCenter.X + dir.X * (12 + i * 7));
+            var py = (int)(shipCenter.Y + dir.Y * (12 + i * 7));
+            Fill(px - 1, py - 1, 3, 3, new XnaColor((byte)120, (byte)220, (byte)255, (byte)(220 - i * 20)));
+        }
+    }
+
+    private void DrawAimReticle(System.Numerics.Vector2 mouseVirtual)
+    {
+        var x = (int)mouseVirtual.X;
+        var y = (int)mouseVirtual.Y;
+        if (x < 0 || y < 0 || x >= VirtualWidth || y >= VirtualHeight)
+            return;
+        Fill(x - 6, y, 13, 1, new XnaColor(240, 240, 200));
+        Fill(x, y - 6, 1, 13, new XnaColor(240, 240, 200));
+        Frame(x - 4, y - 4, 9, 9, new XnaColor(220, 200, 120), 1);
+    }
+
+    private void DrawBar(int x, int y, int width, int height, float ratio, XnaColor fill)
+    {
+        ratio = Math.Clamp(ratio, 0f, 1f);
+        Fill(x, y, width, height, new XnaColor(30, 36, 44));
+        Frame(x, y, width, height, new XnaColor(90, 100, 110), 1);
+        var inner = Math.Max(0, (int)((width - 2) * ratio));
+        if (inner > 0)
+            Fill(x + 1, y + 1, inner, height - 2, fill);
+    }
+
+    private void UpdateCombatFlash(ComposedRunOrchestrator run, RunPresentationHints hints)
+    {
+        if (!hints.FlashesEnabled)
+        {
+            _flashAlpha = 0f;
+            return;
+        }
+
+        var cues = _combatCues.Translate(run.LastCombatEvents, id =>
+        {
+            try
+            {
+                return run.Combat.Snapshot(id);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        });
+
+        foreach (var cue in cues)
+        {
+            if (cue.Tick == _lastFlashTick && cue.Kind is not (CombatCueKind.Hull or CombatCueKind.ShieldBreak))
+                continue;
+            switch (cue.Kind)
+            {
+                case CombatCueKind.Hull:
+                    _flashColor = new XnaColor(220, 60, 60);
+                    _flashAlpha = 0.35f;
+                    _lastFlashTick = cue.Tick;
+                    break;
+                case CombatCueKind.Shield or CombatCueKind.ShieldBreak:
+                    _flashColor = new XnaColor(60, 160, 220);
+                    _flashAlpha = 0.28f;
+                    _lastFlashTick = cue.Tick;
+                    break;
+                case CombatCueKind.Weapon:
+                    _flashColor = new XnaColor(255, 220, 120);
+                    _flashAlpha = MathF.Max(_flashAlpha, 0.12f);
+                    break;
+                case CombatCueKind.Mobility:
+                    _flashColor = new XnaColor(180, 255, 200);
+                    _flashAlpha = MathF.Max(_flashAlpha, 0.18f);
+                    break;
+            }
+        }
+
+        foreach (var worldEvent in run.LastWorldEvents)
+        {
+            var bound = WorldRunPresentationBindings.Bind(worldEvent);
+            if (bound is null)
+                continue;
+            if (worldEvent.Kind is WorldRunEventKind.ExtractionActivated or WorldRunEventKind.ObjectiveCompleted)
+            {
+                _flashColor = new XnaColor(140, 220, 160);
+                _flashAlpha = MathF.Max(_flashAlpha, 0.22f);
+            }
+            else if (worldEvent.Kind is WorldRunEventKind.HazardWarned or WorldRunEventKind.CollapseWarning)
+            {
+                _flashColor = new XnaColor(240, 160, 60);
+                _flashAlpha = MathF.Max(_flashAlpha, 0.25f);
+            }
+        }
     }
 
     private void DrawPanel(string title, params string[] lines)
@@ -396,7 +654,6 @@ public sealed class MvpPresentation : IDisposable
 
         var source = new XnaRectangle(region.X, region.Y, region.Width, region.Height);
         var origin = new XnaVector2(region.Width * (float)region.PivotX, region.Height * (float)region.PivotY);
-        // Source art faces up (-Y); combat aim uses mathematical angle from +X.
         var rotation = rotationRadians + MathF.PI / 2f;
         _spriteBatch.Draw(
             texture,
@@ -473,6 +730,34 @@ public sealed class MvpPresentation : IDisposable
         _drewSprites = true;
     }
 
+    private static UiControl? FindControl(UiShell ui, string id)
+    {
+        foreach (var control in ui.Controls)
+        {
+            if (string.Equals(control.Id, id, StringComparison.Ordinal))
+                return control;
+        }
+
+        return null;
+    }
+
+    private static string UpgradeIcon(string upgradeId) => upgradeId switch
+    {
+        "UPG_OVERCHARGED_MUNITIONS" => "ui/icons/upgrade-damage",
+        "UPG_RAPID_CYCLING" => "ui/icons/upgrade-rate",
+        "UPG_FORKED_OUTPUT" => "ui/icons/upgrade-fork",
+        "UPG_PENETRATING_FIELD" => "ui/icons/upgrade-pierce",
+        "UPG_SHIELD_RESERVOIR" => "ui/icons/upgrade-shield",
+        "UPG_FAST_REBOOT" => "ui/icons/upgrade-reboot",
+        "UPG_REINFORCED_FRAME" => "ui/icons/upgrade-hull",
+        "UPG_THRUSTER_OVERCLOCK" => "ui/icons/upgrade-speed",
+        "UPG_MOBILITY_LOOP" => "ui/icons/upgrade-mobility",
+        "UPG_FRACTURE_LENS" => "ui/icons/upgrade-mining",
+        "UPG_MAGNETIC_SWEEP" => "ui/icons/upgrade-tractor",
+        "UPG_SHOCK_TRANSIT" => "ui/icons/upgrade-shock",
+        _ => "ui/icons/objective"
+    };
+
     private static XnaColor ScreenBackground(MetaScreen screen) => screen switch
     {
         MetaScreen.Title => new XnaColor(10, 16, 32),
@@ -493,7 +778,7 @@ public sealed class MvpPresentation : IDisposable
         screen.X >= -margin && screen.X <= VirtualWidth + margin &&
         screen.Y >= -margin && screen.Y <= VirtualHeight + margin;
 
-    private static string ShortId(string id)
+    public static string ShortId(string id)
     {
         var value = id;
         foreach (var prefix in new[] { "MOD_", "RES_", "ENV_", "UPG_", "MAT_", "CAP_" })
