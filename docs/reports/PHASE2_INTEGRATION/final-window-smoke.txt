@@ -37,14 +37,14 @@ Validated catalog mvp-p1-v1 (4ecbb2e7e8584f94f0ec52ac6e0b28811606425cb33db986c64
 [I] Content Builder Finished
 [I]   16 succeeded, 0 failed
   ShipGame.Domain -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Domain\bin\Release\net9.0\ShipGame.Domain.dll
-  ShipGame.Ecs -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Ecs\bin\Release\net9.0\ShipGame.Ecs.dll
   ShipGame.Telemetry -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Telemetry\bin\Release\net9.0\ShipGame.Telemetry.dll
+  ShipGame.Ecs -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Ecs\bin\Release\net9.0\ShipGame.Ecs.dll
   ShipGame.Telemetry.Tests -> C:\Repositories\github\ship-game-phase2\tests\ShipGame.Telemetry.Tests\bin\Release\net9.0\ShipGame.Telemetry.Tests.dll
   ShipGame.Ecs.Tests -> C:\Repositories\github\ship-game-phase2\tests\ShipGame.Ecs.Tests\bin\Release\net9.0\ShipGame.Ecs.Tests.dll
   ShipGame.Content -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Content\bin\Release\net9.0\ShipGame.Content.dll
-  ShipGame.Simulation -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Simulation\bin\Release\net9.0\ShipGame.Simulation.dll
-  ShipGame.Persistence -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Persistence\bin\Release\net9.0\ShipGame.Persistence.dll
   ShipGame.ContentBuilder -> C:\Repositories\github\ship-game-phase2\tools\ShipGame.ContentBuilder\bin\Release\net9.0\ShipGame.ContentBuilder.dll
+  ShipGame.Persistence -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Persistence\bin\Release\net9.0\ShipGame.Persistence.dll
+  ShipGame.Simulation -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Simulation\bin\Release\net9.0\ShipGame.Simulation.dll
   ShipGame.Content.Tests -> C:\Repositories\github\ship-game-phase2\tests\ShipGame.Content.Tests\bin\Release\net9.0\ShipGame.Content.Tests.dll
   ShipGame.Game -> C:\Repositories\github\ship-game-phase2\src\ShipGame.Game\bin\Release\net9.0\ShipGame.Game.dll
   ShipGame.Persistence.Tests -> C:\Repositories\github\ship-game-phase2\tests\ShipGame.Persistence.Tests\bin\Release\net9.0\ShipGame.Persistence.Tests.dll
@@ -56,7 +56,7 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:00.68
+Time Elapsed 00:00:00.74
 
 Workload updates are available. Run `dotnet workload list` for more information.
 Initializing volk.
