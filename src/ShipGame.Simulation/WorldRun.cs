@@ -64,9 +64,9 @@ public readonly record struct WorldRunEvent(
     int Amount = 0,
     int SecondaryAmount = 0);
 
-public readonly record struct ResourceAmounts(int Ferrite, int Lumen, int DataCores)
+public readonly record struct WorldResourceAmounts(int Ferrite, int Lumen, int DataCores)
 {
-    public ResourceAmounts Add(ContentId id, int quantity)
+    public WorldResourceAmounts Add(ContentId id, int quantity)
     {
         if (quantity <= 0)
             return this;
@@ -87,12 +87,12 @@ public enum RunOutcome
     DeadlineFailure
 }
 
-public sealed record RewardProposal(
+public sealed record WorldRewardProposal(
     ulong ProposalId,
     RunOutcome Outcome,
-    ResourceAmounts Held,
-    ResourceAmounts Banked,
-    ResourceAmounts Lost);
+    WorldResourceAmounts Held,
+    WorldResourceAmounts Banked,
+    WorldResourceAmounts Lost);
 
 public readonly record struct ObjectiveProgress(int FerriteCollected, int NormalEnemiesDestroyed)
 {
@@ -176,9 +176,9 @@ public sealed class WorldRunSimulation
     public long RunTick { get; private set; }
     public RunPhase Phase { get; private set; } = RunPhase.Objective;
     public ObjectiveProgress Objective { get; private set; }
-    public ResourceAmounts HeldResources { get; private set; }
+    public WorldResourceAmounts HeldResources { get; private set; }
     public int ExtractionProgressTicks { get; private set; }
-    public RewardProposal? Reward { get; private set; }
+    public WorldRewardProposal? Reward { get; private set; }
     public IReadOnlyList<WorldRunEvent> LastEvents { get; private set; } = Array.Empty<WorldRunEvent>();
     public RunUpgradeSystem Upgrades => _upgrades;
     public int ShieldRechargeDelayAdditionTicks => _hazards.ShieldRechargeDelayAdditionTicks;
@@ -354,8 +354,8 @@ public sealed class WorldRunSimulation
         _rewardProposed = true;
         var banked = outcome == RunOutcome.Success
             ? HeldResources
-            : new ResourceAmounts(HeldResources.Ferrite * (_recoveryProtocols ? 50 : 25) / 100, 0, 0);
-        var lost = new ResourceAmounts(
+            : new WorldResourceAmounts(HeldResources.Ferrite * (_recoveryProtocols ? 50 : 25) / 100, 0, 0);
+        var lost = new WorldResourceAmounts(
             HeldResources.Ferrite - banked.Ferrite,
             HeldResources.Lumen - banked.Lumen,
             HeldResources.DataCores - banked.DataCores);

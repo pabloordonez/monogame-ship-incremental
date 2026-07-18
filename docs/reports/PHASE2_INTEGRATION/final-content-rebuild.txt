@@ -1,0 +1,36 @@
+Validated catalog mvp-p1-v1 (4ecbb2e7e8584f94f0ec52ac6e0b28811606425cb33db986c64a892ab51aa955).
+[I] Starting Content Builder
+[I] Deleting: Content/backgrounds/ion-veil.xnb
+[I] Deleting: Content/backgrounds/cinder-belt.xnb
+[I] Deleting: Content/atlases/ui-icons.xnb
+[I] Deleting: Content/atlases/player-modules.xnb
+[I] Deleting: Content/atlases/enemies-telegraphs.xnb
+[I] Deleting: Content/art/contact-sheet.xnb
+[I] Deleting: Content/atlases/asteroids-resources.xnb
+[I] Deleting: Content/audio/essential-cues.xnb
+[I] Deleting: Content/data/title-placeholder.json
+[I] Deleting: Content/data/sfx-cues.json
+[I] Deleting: Content/data/atlas-ui-icons.json
+[I] Deleting: Content/data/atlas-player-modules.json
+[I] Deleting: Content/data/atlas-enemies-telegraphs.json
+[I] Deleting: Content/data/atlas-asteroids-resources.json
+[I] Deleting: Content/data/asset-manifest.json
+[I] Deleting: Content/data/mvp-catalog.json
+[I] content/definitions/mvp-catalog.json: content/generated/DesktopVK/Content/data/mvp-catalog.json
+[I] content/source/data/asset-manifest.json: content/generated/DesktopVK/Content/data/asset-manifest.json
+[I] content/source/data/atlas-asteroids-resources.json: content/generated/DesktopVK/Content/data/atlas-asteroids-resources.json
+[I] content/source/data/atlas-enemies-telegraphs.json: content/generated/DesktopVK/Content/data/atlas-enemies-telegraphs.json
+[I] content/source/data/atlas-player-modules.json: content/generated/DesktopVK/Content/data/atlas-player-modules.json
+[I] content/source/data/atlas-ui-icons.json: content/generated/DesktopVK/Content/data/atlas-ui-icons.json
+[I] content/source/data/sfx-cues.json: content/generated/DesktopVK/Content/data/sfx-cues.json
+[I] content/source/data/title-placeholder.json: content/generated/DesktopVK/Content/data/title-placeholder.json
+[I] content/source/sfx/essential-cues.wav: content/generated/DesktopVK/Content/audio/essential-cues.xnb
+[I] content/source/textures/atlases/asteroids-resources.png: content/generated/DesktopVK/Content/atlases/asteroids-resources.xnb
+[I] content/source/textures/atlases/contact-sheet.png: content/generated/DesktopVK/Content/art/contact-sheet.xnb
+[I] content/source/textures/atlases/enemies-telegraphs.png: content/generated/DesktopVK/Content/atlases/enemies-telegraphs.xnb
+[I] content/source/textures/atlases/player-modules.png: content/generated/DesktopVK/Content/atlases/player-modules.xnb
+[I] content/source/textures/atlases/ui-icons.png: content/generated/DesktopVK/Content/atlases/ui-icons.xnb
+[I] content/source/textures/backgrounds/cinder-belt.png: content/generated/DesktopVK/Content/backgrounds/cinder-belt.xnb
+[I] content/source/textures/backgrounds/ion-veil.png: content/generated/DesktopVK/Content/backgrounds/ion-veil.xnb
+[I] Content Builder Finished
+[I]   16 succeeded, 0 failed

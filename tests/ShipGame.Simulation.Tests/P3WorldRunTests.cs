@@ -424,7 +424,7 @@ public class P3WorldRunTests
     [Fact]
     public void FailureRetentionAndRecoveryProtocolAreDeterministic()
     {
-        static RewardProposal Fail(bool recovery)
+        static WorldRewardProposal Fail(bool recovery)
         {
             var descriptor = new EncounterGenerator()
                 .Generate(GenerationIdentity.Current(WorldRunIds.CinderBelt, 211)).Descriptor;
@@ -452,7 +452,7 @@ public class P3WorldRunTests
     [Fact]
     public void SameSeedFactsAndChoicesProduceIdenticalOrderedEventsAndResults()
     {
-        static (string[] Events, RewardProposal Reward) Execute()
+        static (string[] Events, WorldRewardProposal Reward) Execute()
         {
             var run = CreateRun(501);
             var all = new List<WorldRunEvent>();
@@ -496,7 +496,7 @@ public class P3WorldRunTests
     /// Lightweight headless resolution: injects objective/elite facts and continuous extraction hold.
     /// Does not simulate combat AI, weapon contacts, or enemy pathing.
     /// </summary>
-    private static RewardProposal ResolveSeedHeadlessLightweight(FieldDescriptor descriptor, ulong seed)
+    private static WorldRewardProposal ResolveSeedHeadlessLightweight(FieldDescriptor descriptor, ulong seed)
     {
         var run = new WorldRunSimulation(descriptor, new RandomStreams(seed));
         var facts = new List<RunFact>
