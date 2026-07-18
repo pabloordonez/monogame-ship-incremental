@@ -14,6 +14,10 @@ This directory defines the first production vertical slice of Ship Game. Its pur
 8. [Agent workflow](agent-workflow.md) — phased implementation with implement, adversarial review, and remediation passes.
 9. [Validation and backlog](validation-and-backlog.md) — tests, playtests, telemetry, exit gates, and deferred work.
 
+## Code project guides
+
+The design docs above remain the product source of truth. For day to day code work, each `src` project has a README that explains ownership, folder layout, and how to extend that layer. Start with [ShipGame.Simulation](../../src/ShipGame.Simulation/README.md) when adding weapons, enemies, movement changes, research, or world-run side effects. Use [ShipGame.Game](../../src/ShipGame.Game/README.md) for screens, input, and presentation bindings. The thinner rings are [Domain](../../src/ShipGame.Domain/README.md), [Ecs](../../src/ShipGame.Ecs/README.md), [Content](../../src/ShipGame.Content/README.md), [Persistence](../../src/ShipGame.Persistence/README.md), and [Telemetry](../../src/ShipGame.Telemetry/README.md).
+
 ## Source-of-truth order
 
 When documents disagree, use this order:
