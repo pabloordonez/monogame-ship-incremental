@@ -136,13 +136,6 @@ public static class SmokeRunner
     public static int Run(string? repositoryRoot = null, string? saveDirectory = null)
     {
         repositoryRoot ??= FindRepositoryRoot();
-        var sourceRoot = Path.Combine(repositoryRoot, "content", "source");
-        var definitionsRoot = Path.Combine(repositoryRoot, "content", "definitions");
-        var runtimeCatalog = MvpContentLoader.LoadAndValidate(sourceRoot, definitionsRoot);
-        if (!runtimeCatalog.AssetIds.Contains("data/title-placeholder") ||
-            !runtimeCatalog.DefinitionIds.Contains("MAT_FERRITE"))
-            return 10;
-
         var contentRoot = Path.Combine(repositoryRoot, "content", "generated", "DesktopVK", "Content");
         var manifest = ContentValidator.LoadAndValidateManifest(contentRoot, "data/asset-manifest.json");
         var catalog = new FileAssetCatalog(contentRoot, manifest);

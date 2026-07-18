@@ -4,6 +4,14 @@ Integration owner: `P1_CONTENT_ART` package specification (`docs/reports/P1_CONT
 
 All retained candidates/placeholders are original repository-authored assets (programmatic pixel primitives or synthesized PCM). License is `CC0-1.0` unless noted. No unknown or incompatible licenses. No music files.
 
+## Residual human review (automated gates cover what they can)
+
+Automated Content tests now enforce: opaque palette size ≤32, region silhouette/alpha occupancy, and grayscale-luminance (or silhouette-mask) distinctness for ore variants and friendly vs hostile projectiles. Residual human review still required before `approved` status:
+
+- Native 640×360 effects-off playfeel (motion blur/particles disabled in a future render path).
+- Full contact-sheet grayscale telegraphs under actual gameplay lighting, not only static atlas math.
+- Multi-frame animation strips (metadata currently honest single-frame placeholders with reserved fps).
+
 | Asset ID | Status | Reason retained | Replacement criterion | License / provenance |
 |---|---|---|---|---|
 | `data/title-placeholder` | placeholder | P0 walking-skeleton title text | Replace when title presentation is approved | CC0-1.0; original foundation text; owner `P0_FOUNDATION` |

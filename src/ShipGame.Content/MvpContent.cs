@@ -163,6 +163,56 @@ public static partial class MvpContentLoader
             fingerprint);
     }
 
+    /// <summary>
+    /// P1-owned generated-root gate: every authored manifest ID still resolves under the
+    /// authoring root, data/metadata sources are present in the generated root, and
+    /// texture/atlas/sound kinds also have compiled <c>{id}.xnb</c> outputs.
+    /// Does not soften P0 <see cref="ContentValidator"/> / <see cref="ContentBuildPlan"/> semantics.
+    /// </summary>
+    public static void ValidateGeneratedRoot(
+        string generatedRoot,
+        string sourceRoot,
+        string definitionsRoot,
+        string manifestRelativePath = "data/asset-manifest.json")
+    {
+        var catalog = LoadAndValidate(sourceRoot, definitionsRoot, manifestRelativePath);
+        var issues = new List<ValidationIssue>();
+        var generated = Path.GetFullPath(generatedRoot);
+        var source = Path.GetFullPath(sourceRoot);
+        var manifest = Read<AssetManifestV1>(
+            ContentValidator.ResolveUnderRoot(source, manifestRelativePath), issues, "manifest.invalid")
+            ?? throw new ContentValidationException(issues);
+
+        _ = ContentBuildRules.Enumerate(manifest);
+
+        foreach (var asset in manifest.Assets ?? [])
+        {
+            if (!catalog.AssetIds.Contains(asset.Id))
+                issues.Add(new("generated.missing-catalog-id", $"Generated validation missing catalog asset '{asset.Id}'."));
+
+            var authored = TryResolve(source, asset.Source, asset.Id, issues);
+            if (authored is null || !File.Exists(authored))
+                issues.Add(new("asset.missing-source", $"Asset '{asset.Id}' authored source '{asset.Source}' is missing."));
+
+            var generatedSource = TryResolve(generated, asset.Source, asset.Id, issues);
+            if (generatedSource is null || !File.Exists(generatedSource))
+                issues.Add(new("generated.missing-source",
+                    $"Asset '{asset.Id}' source '{asset.Source}' is missing under generated root."));
+
+            if (asset.Kind is "atlas" or "texture" or "sound")
+            {
+                var compiledRelative = asset.Id.Replace('\\', '/') + ".xnb";
+                var compiled = TryResolve(generated, compiledRelative, asset.Id, issues);
+                if (compiled is null || !File.Exists(compiled))
+                    issues.Add(new("generated.missing-xnb",
+                        $"Asset '{asset.Id}' compiled artifact '{compiledRelative}' is missing."));
+            }
+        }
+
+        if (issues.Count > 0)
+            throw new ContentValidationException(issues);
+    }
+
     private static void ValidateAssets(string root, IReadOnlyList<AssetRecord> assets, List<ValidationIssue> issues)
     {
         AddDuplicates(assets.Select(item => item.Id), "asset.duplicate-id", issues);
@@ -251,9 +301,20 @@ public static partial class MvpContentLoader
                     issues.Add(new("atlas.pivot", $"Atlas region '{region.Id}' must use pivot (0.5,0.5)."));
                 if (region.Collision is not null && !collisionIds.Contains(region.Collision))
                     issues.Add(new("atlas.collision", $"Region '{region.Id}' references missing collision '{region.Collision}'."));
-                if (region.Animation is not null &&
-                    (region.Animation.Fps is not (6 or 8 or 12) || region.Animation.Frames.Count is < 2 or > 8))
-                    issues.Add(new("atlas.animation", $"Region '{region.Id}' has invalid animation metadata."));
+                if (region.Animation is not null)
+                {
+                    // Frame count 1 = honest single-pose placeholder (no packed strip yet).
+                    // Counts 2–8 require a packed horizontal strip of equal cell width.
+                    if (region.Animation.Fps is not (6 or 8 or 12) ||
+                        region.Animation.Frames.Count is < 1 or > 8)
+                        issues.Add(new("atlas.animation", $"Region '{region.Id}' has invalid animation metadata."));
+                    else if (region.Animation.Frames.Count > 1)
+                    {
+                        if (region.Width % region.Animation.Frames.Count != 0)
+                            issues.Add(new("atlas.animation-strip",
+                                $"Region '{region.Id}' claims {region.Animation.Frames.Count} frames but width {region.Width} is not divisible into equal cells."));
+                    }
+                }
                 foreach (var point in region.Hardpoints?.Values ?? [])
                     if (point.X < 0 || point.Y < 0 || point.X >= region.Width || point.Y >= region.Height)
                         issues.Add(new("atlas.hardpoint", $"Region '{region.Id}' has an out-of-bounds hardpoint."));

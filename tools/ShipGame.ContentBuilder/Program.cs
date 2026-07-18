@@ -52,7 +52,24 @@ builder.Run(new ContentBuilderParams
     Rebuild = args.Contains("--rebuild", StringComparer.Ordinal)
 });
 
-return builder.FailedToBuild > 0 ? 1 : 0;
+if (builder.FailedToBuild > 0)
+    return 1;
+
+// Retain authored sources beside compiled outputs so P0 fail-closed
+// ContentValidator.LoadAndValidateManifest can resolve Source paths without
+// softening ContentContracts (IncludeCopy of the same input replaces Include).
+var generatedContent = Path.Combine(repositoryRoot, "content", "generated", "DesktopVK", "Content");
+foreach (var item in ContentBuildRules.Enumerate(manifest))
+{
+    if (item.ProcessorKey is not (ContentBuildRules.TextureProcessorVersion or ContentBuildRules.SoundProcessorVersion))
+        continue;
+    var from = Path.Combine(repositoryRoot, "content", "source", item.SourceRelativePath);
+    var to = Path.Combine(generatedContent, item.SourceRelativePath);
+    Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+    File.Copy(from, to, overwrite: true);
+}
+
+return 0;
 
 static void EnsureMonoGameAudioToolsOnPath()
 {

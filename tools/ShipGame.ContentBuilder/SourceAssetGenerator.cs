@@ -62,35 +62,37 @@ internal static class SourceAssetGenerator
 
     private static List<RegionDef> PlayerModules() =>
     [
+        // Animation fps reserved; frames=[0] until multi-frame strips are packed.
         Region("ships/player/wayfarer", 64, 64, Family.Player, 0, hardpoints: WayfarerHardpoints(), collision: "collision/wayfarer"),
-        Region("ships/player/engine", 64, 64, Family.Player, 1, animation: Anim(8, 3)),
-        Region("ships/player/damage-flash", 64, 64, Family.Player, 2, animation: Anim(12, 2)),
+        Region("ships/player/engine", 64, 64, Family.Player, 1, animation: Anim(8, 1)),
+        Region("ships/player/damage-flash", 64, 64, Family.Player, 2, animation: Anim(12, 1)),
         Region("ships/player/shield-mask", 64, 64, Family.Player, 3),
-        Region("ships/player/dash", 64, 64, Family.Player, 4, animation: Anim(12, 4)),
-        Region("ships/player/blink", 64, 64, Family.Player, 5, animation: Anim(12, 4)),
-        Region("ships/utility/firefly", 32, 32, Family.Player, 6, animation: Anim(8, 2), collision: "collision/projectile"),
+        Region("ships/player/dash", 64, 64, Family.Player, 4, animation: Anim(12, 1)),
+        Region("ships/player/blink", 64, 64, Family.Player, 5, animation: Anim(12, 1)),
+        Region("ships/utility/firefly", 32, 32, Family.Player, 6, animation: Anim(8, 1), collision: "collision/projectile"),
         Region("weapons/pulse", 16, 16, Family.Weapon, 0, collision: "collision/projectile"),
-        Region("weapons/beam", 16, 32, Family.Weapon, 1, animation: Anim(12, 2)),
-        Region("weapons/seeker", 12, 12, Family.Weapon, 2, animation: Anim(8, 2), collision: "collision/projectile"),
-        Region("weapons/mining-beam", 16, 32, Family.Weapon, 3, animation: Anim(12, 2)),
-        Region("weapons/seismic-charge", 16, 16, Family.Weapon, 4, animation: Anim(6, 3), collision: "collision/projectile"),
-        Region("effects/tractor", 32, 32, Family.Player, 7, animation: Anim(8, 3))
+        Region("weapons/beam", 16, 32, Family.Weapon, 1, animation: Anim(12, 1)),
+        Region("weapons/seeker", 12, 12, Family.Weapon, 2, animation: Anim(8, 1), collision: "collision/projectile"),
+        Region("weapons/mining-beam", 16, 32, Family.Weapon, 3, animation: Anim(12, 1)),
+        Region("weapons/seismic-charge", 16, 16, Family.Weapon, 4, animation: Anim(6, 1), collision: "collision/projectile"),
+        Region("effects/tractor", 32, 32, Family.Player, 7, animation: Anim(8, 1))
     ];
 
     private static List<RegionDef> EnemyTelegraphs() =>
     [
-        Region("enemies/interceptor", 32, 32, Family.Enemy, 0, animation: Anim(8, 2), collision: "collision/enemy-small",
+        Region("enemies/interceptor", 32, 32, Family.Enemy, 0, animation: Anim(8, 1), collision: "collision/enemy-small",
             hardpoints: Dict(("primaryWeapon", 16, 4), ("leftEngine", 8, 26), ("rightEngine", 24, 26))),
-        Region("enemies/gunship", 64, 64, Family.Enemy, 1, animation: Anim(6, 2), collision: "collision/enemy-medium",
+        Region("enemies/gunship", 64, 64, Family.Enemy, 1, animation: Anim(6, 1), collision: "collision/enemy-medium",
             hardpoints: Dict(("primaryWeapon", 32, 8))),
-        Region("enemies/sapper", 48, 48, Family.Enemy, 2, animation: Anim(8, 2), collision: "collision/enemy-small",
+        Region("enemies/sapper", 48, 48, Family.Enemy, 2, animation: Anim(8, 1), collision: "collision/enemy-small",
             hardpoints: Dict(("utility", 24, 36))),
-        Region("enemies/elite-outline", 64, 64, Family.Enemy, 3, animation: Anim(8, 2)),
-        Region("telegraphs/elite-marker", 32, 32, Family.Telegraph, 0, animation: Anim(6, 3)),
-        Region("telegraphs/muzzle-flash", 32, 32, Family.Telegraph, 1, animation: Anim(12, 2)),
-        Region("telegraphs/aim-line", 64, 16, Family.Telegraph, 2, animation: Anim(12, 2)),
-        Region("telegraphs/mine-radius", 64, 64, Family.Telegraph, 3, animation: Anim(8, 3)),
-        Region("effects/enemy-destruction", 64, 64, Family.Enemy, 4, animation: Anim(12, 6))
+        Region("enemies/elite-outline", 64, 64, Family.Enemy, 3, animation: Anim(8, 1)),
+        Region("projectiles/hostile", 12, 12, Family.HostileProjectile, 0, collision: "collision/projectile"),
+        Region("telegraphs/elite-marker", 32, 32, Family.Telegraph, 0, animation: Anim(6, 1)),
+        Region("telegraphs/muzzle-flash", 32, 32, Family.Telegraph, 1, animation: Anim(12, 1)),
+        Region("telegraphs/aim-line", 64, 16, Family.Telegraph, 2, animation: Anim(12, 1)),
+        Region("telegraphs/mine-radius", 64, 64, Family.Telegraph, 3, animation: Anim(8, 1)),
+        Region("effects/enemy-destruction", 64, 64, Family.Enemy, 4, animation: Anim(12, 1))
     ];
 
     private static List<RegionDef> AsteroidsResources() =>
@@ -104,16 +106,16 @@ internal static class SourceAssetGenerator
         Region("asteroids/large/ordinary", 96, 96, Family.Asteroid, 6, collision: "collision/asteroid-large"),
         Region("asteroids/large/ferrite", 96, 96, Family.Asteroid, 7, collision: "collision/asteroid-large"),
         Region("asteroids/large/lumen", 96, 96, Family.Asteroid, 8, collision: "collision/asteroid-large"),
-        Region("asteroids/break", 32, 32, Family.Asteroid, 9, animation: Anim(8, 4)),
-        Region("pickups/ferrite", 10, 10, Family.Pickup, 0, animation: Anim(8, 2), collision: "collision/pickup"),
-        Region("pickups/lumen", 10, 10, Family.Pickup, 1, animation: Anim(8, 2), collision: "collision/pickup"),
-        Region("pickups/data-core", 12, 12, Family.Pickup, 2, animation: Anim(8, 3), collision: "collision/pickup"),
-        Region("pickups/upgrade-charge", 12, 12, Family.Pickup, 3, animation: Anim(8, 2), collision: "collision/pickup"),
-        Region("field/extraction-marker", 32, 32, Family.Field, 0, animation: Anim(6, 3)),
+        Region("asteroids/break", 32, 32, Family.Asteroid, 9, animation: Anim(8, 1)),
+        Region("pickups/ferrite", 10, 10, Family.Pickup, 0, animation: Anim(8, 1), collision: "collision/pickup"),
+        Region("pickups/lumen", 10, 10, Family.Pickup, 1, animation: Anim(8, 1), collision: "collision/pickup"),
+        Region("pickups/data-core", 12, 12, Family.Pickup, 2, animation: Anim(8, 1), collision: "collision/pickup"),
+        Region("pickups/upgrade-charge", 12, 12, Family.Pickup, 3, animation: Anim(8, 1), collision: "collision/pickup"),
+        Region("field/extraction-marker", 32, 32, Family.Field, 0, animation: Anim(6, 1)),
         Region("field/cover-cue", 32, 32, Family.Field, 1),
-        Region("hazards/solar-flare", 64, 32, Family.Hazard, 0, animation: Anim(12, 3)),
-        Region("hazards/ion-cloud", 48, 48, Family.Hazard, 1, animation: Anim(8, 3)),
-        Region("hazards/star-glow", 48, 48, Family.Hazard, 2, animation: Anim(6, 2))
+        Region("hazards/solar-flare", 64, 32, Family.Hazard, 0, animation: Anim(12, 1)),
+        Region("hazards/ion-cloud", 48, 48, Family.Hazard, 1, animation: Anim(8, 1)),
+        Region("hazards/star-glow", 48, 48, Family.Hazard, 2, animation: Anim(6, 1))
     ];
 
     private static List<RegionDef> UiIcons()
@@ -143,7 +145,8 @@ internal static class SourceAssetGenerator
     private static List<object> EnemyCollisions() =>
     [
         Collision("collision/enemy-small", "circle", [16, 16, 12]),
-        Collision("collision/enemy-medium", "circle", [32, 32, 20])
+        Collision("collision/enemy-medium", "circle", [32, 32, 20]),
+        Collision("collision/projectile", "circle", [6, 6, 3])
     ];
 
     private static List<object> AsteroidCollisions() =>
@@ -253,9 +256,17 @@ internal static class SourceAssetGenerator
                 image.Rect(region.X + region.Width - 10, region.Y + region.Height - 10, 6, 6, Palette[8]);
                 break;
             case Family.Weapon:
-                image.Rect(cx - Math.Max(1, region.Width / 4), cy - Math.Max(1, region.Height / 4),
-                    Math.Max(2, region.Width / 2), Math.Max(2, region.Height / 2), primary);
-                image.Rect(cx - 1, cy - 1, 2, 2, Palette[6]);
+                // Friendly projectile: tall vertical bolt (shape + luminance, not hue alone).
+                image.Rect(cx - 1, region.Y + 1, 3, region.Height - 2, Palette[8]);
+                image.Rect(cx - 2, cy - Math.Max(2, region.Height / 4), 5, Math.Max(3, region.Height / 2), Palette[7]);
+                image.Rect(cx, cy - 1, 1, 2, Palette[6]);
+                break;
+            case Family.HostileProjectile:
+                // Hostile projectile: wide chevron / horizontal wedge, darker silhouette.
+                image.Rect(region.X + 1, cy - 1, region.Width - 2, 3, Palette[9]);
+                image.Rect(region.X + 2, cy - 3, region.Width / 2, 2, Palette[10]);
+                image.Rect(region.X + 2, cy + 2, region.Width / 2, 2, Palette[10]);
+                image.Rect(cx, cy - 1, 2, 3, Palette[3]);
                 break;
             case Family.Enemy:
                 image.Rect(region.X + 2, cy - 3, region.Width - 4, 7, accent);
@@ -267,16 +278,41 @@ internal static class SourceAssetGenerator
                 image.Rect(cx - 1, region.Y + 1, 3, region.Height - 2, Palette[10]);
                 break;
             case Family.Asteroid:
+                // Shape-distinct ore variants (not hue-only): ordinary diamond, ferrite block, lumen ring.
                 var radius = Math.Max(4, Math.Min(region.Width, region.Height) / 2 - 2);
-                image.Diamond(cx, cy, radius, radius - 1, secondary);
                 if (region.Id.Contains("ferrite", StringComparison.Ordinal))
-                    image.Rect(cx - 2, cy - 2, 4, 4, Palette[11]);
-                if (region.Id.Contains("lumen", StringComparison.Ordinal))
-                    image.Rect(cx - 2, cy - 2, 4, 4, Palette[14]);
+                {
+                    image.Rect(cx - radius + 1, cy - radius + 1, radius * 2 - 1, radius * 2 - 1, secondary);
+                    image.Rect(cx - radius + 3, cy - 1, radius * 2 - 5, 3, Palette[11]);
+                    image.Rect(cx - 1, cy - radius + 3, 3, radius * 2 - 5, Palette[11]);
+                }
+                else if (region.Id.Contains("lumen", StringComparison.Ordinal))
+                {
+                    image.Diamond(cx, cy, radius, radius - 1, Palette[4]);
+                    image.Diamond(cx, cy, Math.Max(2, radius / 2), Math.Max(2, radius / 2 - 1), Palette[0]);
+                    image.Rect(cx - 1, cy - radius + 1, 3, 3, Palette[14]);
+                }
+                else
+                {
+                    image.Diamond(cx, cy, radius, radius - 1, secondary);
+                }
                 break;
             case Family.Pickup:
-                image.Diamond(cx, cy, region.Width / 2 - 1, region.Height / 2 - 1, primary);
-                image.Rect(cx - 1, cy - 1, 2, 2, Palette[6]);
+                if (region.Id.Contains("ferrite", StringComparison.Ordinal))
+                {
+                    image.Rect(region.X + 1, region.Y + 1, region.Width - 2, region.Height - 2, Palette[11]);
+                    image.Rect(cx - 1, cy - 1, 2, 2, Palette[3]);
+                }
+                else if (region.Id.Contains("lumen", StringComparison.Ordinal))
+                {
+                    image.Diamond(cx, cy, region.Width / 2 - 1, region.Height / 2 - 1, Palette[14]);
+                    image.Rect(cx, region.Y + 1, 1, region.Height - 2, Palette[6]);
+                }
+                else
+                {
+                    image.Diamond(cx, cy, region.Width / 2 - 1, region.Height / 2 - 1, primary);
+                    image.Rect(cx - 1, cy - 1, 2, 2, Palette[6]);
+                }
                 break;
             case Family.Field:
                 image.Rect(region.X + 4, region.Y + 4, region.Width - 8, region.Height - 8, Palette[11]);
@@ -405,6 +441,7 @@ internal static class SourceAssetGenerator
     {
         Player,
         Weapon,
+        HostileProjectile,
         Enemy,
         Telegraph,
         Asteroid,

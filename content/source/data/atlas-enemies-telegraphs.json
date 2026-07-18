@@ -24,6 +24,15 @@
         32,
         20
       ]
+    },
+    {
+      "id": "collision/projectile",
+      "kind": "circle",
+      "values": [
+        6,
+        6,
+        3
+      ]
     }
   ],
   "regions": [
@@ -53,8 +62,7 @@
       "animation": {
         "fps": 8,
         "frames": [
-          0,
-          1
+          0
         ]
       }
     },
@@ -76,8 +84,7 @@
       "animation": {
         "fps": 6,
         "frames": [
-          0,
-          1
+          0
         ]
       }
     },
@@ -99,8 +106,7 @@
       "animation": {
         "fps": 8,
         "frames": [
-          0,
-          1
+          0
         ]
       }
     },
@@ -117,10 +123,21 @@
       "animation": {
         "fps": 8,
         "frames": [
-          0,
-          1
+          0
         ]
       }
+    },
+    {
+      "id": "projectiles/hostile",
+      "x": 74,
+      "y": 74,
+      "width": 12,
+      "height": 12,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/projectile",
+      "hardpoints": null,
+      "animation": null
     },
     {
       "id": "telegraphs/elite-marker",
@@ -135,9 +152,7 @@
       "animation": {
         "fps": 6,
         "frames": [
-          0,
-          1,
-          2
+          0
         ]
       }
     },
@@ -154,8 +169,7 @@
       "animation": {
         "fps": 12,
         "frames": [
-          0,
-          1
+          0
         ]
       }
     },
@@ -172,8 +186,7 @@
       "animation": {
         "fps": 12,
         "frames": [
-          0,
-          1
+          0
         ]
       }
     },
@@ -190,9 +203,7 @@
       "animation": {
         "fps": 8,
         "frames": [
-          0,
-          1,
-          2
+          0
         ]
       }
     },
@@ -209,12 +220,7 @@
       "animation": {
         "fps": 12,
         "frames": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5
+          0
         ]
       }
     }

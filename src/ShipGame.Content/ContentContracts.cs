@@ -60,7 +60,8 @@ public static class ContentValidator
                     string.IsNullOrWhiteSpace(asset.Source) ||
                     string.IsNullOrWhiteSpace(asset.Status))
                     throw new ArgumentException("Asset kind, source, and status are required.");
-                if (!AssetArtifactExists(root, asset))
+                var source = ResolveUnderRoot(root, asset.Source);
+                if (!File.Exists(source))
                     issues.Add(new("asset.missing-source", $"Asset '{asset.Id}' source '{asset.Source}' is missing."));
             }
             catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
@@ -103,22 +104,6 @@ public static class ContentValidator
         return rooted;
     }
 
-    /// <summary>
-    /// Authoring roots resolve <see cref="AssetEntry.Source"/>; runtime generated roots may
-    /// instead contain compiled <c>{id}.xnb</c> artifacts for texture/atlas/sound kinds.
-    /// </summary>
-    public static bool AssetArtifactExists(string root, AssetEntry asset)
-    {
-        ArgumentNullException.ThrowIfNull(asset);
-        var source = ResolveUnderRoot(root, asset.Source);
-        if (File.Exists(source))
-            return true;
-        if (asset.Kind is not ("atlas" or "texture" or "sound"))
-            return false;
-        var compiled = ResolveUnderRoot(root, asset.Id.Replace('\\', '/') + ".xnb");
-        return File.Exists(compiled);
-    }
-
     private static void ThrowIfAny(List<ValidationIssue> issues)
     {
         if (issues.Count > 0)
@@ -128,10 +113,6 @@ public static class ContentValidator
 
 public static class ContentBuildPlan
 {
-    /// <summary>
-    /// P0 data-copy subset. Texture/atlas/sound/metadata rules live in <see cref="ContentBuildRules"/>.
-    /// Non-data kinds are skipped here so mixed manifests remain compatible.
-    /// </summary>
     public static IReadOnlyList<string> DataSources(AssetManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
@@ -141,7 +122,8 @@ public static class ContentBuildPlan
         foreach (var asset in manifest.Assets.OrderBy(asset => asset.Id, StringComparer.Ordinal))
         {
             if (!string.Equals(asset.Kind, "data", StringComparison.Ordinal))
-                continue;
+                throw new ContentValidationException(
+                    [new("asset.unsupported-build-kind", $"P0 builder has no reviewed rule for kind '{asset.Kind}' ({asset.Id}).")]);
             sources.Add(asset.Source.Replace('\\', '/'));
         }
         return sources;
