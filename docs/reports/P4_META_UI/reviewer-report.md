@@ -138,3 +138,11 @@ No rejection test for oversized/raw string payloads at the meta translator bound
 ## Verdict
 
 REMEDIATE
+
+---
+
+## Final acceptance recheck
+
+Independent recheck verdict: **ACCEPT**
+Accepted implementation/remediation SHA: `b398b26`
+Full recheck body: `recheck-report.md`.
