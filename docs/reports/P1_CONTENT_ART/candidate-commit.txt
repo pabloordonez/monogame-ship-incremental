@@ -1,0 +1,5 @@
+implementation: 20a823e3be2eccd140f58729e0f883bec0cc8128
+pinned-base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+package-spec: 56c47296559b559a3c9d414c596123ba20989083
+branch: phase2-p1-content-art
+status: IMPLEMENTATION_COMPLETE
