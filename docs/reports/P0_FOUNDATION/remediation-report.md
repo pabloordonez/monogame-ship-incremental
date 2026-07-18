@@ -121,3 +121,67 @@ None. C1, M1–M8, m1, and m2 were reproduced and corrected. No finding was defe
 - P0 Content Builder automatically copies validated data entries only. Compiled media rules remain owned by the later content package and fail closed today.
 - Architecture source-policy checks are deliberately narrow and explicit; new approved authoritative APIs require updating the documented policy and its representative violation tests.
 - The independent reviewer must re-run adversarial checks; remediation cannot self-accept.
+
+## Second remediation pass — final acceptance recheck
+
+### Status and identity
+
+`READY_FOR_RECHECK`
+
+- Rechecked evidence baseline: `9575c1adb295ca7616dbcc0128e50bc0bd686c32`
+- Prior remediation implementation: `5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46`
+- Second remediation implementation: `3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a`
+- Second implementation range: `9575c1adb295ca7616dbcc0128e50bc0bd686c32..3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a`
+- Recheck verdict preserved in `reviewer-report.md`: `REMEDIATE`
+
+This second pass does not accept the package. It is submitted for another independent recheck.
+
+### M1 — mutable ECS entity list
+
+- Reproduced: `IComponentView<T>.Entities` returned the live `List<EntityId>`, which was castable to mutable list interfaces.
+- Fix: each access now returns a detached `EntitySnapshot` implementing only `IReadOnlyList<EntityId>`; it exposes no mutable collection interface and cannot alter sparse/dense backing storage.
+- Regression: runtime casts to generic and non-generic mutable list interfaces fail. Removing a component after snapshot creation proves the snapshot is detached while store count, `Has`, `Read`, and `Get` remain aligned and valid.
+
+### M4 — mutable telemetry payload
+
+- Reproduced: `TelemetryRecord.Payload` returned the sanitized `Dictionary` behind an interface and remained castable to mutable dictionary interfaces.
+- Fix: the record copies values into a private `FrozenDictionary`, then exposes it only through a private wrapper implementing `IReadOnlyDictionary`. Accepted values remain scalar immutable values; nested mutable structures are rejected before construction.
+- Regression: mutable dictionary casts fail, mutation of the original source after record construction does not alter the record, and persisted JSONL retains the validated numeric value without the injected email/string.
+- Existing construction, write, disposal, unsupported-type, cycle, PII, raw-string, size, and disabled-sink isolation tests continue to pass.
+
+### M8 — project architecture policy did not inspect project files
+
+- Reproduced: the prior test inferred only emitted assembly references, omitted `ShipGame.ContentBuilder`, and tested a separate hand-built graph.
+- Fix: `ProjectArchitecturePolicy` loads actual production `.csproj` XML from `src` and `tools/ShipGame.ContentBuilder` using normalized platform paths. It validates all eight required projects, allowed `ProjectReference` edges, unknown/missing/duplicate references, cycle freedom, allowed `PackageReference` placement, and exact MonoGame 3.8.5 package pins.
+- Regression: the same validator rejects malformed XML, missing `ProjectReference Include`, a forbidden Domain-to-Ecs edge and resulting cycle, a Content Pipeline 3.8.4 pin, and a MonoGame package placed in Domain.
+- Existing assembly/API/component/version/schedule/typed-ID/headless checks remain active.
+
+### Second-pass files
+
+- `src/ShipGame.Ecs/EcsWorld.cs`
+- `src/ShipGame.Telemetry/TelemetryContracts.cs`
+- `tests/ShipGame.Ecs.Tests/UnitTest1.cs`
+- `tests/ShipGame.Telemetry.Tests/UnitTest1.cs`
+- `tests/ShipGame.Architecture.Tests/ProjectArchitecturePolicy.cs`
+- `tests/ShipGame.Architecture.Tests/UnitTest1.cs`
+- `docs/reports/P0_FOUNDATION/reviewer-report.md`
+
+### Exact second-pass gate summary
+
+- Initial full `dotnet test` exposed that .NET's `FrozenDictionary` itself implements a mutable dictionary interface even though mutation is unsupported: 59 passed, 1 failed. A private non-castable wrapper was added; no assertion or policy was weakened.
+- Focused final suites: ECS 10/10, Telemetry 7/7, Architecture 8/8.
+- Clean solution, restore, canonical script: exit 0; Content Builder 2/2; build 0 warnings/errors; 60 passed, 0 failed, 0 skipped.
+- Explicit clean and incremental content builds: exit 0; each reported 2 succeeded, 0 failed.
+- Headless smoke: exit 0; restore/content/build and deterministic Continue completed.
+- DesktopVK bounded smoke: exit 0; Vulkan/Win32 surface, content, walking skeleton, RTX 3090, and swapchain recreation observed.
+- Package resolution: exit 0; required runtime and builder packages resolve exactly to 3.8.5.
+- Vulnerability audit: exit 0; runtime/test projects report no vulnerable packages. The previously documented official Content Pipeline transitive metadata still reports four high-advisory legacy packages.
+- `dotnet list ShipGame.sln reference`: exit 1 because this CLI does not accept the solution for the reference verb. The corrected per-production-project loop exited 0 and listed all project edges; the XML architecture gate independently validates those exact edges.
+- No-legacy scan: exit 0, no matches.
+- Diff checks and IDE diagnostics: no whitespace or linter errors.
+
+Full exact commands and observed results are appended to `commands-and-results.txt`.
+
+### Remaining or disputed recheck findings
+
+None. The three open major findings M1, M4, and M8 were reproduced and corrected. Independent acceptance recheck remains required.

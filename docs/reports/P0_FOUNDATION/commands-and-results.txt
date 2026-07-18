@@ -183,3 +183,86 @@ Observed: implementation remediation commit `5523b94ef2fb9cbb153e65c94d1c2e7671a
 Command: git status --short --branch && git rev-parse HEAD && git diff --check 2bce17f86019b3da471c9259af44db3638032b95..HEAD
 Exit: 0
 Observed: branch `p0-foundation`; clean tree; HEAD `5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46`; remediation range has no whitespace errors.
+
+FINAL ACCEPTANCE RECHECK — SECOND REMEDIATION
+Date: 2026-07-18
+Recheck verdict: REMEDIATE
+Rechecked evidence HEAD: 9575c1adb295ca7616dbcc0128e50bc0bd686c32
+Second remediation implementation: 3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a
+Second implementation range: 9575c1adb295ca7616dbcc0128e50bc0bd686c32..3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a
+
+Command: dotnet test ShipGame.sln --configuration Release
+Initial exit: 1
+Observed: the new telemetry regression proved `FrozenDictionary` itself remained castable to a mutable dictionary interface; 59 passed, 1 failed. A private wrapper implementing only `IReadOnlyDictionary` was added without weakening the assertion.
+
+Command: dotnet test tests/ShipGame.Telemetry.Tests/ShipGame.Telemetry.Tests.csproj --configuration Release && dotnet test tests/ShipGame.Ecs.Tests/ShipGame.Ecs.Tests.csproj --configuration Release && dotnet test tests/ShipGame.Architecture.Tests/ShipGame.Architecture.Tests.csproj --configuration Release
+Exit: 0
+Observed: Telemetry 7/7; ECS 10/10; Architecture 8/8.
+
+Command: dotnet test tests/ShipGame.Architecture.Tests/ShipGame.Architecture.Tests.csproj --configuration Release
+Exit: 0
+Observed after final invalid-package-placement regression: Architecture 8/8.
+
+Command: dotnet clean ShipGame.sln --configuration Release && dotnet restore ShipGame.sln && powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
+Exit: 0
+Observed:
+- clean build: 0 warnings, 0 errors;
+- restore: all projects up to date;
+- canonical Content Builder rebuild: 2 succeeded, 0 failed;
+- canonical Release build: 0 warnings, 0 errors;
+- Architecture 8/8; Content 8/8; ECS 10/10; Game Smoke 1/1; Persistence 14/14; Simulation 12/12; Telemetry 7/7;
+- Total: 60 passed, 0 failed, 0 skipped.
+
+Command: dotnet clean tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release && dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release -- --rebuild && dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release --no-build
+Exit: 0
+Observed: tool clean succeeded with 0 warnings/errors; clean content build 2 succeeded/0 failed; incremental content build 2 succeeded/0 failed.
+
+Command: dotnet test tests/ShipGame.Architecture.Tests/ShipGame.Architecture.Tests.csproj --configuration Release && powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -Smoke
+Exit: 0
+Observed: Architecture 8/8; headless restore/content/build completed with content 2 succeeded/0 failed and build 0 warnings/errors; deterministic save/Continue smoke exited successfully.
+
+Command: dotnet run --project src/ShipGame.Game/ShipGame.Game.csproj --configuration Release --no-build -- --window-smoke
+Exit: 0
+Observed:
+- volk initialized;
+- SDL required `VK_KHR_surface` and `VK_KHR_win32_surface`;
+- `DESKTOPVK_CONTENT_READY`;
+- `DESKTOPVK_WALKING_SKELETON_COMPLETE`;
+- Vulkan 1.4.303;
+- NVIDIA GeForce RTX 3090 selected;
+- swapchain recreation observed.
+
+Command: dotnet list ShipGame.sln package --include-transitive
+Exit: 0
+Observed: Game resolved `MonoGame.Framework.Native` and `MonoGame.Runtime.Windows.Vulkan` exactly 3.8.5; ContentBuilder resolved `MonoGame.Framework.Content.Pipeline` and `MonoGame.Framework.Native` exactly 3.8.5.
+
+Command: dotnet list ShipGame.sln package --vulnerable --include-transitive
+Exit: 0
+Observed: no vulnerable runtime/test packages. The official MonoGame Content Pipeline graph still reports the previously documented high advisories on `Microsoft.NETCore.App 1.0.5`, `Microsoft.NETCore.Jit 1.0.7`, `System.Net.Http 4.1.2`, and `System.Security.Cryptography.X509Certificates 4.1.0`.
+
+Command: dotnet list ShipGame.sln reference
+Exit: 1
+Observed: the reference verb rejects the solution input as invalid; this is a CLI input limitation, not a project failure.
+
+Command: for project in src/*/*.csproj tools/*/*.csproj; do dotnet list "$project" reference || exit $?; done
+Exit: 0
+Observed: all eight production/tool projects were listed successfully with the expected inward references; the architecture suite parses and validates the same project files, exact edges, cycles, package placement, and pins.
+
+Command: rg -n "MonoGame\.Content\.Builder\.Task|MonoGameContentReference|\.mgcb" --glob "*.csproj" --glob "*.props" --glob "*.targets" --glob "*.cs" --glob "*.yml" .; test $? -eq 1
+Exit: 0
+Observed: no legacy content-pipeline matches.
+
+Command: git diff --check && git status --short && git diff --stat 9575c1adb295ca7616dbcc0128e50bc0bd686c32
+Exit: 0
+Observed: no whitespace errors; only intended second-remediation source, tests, and reviewer report were changed.
+
+IDE diagnostics: ReadLints on changed source/tests
+Observed: no linter errors.
+
+Command: git add docs/reports/P0_FOUNDATION/reviewer-report.md src/ShipGame.Ecs/EcsWorld.cs src/ShipGame.Telemetry/TelemetryContracts.cs tests/ShipGame.Architecture.Tests tests/ShipGame.Ecs.Tests/UnitTest1.cs tests/ShipGame.Telemetry.Tests/UnitTest1.cs && git commit -m "Harden P0 immutable and project boundaries" && git rev-parse HEAD
+Exit: 0
+Observed: second remediation implementation commit `3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a`.
+
+Command: git status --short --branch && git rev-parse HEAD && git diff --check 9575c1adb295ca7616dbcc0128e50bc0bd686c32..HEAD
+Exit: 0
+Observed: branch `p0-foundation`; clean tree; HEAD `3d59cbe3f6e7e8d0230fb58c44c82999a7637f7a`; second implementation range has no whitespace errors.
