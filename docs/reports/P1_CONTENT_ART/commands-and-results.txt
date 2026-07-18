@@ -1,0 +1,87 @@
+P1_CONTENT_ART remediation gate evidence
+Worktree: C:\Repositories\github\ship-game-p1
+Branch: phase2-p1-content-art
+Pinned base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+Remediation implementation SHA: 7d09a96815cb86bfa9fde89b5969e1f514c105af
+Date: 2026-07-18
+
+================================================================================
+1) SOURCE GENERATION (supporting)
+================================================================================
+Command:
+  dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release -- --generate-source
+Result:
+  exit 0
+  P1 original source assets generated.
+
+================================================================================
+2) CLEAN CONTENT BUILD
+================================================================================
+Command:
+  powershell -NoProfile -File scripts/build-content.ps1
+Result:
+  exit 0
+  Validated catalog mvp-p1-v1 (4ecbb2e7e8584f94f0ec52ac6e0b28811606425cb33db986c64a892ab51aa955).
+  Content Builder Finished
+    16 succeeded, 0 failed
+  Post-build authored source copy retained under generated root for P0 fail-closed validation.
+  Probe: atlas/texture/sound have source=True and xnb=True under content/generated/DesktopVK/Content.
+
+================================================================================
+3) INCREMENTAL CONTENT BUILD
+================================================================================
+Command:
+  dotnet run --project tools/ShipGame.ContentBuilder/ShipGame.ContentBuilder.csproj --configuration Release --no-build
+Result:
+  exit 0
+  Validated catalog mvp-p1-v1 (4ecbb2e7e8584f94f0ec52ac6e0b28811606425cb33db986c64a892ab51aa955).
+  Content Builder Finished
+    16 succeeded, 0 failed
+  (no per-item rebuild lines; cache reused)
+
+================================================================================
+4) FULL TEST SUITE
+================================================================================
+Command:
+  powershell -NoProfile -File scripts/test.ps1
+Result:
+  exit 0
+  Build succeeded. 0 Warning(s). 0 Error(s).
+  Passed! Failed: 0, Passed: 10 - ShipGame.Ecs.Tests
+  Passed! Failed: 0, Passed:  7 - ShipGame.Telemetry.Tests
+  Passed! Failed: 0, Passed: 12 - ShipGame.Simulation.Tests
+  Passed! Failed: 0, Passed: 14 - ShipGame.Persistence.Tests
+  Passed! Failed: 0, Passed: 19 - ShipGame.Content.Tests
+  Passed! Failed: 0, Passed:  8 - ShipGame.Architecture.Tests
+  Passed! Failed: 0, Passed:  1 - ShipGame.Game.Smoke.Tests
+
+================================================================================
+5) HEADLESS LAUNCH SMOKE
+================================================================================
+Command:
+  powershell -NoProfile -File scripts/launch.ps1 -Smoke
+Result:
+  exit 0
+  Content build 16 succeeded, 0 failed during scripted build step
+  Game process completed with exit code 0
+
+================================================================================
+6) WINDOW / DesktopVK SMOKE
+================================================================================
+Command:
+  powershell -NoProfile -File scripts/launch.ps1 -WindowSmoke
+Result:
+  exit 0
+  DESKTOPVK_CONTENT_READY
+  DESKTOPVK_WALKING_SKELETON_COMPLETE
+  Selected GPU: NVIDIA GeForce RTX 3090
+  Vulkan instance version: 1.4.303
+
+================================================================================
+7) OWNERSHIP / CONTRACT CHECK
+================================================================================
+Command:
+  git diff 0b12902 -- src/ShipGame.Content/ContentContracts.cs src/ShipGame.Game/ShipGameHost.cs
+Result:
+  empty diff (both files identical to P0 pinned base)
+  No contract-change-proposal.md required.

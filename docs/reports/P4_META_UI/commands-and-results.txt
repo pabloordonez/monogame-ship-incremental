@@ -1,0 +1,80 @@
+P4_META_UI commands and results
+Pinned base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+Candidate implementation: 61e1c80e43fb5964ba03dee736f7a38de8ef76ae
+Branch: phase2-p4-meta-ui
+Worktree: C:\Repositories\github\ship-game-p4
+
+---
+
+1) Meta suite filters (pre-evidence)
+
+dotnet test tests/ShipGame.Simulation.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 10
+
+dotnet test tests/ShipGame.Persistence.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 8
+
+dotnet test tests/ShipGame.Telemetry.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 4
+
+dotnet test tests/ShipGame.Game.Smoke.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 4
+
+---
+
+2) Full gate
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
+=> Build succeeded. 0 Warning(s). 0 Error(s).
+=> ShipGame.Telemetry.Tests: Passed 11
+=> ShipGame.Simulation.Tests: Passed 22
+=> ShipGame.Persistence.Tests: Passed 22
+=> ShipGame.Game.Smoke.Tests: Passed 5
+=> ShipGame.Ecs.Tests: Passed 10
+=> ShipGame.Content.Tests: Passed 8
+=> ShipGame.Architecture.Tests: Passed 8
+=> Total: 86 passed, 0 failed. Exit 0.
+
+---
+
+3) Headless smoke
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -Smoke
+=> Build succeeded. Exit 0.
+
+---
+
+4) Graphical smoke
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -WindowSmoke
+=> DESKTOPVK_CONTENT_READY
+=> DESKTOPVK_WALKING_SKELETON_COMPLETE
+=> Selected GPU: NVIDIA GeForce RTX 3090
+=> Exit 0.
+
+---
+
+5) Remediation re-validation (post M1–M5 fixes)
+
+dotnet test tests/ShipGame.Persistence.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 10
+
+dotnet test tests/ShipGame.Simulation.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 11
+
+dotnet test tests/ShipGame.Telemetry.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 4
+
+dotnet test tests/ShipGame.Game.Smoke.Tests --configuration Release --filter "FullyQualifiedName~Meta"
+=> Passed: 7
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
+=> Build succeeded. 0 Warning(s). 0 Error(s).
+=> ShipGame.Telemetry.Tests: Passed 11
+=> ShipGame.Simulation.Tests: Passed 23
+=> ShipGame.Persistence.Tests: Passed 24
+=> ShipGame.Game.Smoke.Tests: Passed 8
+=> ShipGame.Ecs.Tests: Passed 10
+=> ShipGame.Content.Tests: Passed 8
+=> ShipGame.Architecture.Tests: Passed 8
+=> Total: 92 passed, 0 failed. Exit 0.

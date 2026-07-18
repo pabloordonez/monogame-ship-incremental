@@ -1,0 +1,15 @@
+implementation: 7d09a96815cb86bfa9fde89b5969e1f514c105af
+pinned-base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+blocked-candidate: 20a823e3be2eccd140f58729e0f883bec0cc8128
+package-spec: 56c47296559b559a3c9d414c596123ba20989083
+branch: phase2-p1-content-art
+status: READY_FOR_RECHECK
+
+
+PACCEPTANCE
+Independent final recheck verdict: ACCEPT
+Accepted implementation SHA: 7d09a96815cb86bfa9fde89b5969e1f514c105af
+
+Final acceptance
+Independent final recheck verdict: ACCEPT
+Accepted implementation SHA: 7d09a96815cb86bfa9fde89b5969e1f514c105af

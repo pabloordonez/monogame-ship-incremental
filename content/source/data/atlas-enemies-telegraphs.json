@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "textureAssetId": "atlases/enemies-telegraphs",
+  "width": 512,
+  "height": 512,
+  "padding": 2,
+  "extrusion": 1,
+  "rotatedPacking": false,
+  "collisions": [
+    {
+      "id": "collision/enemy-small",
+      "kind": "circle",
+      "values": [
+        16,
+        16,
+        12
+      ]
+    },
+    {
+      "id": "collision/enemy-medium",
+      "kind": "circle",
+      "values": [
+        32,
+        32,
+        20
+      ]
+    },
+    {
+      "id": "collision/projectile",
+      "kind": "circle",
+      "values": [
+        6,
+        6,
+        3
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "enemies/interceptor",
+      "x": 334,
+      "y": 5,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/enemy-small",
+      "hardpoints": {
+        "primaryWeapon": {
+          "x": 16,
+          "y": 4
+        },
+        "leftEngine": {
+          "x": 8,
+          "y": 26
+        },
+        "rightEngine": {
+          "x": 24,
+          "y": 26
+        }
+      },
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "enemies/gunship",
+      "x": 5,
+      "y": 5,
+      "width": 64,
+      "height": 64,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/enemy-medium",
+      "hardpoints": {
+        "primaryWeapon": {
+          "x": 32,
+          "y": 8
+        }
+      },
+      "animation": {
+        "fps": 6,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "enemies/sapper",
+      "x": 281,
+      "y": 5,
+      "width": 48,
+      "height": 48,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/enemy-small",
+      "hardpoints": {
+        "utility": {
+          "x": 24,
+          "y": 36
+        }
+      },
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "enemies/elite-outline",
+      "x": 74,
+      "y": 5,
+      "width": 64,
+      "height": 64,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "projectiles/hostile",
+      "x": 74,
+      "y": 74,
+      "width": 12,
+      "height": 12,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/projectile",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "telegraphs/elite-marker",
+      "x": 371,
+      "y": 5,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 6,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "telegraphs/muzzle-flash",
+      "x": 408,
+      "y": 5,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 12,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "telegraphs/aim-line",
+      "x": 5,
+      "y": 74,
+      "width": 64,
+      "height": 16,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 12,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "telegraphs/mine-radius",
+      "x": 143,
+      "y": 5,
+      "width": 64,
+      "height": 64,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0
+        ]
+      }
+    },
+    {
+      "id": "effects/enemy-destruction",
+      "x": 212,
+      "y": 5,
+      "width": 64,
+      "height": 64,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 12,
+        "frames": [
+          0
+        ]
+      }
+    }
+  ]
+}
