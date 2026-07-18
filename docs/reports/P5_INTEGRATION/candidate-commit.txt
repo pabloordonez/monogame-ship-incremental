@@ -1,5 +1,9 @@
-P5_INTEGRATION candidate
+P5_INTEGRATION accepted tip
 
 Pinned Phase 2 tip: c9993bbbb38294b167b7bcfcd4bde0a904c26a07
 Branch: phase3-p5-integration
-Candidate commit: 709883753b624a4ab07713fd2b0ae16c099ec493
+
+Implementer candidate: 709883753b624a4ab07713fd2b0ae16c099ec493
+Accepted after remediation/recheck: 53132654bcb03dc5e0edd65fbeb3f7b97f5fecf1
+
+Reviewer: REMEDIATE → recheck ACCEPT
