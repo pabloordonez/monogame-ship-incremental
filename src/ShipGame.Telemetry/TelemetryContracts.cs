@@ -3,11 +3,25 @@ using ShipGame.Domain;
 
 namespace ShipGame.Telemetry;
 
-public sealed record TelemetryRecord(
-    int SchemaVersion,
-    string EventName,
-    DateTimeOffset UtcTimestamp,
-    IReadOnlyDictionary<string, object?> Payload);
+public sealed class TelemetryRecord
+{
+    internal TelemetryRecord(
+        int schemaVersion,
+        string eventName,
+        DateTimeOffset utcTimestamp,
+        IReadOnlyDictionary<string, object?> payload)
+    {
+        SchemaVersion = schemaVersion;
+        EventName = eventName;
+        UtcTimestamp = utcTimestamp;
+        Payload = payload;
+    }
+
+    public int SchemaVersion { get; }
+    public string EventName { get; }
+    public DateTimeOffset UtcTimestamp { get; }
+    public IReadOnlyDictionary<string, object?> Payload { get; }
+}
 
 public interface ITelemetrySink : IDisposable
 {
@@ -22,14 +36,28 @@ public sealed class DisabledTelemetrySink : ITelemetrySink
 
 public sealed class JsonLinesTelemetrySink : ITelemetrySink
 {
-    private readonly StreamWriter _writer;
+    private StreamWriter? _writer;
     private bool _failed;
 
-    public JsonLinesTelemetrySink(string path)
+    private JsonLinesTelemetrySink() { }
+
+    public static JsonLinesTelemetrySink Create(string path)
     {
-        var fullPath = Path.GetFullPath(path);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        _writer = new StreamWriter(new FileStream(fullPath, FileMode.Append, FileAccess.Write, FileShare.Read));
+        var sink = new JsonLinesTelemetrySink();
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            var directory = Path.GetDirectoryName(fullPath);
+            if (string.IsNullOrEmpty(directory))
+                throw new IOException("Telemetry path has no directory.");
+            Directory.CreateDirectory(directory);
+            sink._writer = new StreamWriter(new FileStream(fullPath, FileMode.Append, FileAccess.Write, FileShare.Read));
+        }
+        catch (Exception exception) when (IsContainable(exception))
+        {
+            sink._failed = true;
+        }
+        return sink;
     }
 
     public bool Failed => _failed;
@@ -40,20 +68,78 @@ public sealed class JsonLinesTelemetrySink : ITelemetrySink
             return;
         try
         {
-            _writer.WriteLine(JsonSerializer.Serialize(record));
+            ArgumentNullException.ThrowIfNull(record);
+            _writer!.WriteLine(JsonSerializer.Serialize(record));
             _writer.Flush();
         }
-        catch (Exception exception) when (exception is IOException or ObjectDisposedException)
+        catch (Exception exception) when (IsContainable(exception))
         {
             _failed = true;
         }
     }
 
-    public void Dispose() => _writer.Dispose();
+    public void Dispose()
+    {
+        try
+        {
+            _writer?.Dispose();
+        }
+        catch (Exception exception) when (IsContainable(exception))
+        {
+            _failed = true;
+        }
+    }
+
+    private static bool IsContainable(Exception exception) =>
+        exception is not OutOfMemoryException and not AccessViolationException;
 }
 
 public static class Telemetry
 {
-    public static TelemetryRecord Event(string name, IReadOnlyDictionary<string, object?>? payload = null) =>
-        new(ContractVersions.Telemetry, name, DateTimeOffset.UtcNow, payload ?? new Dictionary<string, object?>());
+    public const int MaxPayloadFields = 24;
+    public const int MaxPayloadBytes = 2048;
+    private static readonly string[] ProhibitedFieldFragments =
+        ["name", "email", "username", "address", "ip", "hardware", "raw", "text", "snapshot"];
+
+    public static TelemetryRecord Event(string name, IReadOnlyDictionary<string, object?>? payload = null)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 64 ||
+            name.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-')))
+            throw new ArgumentException("Telemetry event names must be canonical and at most 64 characters.", nameof(name));
+
+        payload ??= new Dictionary<string, object?>();
+        if (payload.Count > MaxPayloadFields)
+            throw new ArgumentException($"Telemetry payloads are limited to {MaxPayloadFields} fields.", nameof(payload));
+
+        var sanitized = new Dictionary<string, object?>(payload.Count, StringComparer.Ordinal);
+        var estimatedBytes = 0;
+        foreach (var (key, value) in payload)
+        {
+            if (string.IsNullOrWhiteSpace(key) || key.Length > 64 ||
+                key.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-')))
+                throw new ArgumentException("Telemetry field names must be canonical and at most 64 characters.", nameof(payload));
+            if (ProhibitedFieldFragments.Any(fragment => key.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException($"Telemetry field '{key}' is prohibited by the no-PII/raw-data policy.", nameof(payload));
+            if (!IsSupportedScalar(value))
+                throw new ArgumentException($"Telemetry field '{key}' has an unsupported value type.", nameof(payload));
+            estimatedBytes += key.Length * 2 + 40;
+            sanitized.Add(key, value);
+        }
+        if (estimatedBytes > MaxPayloadBytes)
+            throw new ArgumentException($"Telemetry payload exceeds {MaxPayloadBytes} bytes.", nameof(payload));
+
+        return new TelemetryRecord(
+            ContractVersions.Telemetry,
+            name,
+            DateTimeOffset.UtcNow,
+            sanitized);
+    }
+
+    private static bool IsSupportedScalar(object? value) => value switch
+    {
+        null or bool or byte or sbyte or short or ushort or int or uint or long or ulong or decimal => true,
+        float number => float.IsFinite(number),
+        double number => double.IsFinite(number),
+        _ => false
+    };
 }

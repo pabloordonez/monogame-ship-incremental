@@ -10,9 +10,10 @@ namespace ShipGame.Game;
 
 public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
 {
+    public const string CatalogFingerprint = "foundation-catalog-v1";
     private readonly GraphicsDeviceManager _graphics;
-    private readonly FoundationSimulation _simulation;
-    private readonly FixedStepDriver _driver;
+    private FoundationSimulation _simulation;
+    private FixedStepDriver _driver;
     private readonly SaveRepository _saves;
     private readonly bool _windowSmoke;
     private ProfileSnapshot _profile;
@@ -31,7 +32,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         Window.AllowUserResizing = true;
 
         _profile = new ProfileSnapshot(0x5348495047414D45UL, 0);
-        _simulation = new FoundationSimulation(_profile.ProfileSeed);
+        _simulation = new FoundationSimulation(_profile.ProfileSeed, _profile.RunIndex);
         _driver = new FixedStepDriver(_simulation);
         _previousState = _simulation.State;
         var saveDirectory = Path.Combine(
@@ -72,10 +73,13 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         }
         else if (continuePressed && _simulation.State == AppState.Title)
         {
-            var loaded = _saves.Load();
+            var loaded = _saves.Load(CatalogFingerprint);
             if (loaded.Status == CompatibilityStatus.Supported && loaded.Envelope is not null)
+            {
                 _profile = loaded.Envelope.Profile;
-            _simulation.Queue(new CommandFrame(_simulation.Tick, Confirm: true));
+                ResetSimulation();
+                _simulation.Queue(new CommandFrame(_simulation.Tick, Confirm: true));
+            }
         }
         else if (enterPressed)
         {
@@ -115,7 +119,14 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         if (_simulation.State == AppState.Run)
             _profile = _profile with { RunIndex = _profile.RunIndex + 1 };
         if (_simulation.State is AppState.Run or AppState.Summary or AppState.Lobby)
-            _saves.Write(_saves.CreateEnvelope(_profile, "P0_FOUNDATION", "foundation-catalog-v1"));
+            _saves.Write(_saves.CreateEnvelope(_profile, "P0_FOUNDATION", CatalogFingerprint));
+        _previousState = _simulation.State;
+    }
+
+    private void ResetSimulation()
+    {
+        _simulation = new FoundationSimulation(_profile.ProfileSeed, _profile.RunIndex);
+        _driver = new FixedStepDriver(_simulation);
         _previousState = _simulation.State;
     }
 }
@@ -134,14 +145,14 @@ public static class SmokeRunner
         saveDirectory ??= Path.Combine(Path.GetTempPath(), "ShipGame-Smoke-" + Guid.NewGuid().ToString("N"));
         var saves = new SaveRepository(saveDirectory);
         var profile = new ProfileSnapshot(123456789UL, 0);
-        var simulation = new FoundationSimulation(profile.ProfileSeed);
+        var simulation = new FoundationSimulation(profile.ProfileSeed, profile.RunIndex);
 
         simulation.Queue(new CommandFrame(simulation.Tick, Confirm: true));
         simulation.Step();
         simulation.Queue(new CommandFrame(simulation.Tick, Confirm: true));
         simulation.Step();
         profile = profile with { RunIndex = profile.RunIndex + 1 };
-        saves.Write(saves.CreateEnvelope(profile, "P0_FOUNDATION", "foundation-catalog-v1"));
+        saves.Write(saves.CreateEnvelope(profile, "P0_FOUNDATION", ShipGameHost.CatalogFingerprint));
 
         while (simulation.State == AppState.Run)
             simulation.Step();
@@ -149,12 +160,26 @@ public static class SmokeRunner
             return 11;
         simulation.Queue(new CommandFrame(simulation.Tick, Return: true));
         simulation.Step();
-        var loaded = saves.Load();
+        var loaded = saves.Load(ShipGameHost.CatalogFingerprint);
+        if (loaded.Status != CompatibilityStatus.Supported || loaded.Envelope?.Profile != profile)
+            return 12;
+
+        var continuedProfile = loaded.Envelope.Profile;
+        var continued = new FoundationSimulation(continuedProfile.ProfileSeed, continuedProfile.RunIndex);
+        continued.Queue(new CommandFrame(continued.Tick, Confirm: true));
+        continued.Step();
+        continued.Queue(new CommandFrame(continued.Tick, Confirm: true));
+        continued.Step();
+        var expectedRandom = new RandomStreams(
+            FoundationSimulation.DeriveRunSeed(continuedProfile.ProfileSeed, continuedProfile.RunIndex));
+        var expectedSignature = expectedRandom.Get(RngStream.Encounter).NextUInt();
+
         return simulation.State == AppState.Lobby &&
-               loaded.Status == CompatibilityStatus.Supported &&
-               loaded.Envelope?.Profile == profile
+               continued.Seed == profile.ProfileSeed &&
+               continued.RunIndex == profile.RunIndex &&
+               continued.RunSignature == expectedSignature
             ? 0
-            : 12;
+            : 13;
     }
 
     private static string FindRepositoryRoot()

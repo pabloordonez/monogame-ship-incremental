@@ -35,10 +35,13 @@ public sealed class FoundationSimulation
     private readonly SystemScheduler _scheduler = new();
     private uint _runSignature;
 
-    public FoundationSimulation(ulong seed)
+    public FoundationSimulation(ulong seed, long runIndex = 0)
     {
+        if (runIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(runIndex));
         Seed = seed;
-        _random = new RandomStreams(seed);
+        RunIndex = runIndex;
+        _random = new RandomStreams(DeriveRunSeed(seed, runIndex));
         _scheduler.Add(new DelegateSystem("ApplyStructuralChanges", (_, _) => _structuralChanges.Apply(_world)));
         _scheduler.Add(new DelegateSystem("ConsumeCommands", (_, tick) => Consume(_commands.Remove(tick, out var command) ? command : CommandFrame.Neutral(tick))));
         _scheduler.Add(new DelegateSystem("SessionTransitions", (_, _) => AdvanceSession()));
@@ -47,10 +50,12 @@ public sealed class FoundationSimulation
     }
 
     public ulong Seed { get; }
+    public long RunIndex { get; }
     public long Tick { get; private set; }
     public AppState State { get; private set; } = AppState.Title;
     public long RunTick { get; private set; }
     public ulong LastStateHash { get; private set; }
+    public uint RunSignature => _runSignature;
     public IReadOnlyList<string> Schedule => _scheduler.Order;
 
     public bool Queue(CommandFrame command)
@@ -104,11 +109,32 @@ public sealed class FoundationSimulation
     {
         var hash = StableHash.Offset;
         hash = StableHash.Add(hash, Seed);
+        hash = StableHash.Add(hash, unchecked((ulong)RunIndex));
         hash = StableHash.Add(hash, (ulong)Tick);
         hash = StableHash.Add(hash, (ulong)State);
         hash = StableHash.Add(hash, (ulong)RunTick);
         hash = StableHash.Add(hash, _runSignature);
+        hash = StableHash.Add(hash, _confirm ? 1UL : 0UL);
+        hash = StableHash.Add(hash, _return ? 1UL : 0UL);
+        hash = StableHash.Add(hash, (ulong)_commands.Count);
+        foreach (var (targetTick, command) in _commands)
+        {
+            hash = StableHash.Add(hash, unchecked((ulong)targetTick));
+            hash = StableHash.Add(hash, unchecked((ulong)command.MoveX));
+            hash = StableHash.Add(hash, unchecked((ulong)command.MoveY));
+            hash = StableHash.Add(hash, unchecked((ulong)command.AimX));
+            hash = StableHash.Add(hash, unchecked((ulong)command.AimY));
+            hash = StableHash.Add(hash, command.Confirm ? 1UL : 0UL);
+            hash = StableHash.Add(hash, command.Return ? 1UL : 0UL);
+        }
         return StableHash.Add(hash, _random.CalculateStateHash());
+    }
+
+    public static ulong DeriveRunSeed(ulong profileSeed, long runIndex)
+    {
+        var hash = StableHash.Add(StableHash.Offset, profileSeed);
+        hash = StableHash.Add(hash, unchecked((ulong)runIndex));
+        return StableHash.Add(hash, ContractVersions.Generation);
     }
 
     private sealed class DelegateSystem(string name, Action<World, long> update) : ISimulationSystem

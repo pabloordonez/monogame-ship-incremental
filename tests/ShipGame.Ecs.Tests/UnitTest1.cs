@@ -29,7 +29,7 @@ public class EcsTests
         world.Set(first, new Position(10));
         world.Set(second, new Position(20));
 
-        Assert.True(world.Store<Position>().Remove(first));
+        Assert.True(world.Remove<Position>(first));
         Assert.Equal(20, world.Get<Position>(second).Value);
     }
 
@@ -67,6 +67,86 @@ public class EcsTests
         Assert.False(world.IsAlive(created));
         buffer.Apply(world);
         Assert.Equal(3, world.Get<Position>(created).Value);
+    }
+
+    [Fact]
+    public void ComponentViewsExposeNoRawMutationAndStaleIdsAreRejected()
+    {
+        var world = new World();
+        var stale = world.Create();
+        world.Destroy(stale);
+
+        Assert.DoesNotContain(
+            typeof(IComponentView<Position>).GetMethods(),
+            method => method.Name is "Set" or "Remove");
+        Assert.Throws<InvalidOperationException>(() => world.Set(stale, new Position(1)));
+    }
+
+    [Fact]
+    public void StructuralMutationDuringQueryMustBeBuffered()
+    {
+        var world = new World();
+        var entity = world.Create();
+        world.Set(entity, new Position(1));
+        world.Set(entity, new Velocity(1));
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (var current in world.Query<Position, Velocity>())
+                world.Remove<Velocity>(current);
+        });
+        Assert.True(world.Store<Velocity>().Has(entity));
+
+        var buffer = new CommandBuffer();
+        foreach (var current in world.Query<Position, Velocity>())
+            buffer.Enqueue(value => value.Remove<Velocity>(current));
+        buffer.Apply(world);
+        Assert.False(world.Store<Velocity>().Has(entity));
+    }
+
+    [Fact]
+    public void RandomizedReuseNeverCreatesOrphanComponents()
+    {
+        var random = new Random(1729);
+        var world = new World();
+        var live = new List<EntityId>();
+        for (var step = 0; step < 1000; step++)
+        {
+            if (live.Count == 0 || random.Next(3) != 0)
+            {
+                var entity = world.Create();
+                live.Add(entity);
+                if (random.Next(2) == 0)
+                    world.Set(entity, new Position(step));
+            }
+            else
+            {
+                var index = random.Next(live.Count);
+                var entity = live[index];
+                world.Destroy(entity);
+                live.RemoveAt(index);
+                Assert.False(world.Store<Position>().Has(entity));
+            }
+        }
+
+        Assert.All(world.Store<Position>().Entities, entity => Assert.True(world.IsAlive(entity)));
+        Assert.Equal(world.Store<Position>().Entities.Distinct().Count(), world.Store<Position>().Count);
+    }
+
+    [Fact]
+    public void ThrowingStructuralCommandIsConsumedWithoutReplayingCompletedCommands()
+    {
+        var world = new World();
+        var buffer = new CommandBuffer();
+        var applied = 0;
+        buffer.Enqueue(_ => applied++);
+        buffer.Enqueue(_ => throw new InvalidOperationException("expected"));
+        buffer.Enqueue(_ => applied += 10);
+
+        Assert.Throws<InvalidOperationException>(() => buffer.Apply(world));
+        buffer.Apply(world);
+
+        Assert.Equal(11, applied);
     }
 
     [Fact]

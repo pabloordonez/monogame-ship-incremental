@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\ShipGame.Content\ShipGame.Content.csproj" />
     <ProjectReference Include="..\..\src\ShipGame.Persistence\ShipGame.Persistence.csproj" />
     <ProjectReference Include="..\..\src\ShipGame.Telemetry\ShipGame.Telemetry.csproj" />
+    <ProjectReference Include="..\..\src\ShipGame.Game\ShipGame.Game.csproj" />
   </ItemGroup>
 
 </Project>

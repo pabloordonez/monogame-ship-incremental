@@ -9,9 +9,10 @@ var repositoryRoot = repository?.FullName
     ?? throw new DirectoryNotFoundException("Could not locate ShipGame.sln.");
 var sourceRoot = Path.Combine(repositoryRoot, "content", "source");
 
+AssetManifest manifest;
 try
 {
-    ContentValidator.LoadAndValidateManifest(sourceRoot, "data/asset-manifest.json");
+    manifest = ContentValidator.LoadAndValidateManifest(sourceRoot, "data/asset-manifest.json");
 }
 catch (ContentValidationException exception)
 {
@@ -19,7 +20,7 @@ catch (ContentValidationException exception)
     return 2;
 }
 
-var builder = new ShipContentBuilder();
+var builder = new ShipContentBuilder(manifest);
 builder.Run(new ContentBuilderParams
 {
     Mode = ContentBuilderMode.Builder,
@@ -34,13 +35,13 @@ builder.Run(new ContentBuilderParams
 
 return builder.FailedToBuild > 0 ? 1 : 0;
 
-public sealed class ShipContentBuilder : ContentBuilder
+public sealed class ShipContentBuilder(AssetManifest manifest) : ContentBuilder
 {
     public override IContentCollection GetContentCollection()
     {
         var content = new ContentCollection();
-        content.IncludeCopy<WildcardRule>("data/asset-manifest.json");
-        content.IncludeCopy<WildcardRule>("data/title-placeholder.json");
+        foreach (var source in ContentBuildPlan.DataSources(manifest))
+            content.IncludeCopy<WildcardRule>(source);
         return content;
     }
 }

@@ -15,7 +15,7 @@ public sealed record AssetEntry(
     string? Attribution = null,
     string? SourceUrl = null);
 
-public sealed record ContentDefinition(string Id, IReadOnlyList<string>? References = null);
+public sealed record ContentDefinition(ContentId Id, IReadOnlyList<ContentId>? References = null);
 
 public sealed record ValidationIssue(string Code, string Message);
 
@@ -39,18 +39,27 @@ public static class ContentValidator
         var issues = new List<ValidationIssue>();
         if (manifest.SchemaVersion != ContractVersions.Content)
             issues.Add(new("manifest.version", $"Expected schema {ContractVersions.Content}."));
+        if (manifest.Assets is null)
+            throw new ContentValidationException([new("manifest.assets-required", "Manifest assets must be an array.")]);
+        var assets = manifest.Assets.Where(asset => asset is not null).ToArray();
+        if (assets.Length != manifest.Assets.Count)
+            issues.Add(new("asset.invalid", "Manifest assets cannot contain null entries."));
 
-        foreach (var duplicate in manifest.Assets.GroupBy(asset => asset.Id, StringComparer.Ordinal).Where(group => group.Count() > 1))
+        foreach (var duplicate in assets.GroupBy(asset => asset.Id, StringComparer.Ordinal).Where(group => group.Count() > 1))
             issues.Add(new("asset.duplicate-id", $"Duplicate asset ID '{duplicate.Key}'."));
 
-        foreach (var duplicate in manifest.Assets.GroupBy(asset => asset.Source, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
+        foreach (var duplicate in assets.GroupBy(asset => asset.Source, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
             issues.Add(new("asset.duplicate-source", $"Duplicate asset source '{duplicate.Key}'."));
 
-        foreach (var asset in manifest.Assets)
+        foreach (var asset in assets)
         {
             try
             {
                 _ = new ContentId(asset.Id);
+                if (string.IsNullOrWhiteSpace(asset.Kind) ||
+                    string.IsNullOrWhiteSpace(asset.Source) ||
+                    string.IsNullOrWhiteSpace(asset.Status))
+                    throw new ArgumentException("Asset kind, source, and status are required.");
                 var source = ResolveUnderRoot(root, asset.Source);
                 if (!File.Exists(source))
                     issues.Add(new("asset.missing-source", $"Asset '{asset.Id}' source '{asset.Source}' is missing."));
@@ -69,13 +78,14 @@ public static class ContentValidator
 
     public static void ValidateDefinitions(IEnumerable<ContentDefinition> definitions)
     {
+        ArgumentNullException.ThrowIfNull(definitions);
         var materialized = definitions.ToArray();
         var issues = materialized
-            .GroupBy(definition => definition.Id, StringComparer.Ordinal)
+            .GroupBy(definition => definition.Id)
             .Where(group => group.Count() > 1)
             .Select(group => new ValidationIssue("content.duplicate-id", $"Duplicate content ID '{group.Key}'."))
             .ToList();
-        var ids = materialized.Select(definition => definition.Id).ToHashSet(StringComparer.Ordinal);
+        var ids = materialized.Select(definition => definition.Id).ToHashSet();
         foreach (var definition in materialized)
         foreach (var reference in definition.References ?? [])
             if (!ids.Contains(reference))
@@ -98,6 +108,25 @@ public static class ContentValidator
     {
         if (issues.Count > 0)
             throw new ContentValidationException(issues);
+    }
+}
+
+public static class ContentBuildPlan
+{
+    public static IReadOnlyList<string> DataSources(AssetManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        if (manifest.Assets is null)
+            throw new ContentValidationException([new("manifest.assets-required", "Manifest assets must be an array.")]);
+        var sources = new List<string> { "data/asset-manifest.json" };
+        foreach (var asset in manifest.Assets.OrderBy(asset => asset.Id, StringComparer.Ordinal))
+        {
+            if (!string.Equals(asset.Kind, "data", StringComparison.Ordinal))
+                throw new ContentValidationException(
+                    [new("asset.unsupported-build-kind", $"P0 builder has no reviewed rule for kind '{asset.Kind}' ({asset.Id}).")]);
+            sources.Add(asset.Source.Replace('\\', '/'));
+        }
+        return sources;
     }
 }
 

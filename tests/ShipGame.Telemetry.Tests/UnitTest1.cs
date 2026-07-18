@@ -18,7 +18,7 @@ public class TelemetryTests : IDisposable
     public void LocalSinkWritesVersionedJsonLines()
     {
         var path = Path.Combine(_root, "events.jsonl");
-        using (ITelemetrySink sink = new JsonLinesTelemetrySink(path))
+        using (ITelemetrySink sink = JsonLinesTelemetrySink.Create(path))
             sink.Write(Telemetry.Event("run.started"));
 
         using var document = JsonDocument.Parse(File.ReadAllText(path));
@@ -29,13 +29,55 @@ public class TelemetryTests : IDisposable
     [Fact]
     public void SinkFailureIsContained()
     {
-        var sink = new JsonLinesTelemetrySink(Path.Combine(_root, "events.jsonl"));
+        var sink = JsonLinesTelemetrySink.Create(Path.Combine(_root, "events.jsonl"));
         sink.Dispose();
 
         var exception = Record.Exception(() => sink.Write(Telemetry.Event("ignored")));
 
         Assert.Null(exception);
         Assert.True(sink.Failed);
+    }
+
+    [Fact]
+    public void PayloadRejectsPiiRawTextCyclesAndUnsupportedObjects()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Telemetry.Event("test", new Dictionary<string, object?> { ["email"] = 1 }));
+        Assert.Throws<ArgumentException>(() =>
+            Telemetry.Event("test", new Dictionary<string, object?> { ["detail"] = "raw text" }));
+
+        var cyclic = new Dictionary<string, object?>();
+        cyclic["cycle"] = cyclic;
+        Assert.Throws<ArgumentException>(() => Telemetry.Event("test", cyclic));
+        Assert.Throws<ArgumentException>(() =>
+            Telemetry.Event("test", new Dictionary<string, object?> { ["value"] = new Version(1, 0) }));
+    }
+
+    [Fact]
+    public void PayloadSizeAndFieldCountAreBounded()
+    {
+        var tooMany = Enumerable.Range(0, Telemetry.MaxPayloadFields + 1)
+            .ToDictionary(index => $"field{index}", index => (object?)index);
+        Assert.Throws<ArgumentException>(() => Telemetry.Event("test", tooMany));
+
+        var oversized = Enumerable.Range(0, Telemetry.MaxPayloadFields)
+            .ToDictionary(
+                index => $"field{index:D2}" + new string('x', 52),
+                index => (object?)index);
+        Assert.Throws<ArgumentException>(() => Telemetry.Event("test", oversized));
+    }
+
+    [Fact]
+    public void SinkConstructionFailureIsContained()
+    {
+        var exception = Record.Exception(() =>
+        {
+            using var sink = JsonLinesTelemetrySink.Create("\0");
+            Assert.True(sink.Failed);
+            sink.Write(Telemetry.Event("ignored"));
+        });
+
+        Assert.Null(exception);
     }
 
     public void Dispose()

@@ -56,4 +56,49 @@ public class SimulationTests
             new uint[] { 2425132909, 1536316163, 2210751970, 3245404908 },
             Enumerable.Range(0, 4).Select(_ => random.NextUInt()).ToArray());
     }
+
+    [Fact]
+    public void PendingFutureCommandsAffectHashInDeterministicOrder()
+    {
+        var empty = new FoundationSimulation(44);
+        var firstOrder = new FoundationSimulation(44);
+        var reverseOrder = new FoundationSimulation(44);
+        firstOrder.Queue(new CommandFrame(5, MoveX: 1));
+        firstOrder.Queue(new CommandFrame(4, Confirm: true));
+        reverseOrder.Queue(new CommandFrame(4, Confirm: true));
+        reverseOrder.Queue(new CommandFrame(5, MoveX: 1));
+
+        empty.Step();
+        firstOrder.Step();
+        reverseOrder.Step();
+
+        Assert.NotEqual(empty.LastStateHash, firstOrder.LastStateHash);
+        Assert.Equal(firstOrder.LastStateHash, reverseOrder.LastStateHash);
+    }
+
+    [Theory]
+    [MemberData(nameof(DistinctCommandFields))]
+    public void EveryPendingCommandFieldIsHashSensitive(CommandFrame changed)
+    {
+        var baseline = new FoundationSimulation(12);
+        var modified = new FoundationSimulation(12);
+        baseline.Queue(new CommandFrame(5));
+        modified.Queue(changed);
+
+        baseline.Step();
+        modified.Step();
+
+        Assert.NotEqual(baseline.LastStateHash, modified.LastStateHash);
+    }
+
+    public static TheoryData<CommandFrame> DistinctCommandFields => new()
+    {
+        new CommandFrame(6),
+        new CommandFrame(5, MoveX: 1),
+        new CommandFrame(5, MoveY: 1),
+        new CommandFrame(5, AimX: 1),
+        new CommandFrame(5, AimY: 1),
+        new CommandFrame(5, Confirm: true),
+        new CommandFrame(5, Return: true)
+    };
 }

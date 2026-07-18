@@ -4,12 +4,13 @@
 
 Using existing behavior contracts, later packages may add:
 
-- manifest entries and validated source files;
+- `kind: data` manifest entries and validated source files, which the manifest-driven P0 build plan copies automatically;
 - stable content definitions and references;
 - telemetry event instances using the version 1 record shape;
 - additional save payload values only after assigning ownership and assessing save-version impact.
 
 Content additions remain data-only only when they do not introduce a new behavior key, authoritative meaning, schedule position, or migration.
+Compiled textures, effects, fonts, and sounds require a reviewed folder/type build rule in the owning content package; an unknown build kind fails instead of being silently copied.
 
 ## Additions requiring focused code
 
@@ -27,7 +28,7 @@ Content additions remain data-only only when they do not introduce a new behavio
 - 60 Hz authority, neutral absent input, bounded catch-up, and dropped-time reporting.
 - PCG32 sequence, canonical stream names, versioned seed/hash meaning.
 - Independent save/content/generation/RNG/replay/telemetry versions.
-- Stable `ContentId`, manifest-root confinement, duplicate/reference failure behavior.
+- Stable typed `ContentId` definitions/references, manifest-root confinement, duplicate/reference failure behavior.
 - Current-only save compatibility, checksum, atomic replace, one backup, explicit diagnostics.
 - Disabled/local-only telemetry with no network transport.
 - MonoGame only at Game presentation and ContentBuilder tooling boundaries.
