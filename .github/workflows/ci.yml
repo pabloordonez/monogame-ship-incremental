@@ -1,0 +1,22 @@
+name: foundation-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+      - name: Restore, content, build, test
+        shell: pwsh
+        run: ./scripts/test.ps1
+      - name: Deterministic smoke launch
+        shell: pwsh
+        run: ./scripts/launch.ps1 -Smoke

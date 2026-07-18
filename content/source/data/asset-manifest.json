@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "data/title-placeholder",
+      "kind": "data",
+      "source": "data/title-placeholder.json",
+      "status": "placeholder",
+      "owner": "P0_FOUNDATION",
+      "license": "CC0-1.0",
+      "attribution": "Authored for Ship Game foundation",
+      "sourceUrl": null
+    }
+  ]
+}
