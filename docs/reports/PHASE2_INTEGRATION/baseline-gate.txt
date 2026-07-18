@@ -1,0 +1,33 @@
+Phase 2 baseline verification
+Date: 2026-07-18
+Pinned P0 acceptance SHA: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+Working tree: C:/Repositories/github/ship-game (master, then phase2-integration worktree)
+
+Commands and results (from primary checkout before package implementation):
+
+1) powershell -NoProfile -File scripts/test.ps1
+   Exit: 0
+   Build succeeded: 0 Warning(s), 0 Error(s)
+   Tests: Architecture 8, Content 8, Ecs 10, Game.Smoke 1, Persistence 14, Simulation 12, Telemetry 7
+   Total: 60 passed, 0 failed
+
+2) powershell -NoProfile -File scripts/launch.ps1 -Smoke
+   Exit: 0
+   SMOKE_EXIT:0
+
+3) powershell -NoProfile -File scripts/launch.ps1 -WindowSmoke
+   Exit: 0
+   Observed: DESKTOPVK_CONTENT_READY, DESKTOPVK_WALKING_SKELETON_COMPLETE
+   Vulkan GPU: NVIDIA GeForce RTX 3090
+   WINDOW_SMOKE_EXIT:0
+
+Worktrees (isolated from same base):
+- C:/Repositories/github/ship-game-phase2  branch phase2-integration
+- C:/Repositories/github/ship-game-p1      branch phase2-p1-content-art
+- C:/Repositories/github/ship-game-p2      branch phase2-p2-flight-combat
+- C:/Repositories/github/ship-game-p3      branch phase2-p3-world-run
+- C:/Repositories/github/ship-game-p4      branch phase2-p4-meta-ui
+
+Package specs frozen on package branches prior to implementation completion.
+Thin-slice merge order: P1 -> P2 -> P3 -> P4.
+P5_INTEGRATION is explicitly out of scope for this phase.
