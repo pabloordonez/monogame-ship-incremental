@@ -47,6 +47,7 @@ public sealed class ComposedRunOrchestrator
     private readonly Dictionary<int, EntityId> _asteroidEntities = new();
     private readonly List<RunFact> _factBuffer = new(64);
     private readonly List<CombatSnapshot> _snapshotBuffer = new(256);
+    private readonly List<CombatRenderItem> _renderBuffer = new(256);
     private EntityId _collector;
     private EntityId _eliteEntity;
     private ulong _nextFactId = 1;
@@ -158,6 +159,15 @@ public sealed class ComposedRunOrchestrator
         {
             Combat.CollectSnapshots(_snapshotBuffer);
             return _snapshotBuffer;
+        }
+    }
+
+    public IReadOnlyList<CombatRenderItem> LiveRenderItems
+    {
+        get
+        {
+            Combat.CollectRenderItems(_renderBuffer);
+            return _renderBuffer;
         }
     }
 

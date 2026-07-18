@@ -8,11 +8,12 @@
 
 ## Fresh profile loop
 
-- [ ] Title → Enter → Lobby shows balances and ship sprite
-- [ ] M Map / L Loadout / R Research screens render panels (not solid-only clears)
-- [ ] Map → Enter launches Run with background + ship/asteroid sprites + HUD
-- [ ] WASD move, mouse aim, LMB fire, RMB mine, Space mobility, E extract, 1/2/3 upgrades, Esc pause
-- [ ] After extract or failure, Summary shows result → Enter returns Lobby
+- [ ] Title shows readable **SHIP GAME** text and Enter/C/Esc hints
+- [ ] Lobby shows Ferrite/Lumen/Cores numbers and control list (M/L/R/Enter)
+- [ ] Map lists environments in text; Enter launches when unlocked
+- [ ] Run HUD shows Hull/Shield/Ferrite/objective counts and control reminder
+- [ ] WASD move, mouse aim, LMB fire, RMB mine, Space dash, E extract, 1/2/3 upgrades, Esc pause
+- [ ] After extract or failure, Summary shows EXTRACTED/FAILED and banked amounts → Enter returns Lobby
 - [ ] Continue (Title+C or relaunch) restores Lobby with banked resources
 
 ## Accessibility / options smoke

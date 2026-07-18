@@ -277,3 +277,22 @@ public readonly record struct CombatSnapshot(
     float Hull,
     float Shield,
     bool Destroyed);
+
+public enum CombatRenderKind : byte
+{
+    PlayerShip,
+    EnemyShip,
+    Projectile,
+    Obstacle,
+    Mine
+}
+
+public readonly record struct CombatRenderItem(
+    EntityId Entity,
+    Vector2 Position,
+    float Rotation,
+    Faction Faction,
+    CombatRenderKind Kind,
+    bool Elite,
+    float Hull,
+    float Shield);

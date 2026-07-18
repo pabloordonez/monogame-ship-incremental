@@ -252,6 +252,42 @@ public sealed class FlightCombatSimulation
         }
     }
 
+    /// <summary>Presentation-oriented entity list with render kind (skips destroyed).</summary>
+    public void CollectRenderItems(List<CombatRenderItem> into)
+    {
+        ArgumentNullException.ThrowIfNull(into);
+        into.Clear();
+        for (var i = 0; i < _entities.Count; i++)
+        {
+            var entity = _entities[i];
+            if (!_world.IsAlive(entity) || !Has<Transform2>(entity) || Has<Destroyed>(entity))
+                continue;
+            var transform = _world.Get<Transform2>(entity);
+            var faction = Has<Combatant>(entity) ? _world.Get<Combatant>(entity).Faction : Faction.Neutral;
+            var kind = CombatRenderKind.Obstacle;
+            if (Has<Projectile>(entity))
+                kind = CombatRenderKind.Projectile;
+            else if (Has<Mine>(entity))
+                kind = CombatRenderKind.Mine;
+            else if (faction == Faction.Player && Has<PlayerControlled>(entity))
+                kind = CombatRenderKind.PlayerShip;
+            else if (faction == Faction.Hostile)
+                kind = CombatRenderKind.EnemyShip;
+            else
+                continue; // skip static obstacles; asteroids are drawn from world-run data
+
+            into.Add(new(
+                entity,
+                transform.Position,
+                transform.Rotation,
+                faction,
+                kind,
+                Has<Elite>(entity),
+                Has<Health>(entity) ? _world.Get<Health>(entity).Current : 0,
+                Has<Shield>(entity) ? _world.Get<Shield>(entity).Current : 0));
+        }
+    }
+
     public bool IsElite(EntityId entity) =>
         entity != default && _world.IsAlive(entity) && Has<Elite>(entity);
 

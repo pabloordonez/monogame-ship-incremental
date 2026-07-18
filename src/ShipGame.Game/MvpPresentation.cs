@@ -20,6 +20,7 @@ public sealed class MvpPresentation : IDisposable
     private readonly GraphicsDevice _device;
     private readonly SpriteBatch _spriteBatch;
     private readonly RuntimeContentCatalog _catalog;
+    private readonly PixelFont _font;
     private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.Ordinal);
     private readonly Texture2D _pixel;
     private bool _drewSprites;
@@ -31,6 +32,7 @@ public sealed class MvpPresentation : IDisposable
         _device = device ?? throw new ArgumentNullException(nameof(device));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _spriteBatch = new SpriteBatch(device);
+        _font = new PixelFont(device);
         _pixel = new Texture2D(device, 1, 1);
         _pixel.SetData([XnaColor.White]);
     }
@@ -75,11 +77,8 @@ public sealed class MvpPresentation : IDisposable
     {
         BeginFrame();
         var scale = Math.Max(1, Math.Min(backBufferWidth / VirtualWidth, backBufferHeight / VirtualHeight));
-        var destWidth = VirtualWidth * scale;
-        var destHeight = VirtualHeight * scale;
-        var offsetX = (backBufferWidth - destWidth) / 2;
-        var offsetY = (backBufferHeight - destHeight) / 2;
-        var letterbox = new XnaRectangle(offsetX, offsetY, destWidth, destHeight);
+        var offsetX = (backBufferWidth - VirtualWidth * scale) / 2;
+        var offsetY = (backBufferHeight - VirtualHeight * scale) / 2;
 
         _device.Clear(new XnaColor(4, 6, 12));
         _spriteBatch.Begin(
@@ -109,110 +108,162 @@ public sealed class MvpPresentation : IDisposable
                 DrawSummary(session);
                 break;
             case MetaScreen.Settings:
-                DrawPanel("SETTINGS", "Telemetry and volumes. [Esc] back.");
+                DrawPanel("SETTINGS", "Telemetry and volumes.", "[Esc] back");
                 break;
             case MetaScreen.Pause:
-                DrawPanel("PAUSED", "[Esc] resume  [1/2/3] unused");
+                DrawPanel("PAUSED", "Simulation clock stopped.", "[Esc] resume");
                 break;
             case MetaScreen.Run:
-                DrawRun(session, run);
+                DrawRun(run);
                 break;
         }
 
-        // Letterbox border cue (non-solid full-screen clear alone).
         Frame(0, 0, VirtualWidth, VirtualHeight, new XnaColor(180, 200, 220), 2);
         _spriteBatch.End();
-        _ = letterbox;
     }
 
     private void DrawTitle()
     {
-        DrawRegion("ui/icons/objective", 240, 80, 48, 48);
-        DrawPanel("SHIP GAME", "Enter: New/Continue path   C: Continue   Esc: Exit");
-        DrawRegion("ui/icons/interact", 300, 260, 32, 32);
+        DrawRegion("ui/icons/objective", 296, 48, 48, 48);
+        DrawText(220, 110, "SHIP GAME", new XnaColor(240, 245, 255), 2);
+        DrawPanel(
+            "TITLE",
+            "Enter  start / lobby",
+            "C      continue save",
+            "Esc    quit");
+        DrawRegion("ui/icons/interact", 304, 300, 32, 32);
     }
 
     private void DrawLobby(MetaSession session)
     {
         var lobby = session.Lobby;
-        DrawPanel(
-            "LOBBY",
-            $"Ferrite {lobby.Balances.Ferrite}  Lumen {lobby.Balances.Lumen}  Cores {lobby.Balances.DataCores}");
-        DrawRegion("ships/player/wayfarer", 280, 140, 64, 64);
-        DrawLabel(24, 220, "M Map   L Loadout   R Research   Enter Launch");
+        DrawText(24, 16, "LOBBY", new XnaColor(230, 240, 255), 2);
+        DrawRegion("ships/player/wayfarer", 520, 40, 72, 72);
+        DrawText(24, 48, $"Ferrite {lobby.Balances.Ferrite}", new XnaColor(220, 200, 160));
+        DrawText(24, 64, $"Lumen   {lobby.Balances.Lumen}", new XnaColor(180, 220, 255));
+        DrawText(24, 80, $"Cores   {lobby.Balances.DataCores}", new XnaColor(200, 180, 255));
+        if (lobby.PreviousRun is { } previous)
+            DrawText(
+                24,
+                104,
+                previous.Succeeded ? "Last run: EXTRACTED" : "Last run: FAILED",
+                previous.Succeeded ? new XnaColor(140, 220, 160) : new XnaColor(220, 140, 140));
+
+        DrawText(24, 160, "Controls", new XnaColor(180, 200, 220));
+        DrawText(24, 180, "M  environment map / launch", XnaColor.White);
+        DrawText(24, 196, "L  loadout", XnaColor.White);
+        DrawText(24, 212, "R  research", XnaColor.White);
+        DrawText(24, 228, "Enter  open map", XnaColor.White);
+        DrawText(24, 260, "Goal: mine Ferrite, fight, extract.", new XnaColor(180, 200, 160));
     }
 
     private void DrawMap(MetaSession session)
     {
-        DrawPanel("ENVIRONMENT SELECT", "Choose destination then Enter to launch.");
-        var y = 120;
+        DrawText(24, 16, "SELECT ENVIRONMENT", new XnaColor(230, 240, 255), 2);
+        var y = 56;
         foreach (var env in session.Map)
         {
-            var color = env.Accessible ? new XnaColor(120, 200, 160) : new XnaColor(90, 90, 100);
-            Fill(40, y, 560, 36, color * 0.35f);
-            DrawLabel(52, y + 10, $"{env.EnvironmentId} {(env.Selected ? "<" : "")} {env.Explanation}");
-            y += 48;
+            var label = env.EnvironmentId.Replace("ENV_", "", StringComparison.Ordinal);
+            var color = env.Accessible ? new XnaColor(140, 220, 180) : new XnaColor(120, 120, 130);
+            Fill(24, y, 592, 44, color * 0.25f);
+            if (env.Selected)
+                Frame(24, y, 592, 44, new XnaColor(220, 230, 240), 1);
+            DrawText(36, y + 8, env.Selected ? $"> {label}" : $"  {label}", color);
+            DrawText(36, y + 24, env.Accessible ? "Enter to launch" : Truncate(env.Explanation, 70), new XnaColor(180, 180, 190));
+            y += 52;
         }
+
+        DrawText(24, 320, "Esc back to lobby", new XnaColor(160, 170, 180));
     }
 
     private void DrawLoadout(MetaSession session)
     {
         var loadout = session.Profile.ResolveLoadout().Effective;
-        DrawPanel("LOADOUT", $"{loadout.Weapon} / {loadout.Mining} / {loadout.Shield}");
-        DrawRegion("ships/player/wayfarer", 288, 140, 64, 64);
-        DrawLabel(24, 240, $"{loadout.Engine}  {loadout.Utility}   Esc: back");
+        DrawText(24, 16, "LOADOUT", new XnaColor(230, 240, 255), 2);
+        DrawRegion("ships/player/wayfarer", 520, 40, 72, 72);
+        DrawText(24, 56, $"Weapon  {ShortId(loadout.Weapon)}", XnaColor.White);
+        DrawText(24, 72, $"Mining  {ShortId(loadout.Mining)}", XnaColor.White);
+        DrawText(24, 88, $"Shield  {ShortId(loadout.Shield)}", XnaColor.White);
+        DrawText(24, 104, $"Engine  {ShortId(loadout.Engine)}", XnaColor.White);
+        DrawText(24, 120, $"Utility {ShortId(loadout.Utility)}", XnaColor.White);
+        DrawText(24, 160, "Equip changes persist on save.", new XnaColor(180, 200, 160));
+        DrawText(24, 320, "Esc back", new XnaColor(160, 170, 180));
     }
 
     private void DrawResearch(MetaSession session)
     {
-        DrawPanel("RESEARCH", "Purchase with banked resources. Esc: back");
-        var y = 110;
-        foreach (var node in session.Research.Take(6))
+        DrawText(24, 16, "RESEARCH", new XnaColor(230, 240, 255), 2);
+        var y = 48;
+        foreach (var node in session.Research.Take(8))
         {
-            var tint = node.Purchased ? new XnaColor(80, 160, 120) :
+            var tint = node.Purchased ? new XnaColor(120, 200, 150) :
                 node.Affordable && node.PrerequisitesMet && node.GateMet
-                    ? new XnaColor(160, 160, 80)
-                    : new XnaColor(70, 70, 80);
-            Fill(40, y, 560, 28, tint * 0.4f);
-            DrawLabel(52, y + 8, node.Definition.Id);
-            y += 32;
+                    ? new XnaColor(220, 200, 120)
+                    : new XnaColor(120, 120, 130);
+            DrawText(24, y, ShortId(node.Definition.Id), tint);
+            DrawText(
+                280,
+                y,
+                node.Purchased ? "OWNED" :
+                node.Affordable && node.PrerequisitesMet && node.GateMet ? "READY" : "LOCKED",
+                tint);
+            y += 16;
         }
+
+        DrawText(24, 300, "Purchases use banked resources after runs.", new XnaColor(180, 200, 160));
+        DrawText(24, 320, "Esc back", new XnaColor(160, 170, 180));
     }
 
     private void DrawSummary(MetaSession session)
     {
         var previous = session.Profile.Snapshot.PreviousRun;
-        DrawPanel(
-            "RUN SUMMARY",
-            previous is null
-                ? "No previous run."
-                : $"{(previous.Succeeded ? "EXTRACTED" : "FAILED")}  banked F{previous.Banked.Ferrite} L{previous.Banked.Lumen} D{previous.Banked.DataCores}");
-        DrawRegion("ui/icons/objective", 304, 180, 32, 32);
-        DrawLabel(24, 260, "Enter: return to lobby");
+        DrawText(24, 16, "RUN SUMMARY", new XnaColor(230, 240, 255), 2);
+        if (previous is null)
+        {
+            DrawText(24, 64, "No previous run.", XnaColor.White);
+        }
+        else
+        {
+            DrawText(
+                24,
+                56,
+                previous.Succeeded ? "RESULT  EXTRACTED" : "RESULT  FAILED",
+                previous.Succeeded ? new XnaColor(140, 220, 160) : new XnaColor(220, 140, 140),
+                2);
+            DrawText(24, 88, $"Banked Ferrite {previous.Banked.Ferrite}", XnaColor.White);
+            DrawText(24, 104, $"Banked Lumen   {previous.Banked.Lumen}", XnaColor.White);
+            DrawText(24, 120, $"Banked Cores   {previous.Banked.DataCores}", XnaColor.White);
+            DrawText(24, 144, $"Lost Ferrite   {previous.Lost.Ferrite}", new XnaColor(200, 160, 160));
+        }
+
+        DrawRegion("ui/icons/objective", 520, 56, 48, 48);
+        DrawText(24, 320, "Enter  return to lobby", new XnaColor(180, 200, 220));
     }
 
-    private void DrawRun(MetaSession session, ComposedRunOrchestrator? run)
+    private void DrawRun(ComposedRunOrchestrator? run)
     {
         if (run is null)
         {
-            DrawPanel("RUN", "Composing encounter…");
+            DrawPanel("RUN", "Composing encounter...", "Please wait");
             return;
         }
 
         var bgId = run.EnvironmentId.Value == MetaContentIds.IonVeil
             ? "backgrounds/ion-veil"
             : "backgrounds/cinder-belt";
-        DrawTexture(bgId, 0, 0, VirtualWidth, VirtualHeight, XnaColor.White * 0.85f);
+        DrawTexture(bgId, 0, 0, VirtualWidth, VirtualHeight, XnaColor.White * 0.9f);
 
         var hud = run.Hud;
-        var player = run.Combat.Player != default
-            ? run.Combat.Snapshot(run.Combat.Player)
-            : default;
-        var camera = player.Position;
+        var camera = run.Combat.Player != default
+            ? run.Combat.Snapshot(run.Combat.Player).Position
+            : System.Numerics.Vector2.Zero;
 
         foreach (var asteroid in run.Asteroids)
         {
             if (asteroid.Broken)
+                continue;
+            var screen = WorldToScreen(new System.Numerics.Vector2(asteroid.X, asteroid.Y), camera);
+            if (!OnScreen(screen, 32))
                 continue;
             var region = asteroid.Kind switch
             {
@@ -220,76 +271,108 @@ public sealed class MvpPresentation : IDisposable
                 AsteroidCellKind.Lumen => "asteroids/medium/lumen",
                 _ => "asteroids/medium/ordinary"
             };
-            var screen = WorldToScreen(new System.Numerics.Vector2(asteroid.X, asteroid.Y), camera);
             DrawRegion(region, (int)screen.X - 12, (int)screen.Y - 12, 24, 24);
         }
 
         foreach (var pickup in run.Pickups)
         {
             var screen = WorldToScreen(new System.Numerics.Vector2(pickup.X, pickup.Y), camera);
-            DrawRegion("pickups/ferrite", (int)screen.X - 6, (int)screen.Y - 6, 12, 12);
-        }
-
-        foreach (var snapshot in run.LiveCombatSnapshots)
-        {
-            if (snapshot.Destroyed)
+            if (!OnScreen(screen, 16))
                 continue;
-            var screen = WorldToScreen(snapshot.Position, camera);
-            var region = snapshot.Faction switch
+            var region = pickup.ResourceId.Value switch
             {
-                Faction.Player => "ships/player/wayfarer",
-                Faction.Hostile => "enemies/interceptor",
-                _ => "enemies/elite-outline"
+                MetaContentIds.Lumen => "pickups/lumen",
+                MetaContentIds.DataCore => "pickups/data-core",
+                _ => "pickups/ferrite"
             };
-            var size = snapshot.Faction == Faction.Player ? 28 : 20;
-            DrawRegion(region, (int)screen.X - size / 2, (int)screen.Y - size / 2, size, size);
+            DrawRegion(region, (int)screen.X - 6, (int)screen.Y - 6, 12, 12);
         }
 
-        Fill(0, 0, VirtualWidth, 28, new XnaColor(0, 0, 0, 160));
-        DrawLabel(
+        foreach (var item in run.LiveRenderItems)
+        {
+            var screen = WorldToScreen(item.Position, camera);
+            if (!OnScreen(screen, 40))
+                continue;
+            switch (item.Kind)
+            {
+                case CombatRenderKind.PlayerShip:
+                    DrawRegionRotated("ships/player/wayfarer", screen, item.Rotation, 32);
+                    break;
+                case CombatRenderKind.EnemyShip:
+                    DrawRegionRotated(
+                        item.Elite ? "enemies/elite-outline" : "enemies/interceptor",
+                        screen,
+                        item.Rotation,
+                        item.Elite ? 28 : 22);
+                    break;
+                case CombatRenderKind.Projectile:
+                    DrawRegion("projectiles/hostile", (int)screen.X - 3, (int)screen.Y - 3, 6, 6);
+                    break;
+                case CombatRenderKind.Mine:
+                    DrawRegion("telegraphs/mine-radius", (int)screen.X - 10, (int)screen.Y - 10, 20, 20);
+                    break;
+            }
+        }
+
+        // Extraction marker
+        var extract = WorldToScreen(
+            new System.Numerics.Vector2(
+                run.Descriptor.Extraction.Center.X * FieldDescriptor.WorldUnitsPerCell,
+                run.Descriptor.Extraction.Center.Y * FieldDescriptor.WorldUnitsPerCell),
+            camera);
+        if (OnScreen(extract, 40))
+            DrawRegion("field/extraction-marker", (int)extract.X - 16, (int)extract.Y - 16, 32, 32);
+
+        Fill(0, 0, VirtualWidth, 40, new XnaColor(0, 0, 0, 180));
+        DrawText(
             8,
+            6,
+            $"Hull {hud.Hull:0}  Shield {hud.Shield:0}  Ferrite {hud.FerriteHeld}  Obj {hud.ObjectiveFerrite}/30 kills {hud.ObjectiveKills}/8",
+            XnaColor.White);
+        DrawText(
             8,
-            $"H{hud.Hull:0} S{hud.Shield:0}  F{hud.FerriteHeld}  Obj {hud.ObjectiveFerrite}/30 {hud.ObjectiveKills}/8  {hud.Phase} t{hud.RunTick}");
+            22,
+            $"{hud.Phase}  t{hud.RunTick}  WASD move  LMB fire  RMB mine  Space dash  E extract  Esc pause",
+            new XnaColor(180, 200, 220));
+
         if (hud.PendingOffer is not null)
-            DrawPanel("UPGRADE", "Press 1 / 2 / 3 to choose");
+        {
+            Fill(120, 120, 400, 80, new XnaColor(10, 14, 22, 230));
+            Frame(120, 120, 400, 80, new XnaColor(220, 200, 120), 1);
+            DrawText(140, 140, "UPGRADE OFFER", new XnaColor(240, 220, 140), 2);
+            DrawText(140, 168, "Press 1 / 2 / 3 to choose", XnaColor.White);
+        }
+
         if (hud.Phase == RunPhase.Extraction)
-            DrawLabel(8, 34, $"Extract hold {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks} (E)");
-        _ = session;
+            DrawText(
+                8,
+                44,
+                $"Hold E in extract zone: {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks}",
+                new XnaColor(160, 220, 180));
     }
 
-    private void DrawPanel(string title, string body)
+    private void DrawPanel(string title, params string[] lines)
     {
-        Fill(40, 40, 560, 80, new XnaColor(12, 18, 28, 220));
-        Frame(40, 40, 560, 80, new XnaColor(200, 210, 230), 1);
-        DrawLabel(56, 56, title);
-        DrawLabel(56, 84, body);
+        Fill(40, 40, 560, 40 + lines.Length * 18, new XnaColor(12, 18, 28, 230));
+        Frame(40, 40, 560, 40 + lines.Length * 18, new XnaColor(200, 210, 230), 1);
+        DrawText(56, 52, title, new XnaColor(230, 240, 255), 2);
+        var y = 80;
+        foreach (var line in lines)
+        {
+            DrawText(56, y, line, XnaColor.White);
+            y += 18;
+        }
     }
 
-    private void DrawLabel(int x, int y, string text)
+    private void DrawText(int x, int y, string text, XnaColor color, int scale = 1)
     {
-        // Bitmap-less MVP: draw a readable bar proportional to text length.
-        var width = Math.Clamp(text.Length * 5, 16, VirtualWidth - x - 8);
-        Fill(x, y, width, 10, new XnaColor(220, 230, 240));
-        Fill(x, y + 12, Math.Min(width, 120), 3, new XnaColor(120, 160, 200));
+        _font.Draw(_spriteBatch, text, x, y, color, scale);
         _drewSprites = true;
     }
 
     private void DrawRegion(string regionId, int x, int y, int width, int height)
     {
-        AtlasRegion region;
-        try
-        {
-            region = _catalog.GetRegion(regionId);
-        }
-        catch (KeyNotFoundException)
-        {
-            Fill(x, y, width, height, new XnaColor(180, 140, 90));
-            _drewSprites = true;
-            return;
-        }
-
-        var textureId = FindAtlasTexture(regionId);
-        if (textureId is null || !_textures.TryGetValue(textureId, out var texture))
+        if (!TryGetRegionTexture(regionId, out var region, out var texture))
         {
             Fill(x, y, width, height, new XnaColor(160, 120, 80));
             _drewSprites = true;
@@ -300,6 +383,50 @@ public sealed class MvpPresentation : IDisposable
         _spriteBatch.Draw(texture, new XnaRectangle(x, y, width, height), source, XnaColor.White);
         _drewSprites = true;
         _drewAtlasRegion = true;
+    }
+
+    private void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size)
+    {
+        if (!TryGetRegionTexture(regionId, out var region, out var texture))
+        {
+            Fill((int)center.X - size / 2, (int)center.Y - size / 2, size, size, new XnaColor(160, 120, 80));
+            _drewSprites = true;
+            return;
+        }
+
+        var source = new XnaRectangle(region.X, region.Y, region.Width, region.Height);
+        var origin = new XnaVector2(region.Width * (float)region.PivotX, region.Height * (float)region.PivotY);
+        // Source art faces up (-Y); combat aim uses mathematical angle from +X.
+        var rotation = rotationRadians + MathF.PI / 2f;
+        _spriteBatch.Draw(
+            texture,
+            center,
+            source,
+            XnaColor.White,
+            rotation,
+            origin,
+            size / (float)Math.Max(region.Width, region.Height),
+            SpriteEffects.None,
+            0f);
+        _drewSprites = true;
+        _drewAtlasRegion = true;
+    }
+
+    private bool TryGetRegionTexture(string regionId, out AtlasRegion region, out Texture2D texture)
+    {
+        region = default!;
+        texture = null!;
+        try
+        {
+            region = _catalog.GetRegion(regionId);
+        }
+        catch (KeyNotFoundException)
+        {
+            return false;
+        }
+
+        var textureId = FindAtlasTexture(regionId);
+        return textureId is not null && _textures.TryGetValue(textureId, out texture!);
     }
 
     private void DrawTexture(string assetId, int x, int y, int width, int height, XnaColor color)
@@ -317,12 +444,12 @@ public sealed class MvpPresentation : IDisposable
     private static string? FindAtlasTexture(string regionId)
     {
         if (regionId.StartsWith("ships/", StringComparison.Ordinal) ||
-            regionId.StartsWith("modules/", StringComparison.Ordinal) ||
-            regionId.StartsWith("projectiles/", StringComparison.Ordinal))
+            regionId.StartsWith("modules/", StringComparison.Ordinal))
             return "atlases/player-modules";
         if (regionId.StartsWith("enemies/", StringComparison.Ordinal) ||
             regionId.StartsWith("telegraphs/", StringComparison.Ordinal) ||
-            regionId.StartsWith("effects/", StringComparison.Ordinal))
+            regionId.StartsWith("effects/", StringComparison.Ordinal) ||
+            regionId.StartsWith("projectiles/", StringComparison.Ordinal))
             return "atlases/enemies-telegraphs";
         if (regionId.StartsWith("asteroids/", StringComparison.Ordinal) ||
             regionId.StartsWith("pickups/", StringComparison.Ordinal) ||
@@ -362,9 +489,32 @@ public sealed class MvpPresentation : IDisposable
         return new XnaVector2(x, y);
     }
 
+    private static bool OnScreen(XnaVector2 screen, int margin) =>
+        screen.X >= -margin && screen.X <= VirtualWidth + margin &&
+        screen.Y >= -margin && screen.Y <= VirtualHeight + margin;
+
+    private static string ShortId(string id)
+    {
+        var value = id;
+        foreach (var prefix in new[] { "MOD_", "RES_", "ENV_", "UPG_", "MAT_", "CAP_" })
+        {
+            if (value.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                value = value[prefix.Length..];
+                break;
+            }
+        }
+
+        return value.Replace('_', ' ');
+    }
+
+    private static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..Math.Max(0, max - 3)] + "...";
+
     public void Dispose()
     {
         _spriteBatch.Dispose();
+        _font.Dispose();
         _pixel.Dispose();
     }
 }
