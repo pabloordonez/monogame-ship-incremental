@@ -1,0 +1,14 @@
+P3_WORLD_RUN candidate commit
+
+Branch: phase2-p3-world-run
+Worktree: C:\Repositories\github\ship-game-p3
+Pinned base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+Package-spec freeze: 7d1b3591a69c192a41212efb7d38b06fe0d1a69d
+
+Implementation candidate:
+6d0f131915263f6f183788e6107617e536519788
+
+Short:
+6d0f131 Implement P3 world-run generation, mining, upgrades, and resolution.
+
+Not pushed.

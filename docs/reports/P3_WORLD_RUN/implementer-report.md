@@ -4,7 +4,7 @@
 
 `IMPLEMENTATION_COMPLETE`
 
-Candidate implementation commit: see `candidate-commit.txt`.
+Candidate implementation commit: `6d0f131915263f6f183788e6107617e536519788` (see `candidate-commit.txt`).
 
 Pinned base: `0b12902972d5a98ff785c78a9e0c10728b2a2df0` (package-spec freeze `7d1b359` is the branch tip before this implementation commit).
 
