@@ -204,3 +204,11 @@ python -c "import json; from pathlib import Path; root=Path('content/generated/D
 **BLOCK**
 
 Automated builds/tests/smokes are green and the MVP ID catalog is complete, but the candidate violates package ownership by mutating P0 shared content contracts and the Game host without a contract-change proposal, while still failing to prove required art-readability and true runtime catalog loading for compiled MVP assets. Do not accept until F1–F2 are corrected (proposal + ownership restore) and F3–F5 are remediated or formally re-scoped by accepted contract change.
+
+---
+
+## Final acceptance recheck
+
+Independent recheck verdict: **ACCEPT**
+Accepted implementation/remediation SHA: `7d09a96815cb86bfa9fde89b5969e1f514c105af`
+Full recheck body: `recheck-report.md`.
