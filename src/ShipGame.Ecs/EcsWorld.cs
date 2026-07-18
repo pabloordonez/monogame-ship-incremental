@@ -29,7 +29,7 @@ internal sealed class ComponentStore<T> : IComponentStore, IComponentView<T> whe
     private int[] _sparse = [];
 
     public int Count => _entities.Count;
-    public IReadOnlyList<EntityId> Entities => _entities;
+    public IReadOnlyList<EntityId> Entities => new EntitySnapshot(_entities.ToArray());
 
     public void Set(EntityId entity, T component)
     {
@@ -95,6 +95,14 @@ internal sealed class ComponentStore<T> : IComponentStore, IComponentView<T> whe
             throw new ArgumentOutOfRangeException(nameof(index));
         if (index >= _sparse.Length)
             Array.Resize(ref _sparse, Math.Max(index + 1, Math.Max(4, _sparse.Length * 2)));
+    }
+
+    private sealed class EntitySnapshot(EntityId[] entities) : IReadOnlyList<EntityId>
+    {
+        public int Count => entities.Length;
+        public EntityId this[int index] => entities[index];
+        public IEnumerator<EntityId> GetEnumerator() => ((IEnumerable<EntityId>)entities).GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => entities.GetEnumerator();
     }
 }
 

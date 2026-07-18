@@ -99,3 +99,41 @@ The standard restore/build/test/content/launch commands all exited 0 and the ori
 `REMEDIATE`
 
 The candidate is not accepted. All substantiated critical and major findings require correction and independent recheck.
+
+## Final Acceptance Recheck — 2026-07-18
+
+### Recheck identity
+
+- Package: `P0_FOUNDATION`
+- Rechecked remediation implementation: `5523b94ef2fb9cbb153e65c94d1c2e7671a5fc46`
+- Rechecked evidence HEAD: `9575c1adb295ca7616dbcc0128e50bc0bd686c32`
+- Original candidate remains: `38f2db9b429533653883a3d031299359b5d9fe7e`
+- Recheck purpose: final independent acceptance review of the first remediation.
+
+### Recheck result
+
+The independent acceptance recheck returned `REMEDIATE`. Three major findings remain open:
+
+#### M1 — MAJOR: component entity view remains runtime-mutable
+
+`IComponentView<T>.Entities` exposes the backing `List<EntityId>` as `IReadOnlyList<EntityId>`. External callers can cast the runtime object to `IList<EntityId>`, clear or mutate it, and orphan the parallel component storage. Expose a genuinely immutable/non-castable view or safe snapshot/enumeration while preserving deterministic queries. Add a regression that attempts runtime casts/mutation and verifies sparse/dense alignment and component access remain valid.
+
+#### M4 — MAJOR: validated telemetry payload remains runtime-mutable
+
+`TelemetryRecord.Payload` exposes the sanitized backing `Dictionary<string, object?>` as `IReadOnlyDictionary<string, object?>`. A caller can cast it to `IDictionary<string, object?>`, add an email/string after validation, and persist prohibited data through the sink. Copy/freeze payloads into a genuinely immutable/non-castable representation and ensure nested values cannot carry mutable structures. Add post-construction cast/mutation and persisted-output tests while preserving no-PII and failure isolation.
+
+#### M8 — MAJOR: architecture policy does not validate actual project files
+
+Architecture tests inspect only emitted assembly references, omit `ShipGame.ContentBuilder`, and use a hand-built invalid dictionary that does not exercise production project-graph policy. Parse actual production `.csproj` files, including `tools/ShipGame.ContentBuilder`; enforce allowed `ProjectReference` and `PackageReference` edges, exact MonoGame placement and 3.8.5 pins, and cycle freedom. Exercise that same validator with representative invalid project XML/graph inputs. Keep tests platform/path robust.
+
+### Downstream impact
+
+- M1 permits external corruption of sparse/dense ECS alignment despite the intended read-only API.
+- M4 permits post-validation insertion and persistence of prohibited PII/raw strings.
+- M8 permits project/package dependency regressions, including Content Builder boundary violations, to evade the architecture gate.
+
+### Final acceptance recheck verdict
+
+`REMEDIATE`
+
+The first remediation is not accepted. M1, M4, and M8 require correction and another independent recheck.

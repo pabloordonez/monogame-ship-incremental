@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Xml.Linq;
 using ShipGame.Content;
 using ShipGame.Domain;
 using ShipGame.Ecs;
@@ -11,19 +12,6 @@ namespace ShipGame.Architecture.Tests;
 
 public class ArchitectureTests
 {
-    private static readonly IReadOnlyDictionary<string, string[]> AllowedDependencies =
-        new Dictionary<string, string[]>(StringComparer.Ordinal)
-        {
-            ["ShipGame.Domain"] = [],
-            ["ShipGame.Ecs"] = ["ShipGame.Domain"],
-            ["ShipGame.Content"] = ["ShipGame.Domain"],
-            ["ShipGame.Simulation"] = ["ShipGame.Domain", "ShipGame.Ecs", "ShipGame.Content"],
-            ["ShipGame.Persistence"] = ["ShipGame.Domain", "ShipGame.Content"],
-            ["ShipGame.Telemetry"] = ["ShipGame.Domain"],
-            ["ShipGame.Game"] =
-                ["ShipGame.Domain", "ShipGame.Simulation", "ShipGame.Content", "ShipGame.Persistence", "ShipGame.Telemetry"]
-        };
-
     private static readonly Assembly[] ProductionAssemblies =
     [
         typeof(ContractVersions).Assembly,
@@ -36,20 +24,13 @@ public class ArchitectureTests
     ];
 
     [Fact]
-    public void ProductionAssemblyGraphMatchesPolicyAndHasNoCycles()
+    public void ProductionProjectFilesMatchDependencyAndPackagePolicy()
     {
-        var graph = ProductionAssemblies.ToDictionary(
-            assembly => assembly.GetName().Name!,
-            assembly => assembly.GetReferencedAssemblies()
-                .Select(reference => reference.Name!)
-                .Where(AllowedDependencies.ContainsKey)
-                .ToArray(),
-            StringComparer.Ordinal);
+        var projects = ProjectArchitecturePolicy.LoadProductionProjectXml(FindRepositoryRoot());
 
-        Assert.Equal(AllowedDependencies.Keys.Order(), graph.Keys.Order());
-        foreach (var (project, references) in graph)
-            Assert.All(references, reference => Assert.Contains(reference, AllowedDependencies[project]));
-        Assert.False(HasCycle(graph));
+        Assert.Contains(projects.Keys, path =>
+            Path.GetFileNameWithoutExtension(path) == "ShipGame.ContentBuilder");
+        Assert.Empty(ProjectArchitecturePolicy.Validate(projects));
     }
 
     [Fact]
@@ -159,22 +140,45 @@ public class ArchitectureTests
     }
 
     [Fact]
-    public void ArchitecturePoliciesRejectRepresentativeGraphViolations()
+    public void ProjectPolicyRejectsInvalidXmlForbiddenEdgesCyclesAndPackagePins()
     {
-        var cycle = new Dictionary<string, string[]>
-        {
-            ["A"] = ["B"],
-            ["B"] = ["A"]
-        };
-        Assert.True(HasCycle(cycle));
+        var projects = ProjectArchitecturePolicy.LoadProductionProjectXml(FindRepositoryRoot());
 
-        var invalidDependency = new Dictionary<string, string[]>
-        {
-            ["ShipGame.Domain"] = ["ShipGame.Game"]
-        };
+        var malformed = projects.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        malformed[ProjectPath(malformed, "ShipGame.Domain")] =
+            "<Project><ItemGroup><ProjectReference /></ItemGroup></Project>";
         Assert.Contains(
-            invalidDependency["ShipGame.Domain"],
-            dependency => !AllowedDependencies["ShipGame.Domain"].Contains(dependency));
+            ProjectArchitecturePolicy.Validate(malformed),
+            issue => issue.Code == "project.reference-invalid");
+
+        var malformedXml = projects.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        malformedXml[ProjectPath(malformedXml, "ShipGame.Domain")] = "<Project";
+        Assert.Contains(
+            ProjectArchitecturePolicy.Validate(malformedXml),
+            issue => issue.Code == "project.xml-invalid");
+
+        var cyclic = AddProjectReference(projects, "ShipGame.Domain", "ShipGame.Ecs");
+        var cycleIssues = ProjectArchitecturePolicy.Validate(cyclic);
+        Assert.Contains(cycleIssues, issue => issue.Code == "project.reference-forbidden");
+        Assert.Contains(cycleIssues, issue => issue.Code == "project.cycle");
+
+        var badPin = ChangePackageVersion(
+            projects,
+            "ShipGame.ContentBuilder",
+            "MonoGame.Framework.Content.Pipeline",
+            "3.8.4");
+        Assert.Contains(
+            ProjectArchitecturePolicy.Validate(badPin),
+            issue => issue.Code == "package.version");
+
+        var badPlacement = AddPackage(
+            projects,
+            "ShipGame.Domain",
+            "MonoGame.Framework.Native",
+            "3.8.5");
+        Assert.Contains(
+            ProjectArchitecturePolicy.Validate(badPlacement),
+            issue => issue.Code == "package.forbidden");
     }
 
     private static string[] FindForbidden(string source, IEnumerable<string> forbidden) =>
@@ -188,28 +192,63 @@ public class ArchitectureTests
         return ordered.Zip(ordered.Skip(1), (left, right) => right == left + 1).All(value => value);
     }
 
-    private static bool HasCycle(IReadOnlyDictionary<string, string[]> graph)
+    private static Dictionary<string, string> AddProjectReference(
+        IReadOnlyDictionary<string, string> projects,
+        string from,
+        string to)
     {
-        var visiting = new HashSet<string>(StringComparer.Ordinal);
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        bool Visit(string node)
-        {
-            if (!visiting.Add(node))
-                return true;
-            if (visited.Contains(node))
-            {
-                visiting.Remove(node);
-                return false;
-            }
-            foreach (var dependency in graph.GetValueOrDefault(node, []))
-                if (graph.ContainsKey(dependency) && Visit(dependency))
-                    return true;
-            visiting.Remove(node);
-            visited.Add(node);
-            return false;
-        }
-        return graph.Keys.Any(Visit);
+        var changed = projects.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        var fromPath = ProjectPath(changed, from);
+        var toPath = ProjectPath(changed, to);
+        var document = XDocument.Parse(changed[fromPath]);
+        document.Root!.Add(
+            new XElement(
+                "ItemGroup",
+                new XElement(
+                    "ProjectReference",
+                    new XAttribute("Include", Path.GetRelativePath(Path.GetDirectoryName(fromPath)!, toPath)))));
+        changed[fromPath] = document.ToString();
+        return changed;
     }
+
+    private static Dictionary<string, string> ChangePackageVersion(
+        IReadOnlyDictionary<string, string> projects,
+        string project,
+        string package,
+        string version)
+    {
+        var changed = projects.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        var path = ProjectPath(changed, project);
+        var document = XDocument.Parse(changed[path]);
+        var reference = document.Descendants("PackageReference")
+            .Single(element => element.Attribute("Include")?.Value == package);
+        reference.SetAttributeValue("Version", version);
+        changed[path] = document.ToString();
+        return changed;
+    }
+
+    private static Dictionary<string, string> AddPackage(
+        IReadOnlyDictionary<string, string> projects,
+        string project,
+        string package,
+        string version)
+    {
+        var changed = projects.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        var path = ProjectPath(changed, project);
+        var document = XDocument.Parse(changed[path]);
+        document.Root!.Add(
+            new XElement(
+                "ItemGroup",
+                new XElement(
+                    "PackageReference",
+                    new XAttribute("Include", package),
+                    new XAttribute("Version", version))));
+        changed[path] = document.ToString();
+        return changed;
+    }
+
+    private static string ProjectPath(IReadOnlyDictionary<string, string> projects, string name) =>
+        projects.Keys.Single(path => Path.GetFileNameWithoutExtension(path) == name);
 
     private static string FindRepositoryRoot()
     {

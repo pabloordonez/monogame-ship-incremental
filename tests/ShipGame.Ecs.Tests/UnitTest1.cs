@@ -83,6 +83,28 @@ public class EcsTests
     }
 
     [Fact]
+    public void EntitySnapshotsCannotMutateSparseDenseStorage()
+    {
+        var world = new World();
+        var first = world.Create();
+        var second = world.Create();
+        world.Set(first, new Position(10));
+        world.Set(second, new Position(20));
+        var snapshot = world.Store<Position>().Entities;
+
+        Assert.False(snapshot is IList<EntityId>);
+        Assert.False(snapshot is System.Collections.IList);
+
+        Assert.True(world.Remove<Position>(first));
+        Assert.Equal(2, snapshot.Count);
+        Assert.Equal(1, world.Store<Position>().Count);
+        Assert.False(world.Store<Position>().Has(first));
+        Assert.True(world.Store<Position>().Has(second));
+        Assert.Equal(20, world.Store<Position>().Read(second).Value);
+        Assert.Equal(20, world.Get<Position>(second).Value);
+    }
+
+    [Fact]
     public void StructuralMutationDuringQueryMustBeBuffered()
     {
         var world = new World();

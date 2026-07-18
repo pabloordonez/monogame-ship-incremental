@@ -68,6 +68,28 @@ public class TelemetryTests : IDisposable
     }
 
     [Fact]
+    public void ValidatedPayloadIsFrozenAgainstPostConstructionMutation()
+    {
+        var source = new Dictionary<string, object?> { ["count"] = 3 };
+        var record = Telemetry.Event("run.summary", source);
+
+        Assert.False(record.Payload is IDictionary<string, object?>);
+        Assert.False(record.Payload is System.Collections.IDictionary);
+        source["email"] = "forbidden@example.test";
+        source["count"] = 999;
+
+        var path = Path.Combine(_root, "frozen-events.jsonl");
+        using (var sink = JsonLinesTelemetrySink.Create(path))
+            sink.Write(record);
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var payload = document.RootElement.GetProperty("Payload");
+        Assert.Equal(3, payload.GetProperty("count").GetInt32());
+        Assert.False(payload.TryGetProperty("email", out _));
+        Assert.False(File.ReadAllText(path).Contains("forbidden@example.test", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void SinkConstructionFailureIsContained()
     {
         var exception = Record.Exception(() =>
