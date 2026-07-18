@@ -261,7 +261,7 @@ public sealed class FlightCombatTests
     }
 
     [Fact]
-    public void StaleEntitiesAreIgnoredAndTraceIsInsertionStable()
+    public void SameSpawnOrderIsDeterministicAcrossRuns()
     {
         static ulong Run(bool reverse)
         {
@@ -286,6 +286,40 @@ public sealed class FlightCombatTests
 
         Assert.Equal(Run(false), Run(false));
         Assert.Equal(Run(true), Run(true));
+        // Creation-ordered entity IDs make reverse spawn order a different universe; not an insertion-stable claim.
+        Assert.NotEqual(Run(false), Run(true));
+    }
+
+    [Fact]
+    public void StaleAndFutureCommandsAreRejected()
+    {
+        var simulation = NewSimulation(Pulse);
+        simulation.Step();
+
+        Assert.False(simulation.Queue(Command(simulation.Tick - 1)));
+        Assert.Contains(simulation.Events, value =>
+            value.Kind == CombatEventKind.CommandRejected && value.Detail == "stale");
+
+        Assert.False(simulation.Queue(Command(simulation.Tick + FlightCombatConstants.CommandHorizonTicks + 1)));
+        Assert.Contains(simulation.Events, value =>
+            value.Kind == CombatEventKind.CommandRejected && value.Detail == "future");
+    }
+
+    [Fact]
+    public void PendingCommandsAreIncludedInAuthoritativeHash()
+    {
+        var baseline = NewSimulation(Pulse);
+        var modified = NewSimulation(Pulse);
+        baseline.Step();
+        modified.Step();
+        Assert.Equal(baseline.LastStateHash, modified.LastStateHash);
+
+        Assert.True(modified.Queue(Command(modified.Tick + 5, actions: FlightAction.Fire)));
+        Assert.NotEqual(baseline.LastStateHash, modified.LastStateHash);
+
+        baseline.Step();
+        modified.Step();
+        Assert.NotEqual(baseline.LastStateHash, modified.LastStateHash);
     }
 
     [Fact]
@@ -307,33 +341,94 @@ public sealed class FlightCombatTests
     }
 
     [Fact]
-    public void WarmIdleCombatHasZeroSteadyStateAllocationAndMeetsTickBudget()
+    public void WarmIdleAndQueuedCombatHaveZeroSteadyStateAllocation()
     {
-        var simulation = NewSimulation(Pulse);
+        var idle = NewSimulation(Pulse);
         for (var i = 0; i < 2_000; i++)
-            simulation.Step();
+            idle.Step();
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
         for (var i = 0; i < 200; i++)
-            simulation.Step();
+            idle.Step();
 
         var stopwatch = Stopwatch.StartNew();
-        var before = GC.GetAllocatedBytesForCurrentThread();
+        var beforeIdle = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < 20_000; i++)
-            simulation.Step();
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            idle.Step();
+        var idleAllocated = GC.GetAllocatedBytesForCurrentThread() - beforeIdle;
         stopwatch.Stop();
 
-        Assert.Equal(0, allocated);
+        Assert.Equal(0, idleAllocated);
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(2),
             $"20,000 fixed ticks took {stopwatch.Elapsed.TotalMilliseconds:F1} ms.");
+
+        // Continuous Queue+Step under combat stepping (movement/aim ingress + obstacle contact work).
+        // AI/weapon spawn paths are excluded here; they create entities and are documented below.
+        var queued = NewSimulation(Pulse);
+        queued.SpawnObstacle(new Vector2(80, 0), 16);
+        for (var i = 0; i < 2_000; i++)
+        {
+            queued.Queue(Command(queued.Tick, move: Vector2.UnitX, aim: Vector2.UnitX));
+            queued.Step();
+        }
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        for (var i = 0; i < 200; i++)
+        {
+            queued.Queue(Command(queued.Tick, move: Vector2.UnitX, aim: Vector2.UnitX));
+            queued.Step();
+        }
+
+        var beforeQueued = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 5_000; i++)
+        {
+            queued.Queue(Command(queued.Tick, move: Vector2.UnitX, aim: Vector2.UnitX));
+            queued.Step();
+        }
+        var queuedAllocated = GC.GetAllocatedBytesForCurrentThread() - beforeQueued;
+        Assert.Equal(0, queuedAllocated);
+
+        // Unavoidable transient: projectile entity creation allocates. Not per-tick command growth —
+        // identical Queue+Step without Fire stays 0 B; enabling Fire allocates only when projectiles spawn.
+        var firing = NewSimulation(Pulse);
+        for (var i = 0; i < 120; i++)
+        {
+            firing.Queue(Command(firing.Tick, aim: Vector2.UnitX));
+            firing.Step();
+        }
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        var beforeNoFire = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 60; i++)
+        {
+            firing.Queue(Command(firing.Tick, aim: Vector2.UnitX));
+            firing.Step();
+        }
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - beforeNoFire);
+
+        var beforeFire = GC.GetAllocatedBytesForCurrentThread();
+        var fired = 0;
+        for (var i = 0; i < 60; i++)
+        {
+            firing.Queue(Command(firing.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
+            firing.Step();
+            fired += firing.Events.Count(value => value.Kind == CombatEventKind.WeaponFired);
+        }
+        var fireAllocated = GC.GetAllocatedBytesForCurrentThread() - beforeFire;
+        Assert.True(fired > 0);
+        Assert.True(fireAllocated > 0,
+            "Expected entity-spawn allocations while projectiles are created.");
     }
 
     [Fact]
-    public void PackageScheduleIsExplicitAndAdditive()
+    public void PackageScheduleIsExactOrderedProjectionOfStep()
     {
         var simulation = NewSimulation(Pulse);
+        // Canonical Step() phase order. Step only invokes SystemScheduler.Tick for this list;
+        // changing either registration order or this expectation fails the binding.
         Assert.Equal(
             [
                 "ApplyFlightCombatStructuralChanges",
@@ -341,10 +436,12 @@ public sealed class FlightCombatTests
                 "AdvanceCombatTimers",
                 "ConsumeTemporaryModifiers",
                 "AiAndThreatDecisions",
+                "ResolveMobility",
                 "IntegrateFlightMovement",
                 "RebuildCombatSpatialIndex",
                 "DetectCombatCollisions",
-                "ResolveWeaponsAndAbilities",
+                "ResolveWeapons",
+                "ResolveMines",
                 "ResolveOrderedDamage",
                 "ResolveCombatDestruction",
                 "PublishCombatEventsAndHash"

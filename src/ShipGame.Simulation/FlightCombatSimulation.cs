@@ -20,7 +20,9 @@ public sealed class FlightCombatSimulation
     private readonly World _world = new();
     private readonly FlightCombatBehaviorRegistry _registry;
     private readonly RandomStreams _random;
-    private readonly SortedDictionary<long, FlightCommandFrame> _commands = [];
+    private readonly SystemScheduler _scheduler = new();
+    private readonly FlightCommandFrame[] _commandSlots = new FlightCommandFrame[FlightCombatConstants.CommandSlotCount];
+    private readonly bool[] _commandOccupied = new bool[FlightCombatConstants.CommandSlotCount];
     private readonly List<EntityId> _entities = new(FlightCombatConstants.MaximumEntities);
     private readonly List<EntityId> _pendingDestroy = new(FlightCombatConstants.MaximumEntities);
     private readonly List<CombatEvent> _events = new(FlightCombatConstants.MaximumEventsPerTick);
@@ -31,6 +33,7 @@ public sealed class FlightCombatSimulation
     private readonly int[] _gridHeads = new int[GridCells];
     private readonly int[] _gridNext = new int[FlightCombatConstants.MaximumEntities];
     private readonly List<SpawnAnchor> _anchors = new(64);
+    private int _pendingCommandCount;
     private int _damageCount;
     private int _externalDamageCount;
     private int _pairCount;
@@ -47,40 +50,54 @@ public sealed class FlightCombatSimulation
         _registry = registry ?? FlightCombatBehaviorRegistry.CreateMvp();
         _random = new RandomStreams(seed);
         _eventView = _events.AsReadOnly();
+        // Schedule is the exact ordered projection of Step(); Step only runs this registration.
+        _scheduler.Add(new DelegateSystem("ApplyFlightCombatStructuralChanges", (_, _) => ApplyStructuralChanges()));
+        _scheduler.Add(new DelegateSystem("ConsumeFlightCommands", (_, _) => ConsumeCommands()));
+        _scheduler.Add(new DelegateSystem("AdvanceCombatTimers", (_, _) => AdvanceTimers()));
+        _scheduler.Add(new DelegateSystem("ConsumeTemporaryModifiers", (_, _) => ConsumeTemporaryModifiers()));
+        _scheduler.Add(new DelegateSystem("AiAndThreatDecisions", (_, _) => UpdateAiAndThreat()));
+        _scheduler.Add(new DelegateSystem("ResolveMobility", (_, _) => ResolveMobility()));
+        _scheduler.Add(new DelegateSystem("IntegrateFlightMovement", (_, _) => IntegrateMovement()));
+        _scheduler.Add(new DelegateSystem("RebuildCombatSpatialIndex", (_, _) => RebuildSpatialIndex()));
+        _scheduler.Add(new DelegateSystem("DetectCombatCollisions", (_, _) => DetectCollisions()));
+        _scheduler.Add(new DelegateSystem("ResolveWeapons", (_, _) => ResolveWeapons()));
+        _scheduler.Add(new DelegateSystem("ResolveMines", (_, _) => ResolveMines()));
+        _scheduler.Add(new DelegateSystem("ResolveOrderedDamage", (_, _) => ResolveOrderedDamage()));
+        _scheduler.Add(new DelegateSystem("ResolveCombatDestruction", (_, _) => ResolveDestruction()));
+        _scheduler.Add(new DelegateSystem("PublishCombatEventsAndHash", (_, _) => LastStateHash = CalculateHash()));
+        Schedule = _scheduler.Order;
     }
 
     public long Tick { get; private set; }
     public ulong LastStateHash { get; private set; }
     public EntityId Player => _player;
     public IReadOnlyList<CombatEvent> Events => _eventView;
-    public IReadOnlyList<string> Schedule { get; } =
-    [
-        "ApplyFlightCombatStructuralChanges",
-        "ConsumeFlightCommands",
-        "AdvanceCombatTimers",
-        "ConsumeTemporaryModifiers",
-        "AiAndThreatDecisions",
-        "IntegrateFlightMovement",
-        "RebuildCombatSpatialIndex",
-        "DetectCombatCollisions",
-        "ResolveWeaponsAndAbilities",
-        "ResolveOrderedDamage",
-        "ResolveCombatDestruction",
-        "PublishCombatEventsAndHash"
-    ];
+    public IReadOnlyList<string> Schedule { get; }
 
     public bool Queue(FlightCommandFrame command)
     {
-        if (command.TargetTick < Tick || command.TargetTick > Tick + FlightCombatConstants.TickRate * 10L)
+        if (command.TargetTick < Tick ||
+            command.TargetTick > Tick + FlightCombatConstants.CommandHorizonTicks)
         {
             AddEvent(CombatEvent.Create(
                 CombatEventKind.CommandRejected,
                 Tick,
                 amount: command.TargetTick,
                 detail: command.TargetTick < Tick ? "stale" : "future"));
+            LastStateHash = CalculateHash();
             return false;
         }
-        _commands[command.TargetTick] = command;
+
+        var slot = CommandSlot(command.TargetTick);
+        if (_commandOccupied[slot] && _commandSlots[slot].TargetTick != command.TargetTick)
+            throw new InvalidOperationException("Command slot map collision within the accepted horizon.");
+        if (!_commandOccupied[slot])
+        {
+            _commandOccupied[slot] = true;
+            _pendingCommandCount++;
+        }
+        _commandSlots[slot] = command;
+        LastStateHash = CalculateHash();
         return true;
     }
 
@@ -260,20 +277,7 @@ public sealed class FlightCombatSimulation
         for (var i = 0; i < _externalDamageCount; i++)
             _damage[_damageCount++] = _externalDamage[i];
         _externalDamageCount = 0;
-        ApplyStructuralChanges();
-        ConsumeCommands();
-        AdvanceTimers();
-        ConsumeTemporaryModifiers();
-        UpdateAiAndThreat();
-        ResolveMobility();
-        IntegrateMovement();
-        RebuildSpatialIndex();
-        DetectCollisions();
-        ResolveWeapons();
-        ResolveMines();
-        ResolveOrderedDamage();
-        ResolveDestruction();
-        LastStateHash = CalculateHash();
+        _scheduler.Tick(_world, Tick);
         Tick++;
         return LastStateHash;
     }
@@ -296,10 +300,13 @@ public sealed class FlightCombatSimulation
     private void ConsumeCommands()
     {
         if (_player == default || !_world.IsAlive(_player))
+        {
+            TryTakeCommand(Tick, out _);
             return;
+        }
         ref var intent = ref _world.Get<ControlIntent>(_player);
         var previous = intent.Actions;
-        var command = _commands.Remove(Tick, out var found)
+        var command = TryTakeCommand(Tick, out var found)
             ? found
             : FlightCommandFrame.Neutral(Tick);
         var aim = command.Aim;
@@ -307,6 +314,23 @@ public sealed class FlightCombatSimulation
             aim = intent.Aim;
         intent = new ControlIntent(command.Move, aim, command.Actions, previous);
     }
+
+    private bool TryTakeCommand(long tick, out FlightCommandFrame command)
+    {
+        var slot = CommandSlot(tick);
+        if (_commandOccupied[slot] && _commandSlots[slot].TargetTick == tick)
+        {
+            command = _commandSlots[slot];
+            _commandOccupied[slot] = false;
+            _pendingCommandCount--;
+            return true;
+        }
+        command = default;
+        return false;
+    }
+
+    private static int CommandSlot(long tick) =>
+        (int)(tick % FlightCombatConstants.CommandSlotCount);
 
     private void AdvanceTimers()
     {
@@ -1088,6 +1112,21 @@ public sealed class FlightCombatSimulation
             hash = AddContentId(hash, value.ContentId);
             hash = StableHash.Add(hash, unchecked((ulong)BitConverter.SingleToInt32Bits(value.Amount)));
         }
+        hash = StableHash.Add(hash, (ulong)_pendingCommandCount);
+        for (var offset = 0; offset <= FlightCombatConstants.CommandHorizonTicks; offset++)
+        {
+            var targetTick = Tick + offset;
+            var slot = CommandSlot(targetTick);
+            if (!_commandOccupied[slot] || _commandSlots[slot].TargetTick != targetTick)
+                continue;
+            var command = _commandSlots[slot];
+            hash = StableHash.Add(hash, unchecked((ulong)command.TargetTick));
+            hash = StableHash.Add(hash, unchecked((ulong)(ushort)command.MoveX));
+            hash = StableHash.Add(hash, unchecked((ulong)(ushort)command.MoveY));
+            hash = StableHash.Add(hash, unchecked((ulong)(ushort)command.AimX));
+            hash = StableHash.Add(hash, unchecked((ulong)(ushort)command.AimY));
+            hash = StableHash.Add(hash, (ulong)command.Actions);
+        }
         return hash;
     }
 
@@ -1158,5 +1197,11 @@ public sealed class FlightCombatSimulation
             var first = x.First.CompareTo(y.First);
             return first != 0 ? first : x.Second.CompareTo(y.Second);
         }
+    }
+
+    private sealed class DelegateSystem(string name, Action<World, long> update) : ISimulationSystem
+    {
+        public string Name => name;
+        public void Update(World world, long tick) => update(world, tick);
     }
 }
