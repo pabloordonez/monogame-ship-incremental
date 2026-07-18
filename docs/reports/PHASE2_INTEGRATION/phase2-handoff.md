@@ -2,7 +2,7 @@
 
 Pinned P0 base: `0b12902972d5a98ff785c78a9e0c10728b2a2df0`  
 Integration branch: `phase2-integration`  
-Final merged tip: see `candidate-commit.txt` / git HEAD after this evidence commit.
+Final merged tip: `59c9744b6747db2170d93de1d3557b2cb114b6c3`.
 
 ## Accepted package commits
 
