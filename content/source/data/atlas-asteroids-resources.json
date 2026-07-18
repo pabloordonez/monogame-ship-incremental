@@ -1,0 +1,337 @@
+{
+  "schemaVersion": 1,
+  "textureAssetId": "atlases/asteroids-resources",
+  "width": 512,
+  "height": 512,
+  "padding": 2,
+  "extrusion": 1,
+  "rotatedPacking": false,
+  "collisions": [
+    {
+      "id": "collision/asteroid-small",
+      "kind": "circle",
+      "values": [
+        16,
+        16,
+        12
+      ]
+    },
+    {
+      "id": "collision/asteroid-medium",
+      "kind": "circle",
+      "values": [
+        32,
+        32,
+        24
+      ]
+    },
+    {
+      "id": "collision/asteroid-large",
+      "kind": "circle",
+      "values": [
+        48,
+        48,
+        40
+      ]
+    },
+    {
+      "id": "collision/pickup",
+      "kind": "circle",
+      "values": [
+        6,
+        6,
+        5
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "asteroids/small/ordinary",
+      "x": 249,
+      "y": 106,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-small",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/small/ferrite",
+      "x": 286,
+      "y": 106,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-small",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/small/lumen",
+      "x": 323,
+      "y": 106,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-small",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/medium/ordinary",
+      "x": 308,
+      "y": 5,
+      "width": 64,
+      "height": 64,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-medium",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/medium/ferrite",
+      "x": 377,
+      "y": 5,
+      "width": 64,
+      "height": 64,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-medium",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/medium/lumen",
+      "x": 5,
+      "y": 106,
+      "width": 64,
+      "height": 64,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-medium",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/large/ordinary",
+      "x": 5,
+      "y": 5,
+      "width": 96,
+      "height": 96,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-large",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/large/ferrite",
+      "x": 106,
+      "y": 5,
+      "width": 96,
+      "height": 96,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-large",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/large/lumen",
+      "x": 207,
+      "y": 5,
+      "width": 96,
+      "height": 96,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/asteroid-large",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "asteroids/break",
+      "x": 360,
+      "y": 106,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "id": "pickups/ferrite",
+      "x": 5,
+      "y": 175,
+      "width": 10,
+      "height": 10,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/pickup",
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "id": "pickups/lumen",
+      "x": 20,
+      "y": 175,
+      "width": 10,
+      "height": 10,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/pickup",
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "id": "pickups/data-core",
+      "x": 471,
+      "y": 106,
+      "width": 12,
+      "height": 12,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/pickup",
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "pickups/upgrade-charge",
+      "x": 488,
+      "y": 106,
+      "width": 12,
+      "height": 12,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/pickup",
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "id": "field/extraction-marker",
+      "x": 397,
+      "y": 106,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 6,
+        "frames": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "field/cover-cue",
+      "x": 434,
+      "y": 106,
+      "width": 32,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": null
+    },
+    {
+      "id": "hazards/solar-flare",
+      "x": 180,
+      "y": 106,
+      "width": 64,
+      "height": 32,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 12,
+        "frames": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "hazards/ion-cloud",
+      "x": 74,
+      "y": 106,
+      "width": 48,
+      "height": 48,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 8,
+        "frames": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "hazards/star-glow",
+      "x": 127,
+      "y": 106,
+      "width": 48,
+      "height": 48,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": null,
+      "hardpoints": null,
+      "animation": {
+        "fps": 6,
+        "frames": [
+          0,
+          1
+        ]
+      }
+    }
+  ]
+}

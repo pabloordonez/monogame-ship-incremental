@@ -1,15 +1,122 @@
 {
   "schemaVersion": 1,
+  "buildVersion": 1,
   "assets": [
     {
-      "id": "data/title-placeholder",
-      "kind": "data",
-      "source": "data/title-placeholder.json",
-      "status": "placeholder",
-      "owner": "P0_FOUNDATION",
-      "license": "CC0-1.0",
-      "attribution": "Authored for Ship Game foundation",
-      "sourceUrl": null
+      "id": "data/title-placeholder", "kind": "data", "source": "data/title-placeholder.json",
+      "status": "placeholder", "owner": "P0_FOUNDATION", "license": "CC0-1.0",
+      "attribution": "Authored for Ship Game foundation", "sourceUrl": null,
+      "provenance": "Original repository-authored foundation text.",
+      "replacementCriterion": "Replace when the title presentation is approved.",
+      "waiver": "Integration-owner package specification permits retained foundation placeholder for the walking skeleton.",
+      "width": null, "height": null, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "atlases/player-modules", "kind": "atlas", "source": "textures/atlases/player-modules.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel-grid art authored programmatically for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, external image, sample, or copied identity.",
+      "replacementCriterion": "Replace after art review with a silhouette-compatible sheet preserving region IDs, frame tiers, pivots, and hardpoints.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 512, "height": 512, "metadata": "data/atlas-player-modules.json", "sourceHash": null
+    },
+    {
+      "id": "atlases/enemies-telegraphs", "kind": "atlas", "source": "textures/atlases/enemies-telegraphs.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel-grid art authored programmatically for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, external image, sample, or copied identity.",
+      "replacementCriterion": "Replace after native-resolution threat-readability review while preserving IDs and telegraph timing semantics.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 512, "height": 512, "metadata": "data/atlas-enemies-telegraphs.json", "sourceHash": null
+    },
+    {
+      "id": "atlases/asteroids-resources", "kind": "atlas", "source": "textures/atlases/asteroids-resources.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel-grid art authored programmatically for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, external image, sample, or copied identity.",
+      "replacementCriterion": "Replace after mining/resource shape-language review while preserving IDs and collision references.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 512, "height": 512, "metadata": "data/atlas-asteroids-resources.json", "sourceHash": null
+    },
+    {
+      "id": "atlases/ui-icons", "kind": "atlas", "source": "textures/atlases/ui-icons.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel-grid icons authored programmatically for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, font, external image, or copied identity.",
+      "replacementCriterion": "Replace after 24px/32px UI comprehension testing while preserving stable icon region IDs.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 512, "height": 512, "metadata": "data/atlas-ui-icons.json", "sourceHash": null
+    },
+    {
+      "id": "backgrounds/cinder-belt", "kind": "texture", "source": "textures/backgrounds/cinder-belt.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original procedural star field authored for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Deterministic hand-selected pixel positions and palette in SourceAssetGenerator.cs.",
+      "replacementCriterion": "Replace after effects-off contrast review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "backgrounds/ion-veil", "kind": "texture", "source": "textures/backgrounds/ion-veil.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original procedural star field authored for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Deterministic hand-selected pixel positions and palette in SourceAssetGenerator.cs.",
+      "replacementCriterion": "Replace after grayscale access-gate contrast review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "art/contact-sheet", "kind": "texture", "source": "textures/atlases/contact-sheet.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original palette and candidate contact sheet authored for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Deterministic assembly of the package palette and geometric candidate silhouettes.",
+      "replacementCriterion": "Archive or replace when all visual candidates receive art approval.",
+      "waiver": "P1 integration-owner package specification requires this first-pass contact sheet.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "audio/essential-cues", "kind": "sound", "source": "sfx/essential-cues.wav",
+      "status": "placeholder", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original synthesized sine transients authored for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
+      "provenance": "Mathematically synthesized PCM in SourceAssetGenerator.cs; no samples or external recordings.",
+      "replacementCriterion": "Replace with individually mixed original cues after event binding and loudness review.",
+      "waiver": "P1 integration-owner package specification permits safely authorable essential original SFX placeholders.",
+      "width": null, "height": null, "metadata": "data/sfx-cues.json", "sourceHash": null
+    },
+    {
+      "id": "data/atlas-player-modules", "kind": "metadata", "source": "data/atlas-player-modules.json",
+      "status": "approved", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Authored for Ship Game P1.", "sourceUrl": null, "provenance": "Original package metadata.",
+      "replacementCriterion": "Change only with compatible atlas metadata migration.", "waiver": null,
+      "width": null, "height": null, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "data/atlas-enemies-telegraphs", "kind": "metadata", "source": "data/atlas-enemies-telegraphs.json",
+      "status": "approved", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Authored for Ship Game P1.", "sourceUrl": null, "provenance": "Original package metadata.",
+      "replacementCriterion": "Change only with compatible atlas metadata migration.", "waiver": null,
+      "width": null, "height": null, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "data/atlas-asteroids-resources", "kind": "metadata", "source": "data/atlas-asteroids-resources.json",
+      "status": "approved", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Authored for Ship Game P1.", "sourceUrl": null, "provenance": "Original package metadata.",
+      "replacementCriterion": "Change only with compatible atlas metadata migration.", "waiver": null,
+      "width": null, "height": null, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "data/atlas-ui-icons", "kind": "metadata", "source": "data/atlas-ui-icons.json",
+      "status": "approved", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Authored for Ship Game P1.", "sourceUrl": null, "provenance": "Original package metadata.",
+      "replacementCriterion": "Change only with compatible atlas metadata migration.", "waiver": null,
+      "width": null, "height": null, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "data/sfx-cues", "kind": "metadata", "source": "data/sfx-cues.json",
+      "status": "approved", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Authored for Ship Game P1.", "sourceUrl": null, "provenance": "Original cue-bank metadata.",
+      "replacementCriterion": "Replace cue-bank offsets when individual sounds are commissioned.", "waiver": null,
+      "width": null, "height": null, "metadata": null, "sourceHash": null
     }
   ]
 }
