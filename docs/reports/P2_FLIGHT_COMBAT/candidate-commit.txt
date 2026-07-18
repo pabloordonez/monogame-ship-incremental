@@ -1,0 +1,9 @@
+P2_FLIGHT_COMBAT candidate implementation
+
+Pinned base SHA: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+Package-spec freeze SHA: 74828f1a3e3c40490a58c43fa05f200697f98661
+Candidate implementation SHA: 724079562a565e9585096d0a926d931320df3a50
+Branch: phase2-p2-flight-combat
+Review diff range: 0b12902972d5a98ff785c78a9e0c10728b2a2df0..724079562a565e9585096d0a926d931320df3a50
+
+The candidate implementation commit is immutable for review. Evidence is committed separately and is not part of the review implementation diff.

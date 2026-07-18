@@ -1,0 +1,62 @@
+P2_FLIGHT_COMBAT COMMANDS AND OBSERVED RESULTS
+Environment: Windows 10.0.26200, bash host, Windows PowerShell 5.1, .NET SDK 9.0.x
+Date: 2026-07-18
+Worktree: C:\Repositories\github\ship-game-p2
+Branch: phase2-p2-flight-combat
+Pinned base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+
+BASELINE
+Command: git status && git rev-parse HEAD && git branch --show-current
+Exit: 0
+Observed: branch phase2-p2-flight-combat; HEAD 74828f1a3e3c40490a58c43fa05f200697f98661 (package-spec freeze); untracked FlightCombat sources/tests before implementer commit.
+
+PACKAGE FILTER
+Command: dotnet test tests/ShipGame.Simulation.Tests --filter FlightCombat --configuration Release --no-build
+Exit: 0
+Observed: Passed! Failed: 0, Passed: 19, Skipped: 0, Total: 19.
+
+Command: dotnet test tests/ShipGame.Game.Smoke.Tests --filter FlightCombat --configuration Debug
+Exit: 0
+Observed: Passed! Failed: 0, Passed: 2, Skipped: 0, Total: 2 (keyboard/gamepad parity; presentation isolation).
+
+ARCHITECTURE / P0 SCHEDULE
+Command: dotnet test tests/ShipGame.Architecture.Tests --configuration Release --no-build
+Exit: 0
+Observed: Passed! Failed: 0, Passed: 8, Skipped: 0, Total: 8.
+Package unit test also asserts FoundationSimulation schedule remains
+[ApplyStructuralChanges, ConsumeCommands, SessionTransitions, RunClock, PublishAndHash].
+
+FULL SUITE
+Command: powershell -NoProfile -File scripts/test.ps1
+Exit: 0
+Observed:
+- Content Builder: 2 succeeded, 0 failed
+- Build succeeded: 0 Warning(s), 0 Error(s)
+- ShipGame.Ecs.Tests: 10 passed
+- ShipGame.Telemetry.Tests: 7 passed
+- ShipGame.Content.Tests: 8 passed
+- ShipGame.Persistence.Tests: 14 passed
+- ShipGame.Game.Smoke.Tests: 3 passed
+- ShipGame.Simulation.Tests: 31 passed
+- ShipGame.Architecture.Tests: 8 passed
+Total: 81 passed / 0 failed.
+
+HEADLESS SMOKE
+Command: powershell -NoProfile -File scripts/launch.ps1 -Smoke
+Exit: 0
+Observed: content rebuild 2 succeeded/0 failed; Release build 0 warnings/errors; process exit 0.
+
+GRAPHICAL SMOKE
+Command: powershell -NoProfile -File scripts/launch.ps1 -WindowSmoke
+Exit: 0
+Observed markers include:
+- Initializing volk.
+- VK_KHR_surface / VK_KHR_win32_surface
+- DESKTOPVK_CONTENT_READY
+- Selected GPU: NVIDIA GeForce RTX 3090
+- Vulkan instance version: 1.4.303
+- DESKTOPVK_WALKING_SKELETON_COMPLETE
+- process exit 0
+
+ALLOCATION NOTE
+Warm-idle FlightCombat measurement: after warmup + GC + re-warm, 20,000 fixed ticks allocate 0 bytes on the measuring thread and complete under the 2-second budget (Stopwatch constructed outside the allocation window).
