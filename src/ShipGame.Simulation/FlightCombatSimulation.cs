@@ -204,7 +204,10 @@ public sealed class FlightCombatSimulation
     {
         EnsurePlayer();
         ValidateModifiers(modifiers);
-        _world.Set(_player, new PendingTemporaryModifier(modifiers));
+        // Absolute snapshot from station-owned upgrades (or tests); not a multiplicative delta.
+        _world.Set(_player, modifiers);
+        if (_world.Store<PendingTemporaryModifier>().Has(_player))
+            _world.Remove<PendingTemporaryModifier>(_player);
     }
 
     public void ClearTemporaryModifiers()
@@ -458,17 +461,9 @@ public sealed class FlightCombatSimulation
     {
         if (_player == default || !Has<PendingTemporaryModifier>(_player))
             return;
+        // Absolute replace: callers (station-owned UPG fold) send a full snapshot, not a delta.
         var grant = _world.Get<PendingTemporaryModifier>(_player).Value;
-        var current = _world.Get<TemporaryCombatModifiers>(_player);
-        _world.Get<TemporaryCombatModifiers>(_player) = new TemporaryCombatModifiers(
-            current.DamageMultiplier * grant.DamageMultiplier,
-            current.FireRateMultiplier * grant.FireRateMultiplier,
-            current.SpeedMultiplier * grant.SpeedMultiplier,
-            current.MobilityCooldownMultiplier * grant.MobilityCooldownMultiplier,
-            Math.Clamp(current.ExtraProjectiles + grant.ExtraProjectiles, 0, 4),
-            MathF.Max(current.ExtraProjectileDamageMultiplier, grant.ExtraProjectileDamageMultiplier),
-            Math.Clamp(current.PierceCount + grant.PierceCount, 0, 4),
-            current.ShockTransit || grant.ShockTransit);
+        _world.Get<TemporaryCombatModifiers>(_player) = grant;
         _world.Remove<PendingTemporaryModifier>(_player);
     }
 

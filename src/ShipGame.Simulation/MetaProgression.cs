@@ -225,6 +225,7 @@ public sealed class ProfileAggregate
             ResourceAmounts.Zero,
             LifetimeCounters.Zero,
             [],
+            [],
             [MetaContentIds.CinderBelt],
             ModuleCatalog.Defaults,
             [],
@@ -346,6 +347,43 @@ public sealed class ProfileAggregate
             Transactions = _snapshot.Transactions.Append(new(transactionId, "research", fingerprint)).ToArray()
         };
         return Applied("research.purchased", $"Purchased {definition.Name}.");
+    }
+
+    public ProfileMutationResult PurchaseUpgrade(string transactionId, string upgradeId)
+    {
+        if (!TryValidateIdentity(transactionId, out var identityError))
+            return Rejected("upgrade.invalid-transaction", identityError!);
+        var fingerprint = Fingerprint("upgrade", upgradeId);
+        if (!TryBegin(transactionId, "upgrade", fingerprint, out var existing))
+            return existing!;
+        if (!RunUpgradeCatalog.TryGet(upgradeId, out var definition))
+            return Rejected("upgrade.unknown", $"Unknown upgrade ID '{Safe(upgradeId)}'.");
+        if (_snapshot.PurchasedUpgradeIds.Contains(upgradeId, StringComparer.Ordinal))
+            return Rejected("upgrade.already-purchased", "Upgrade is already purchased.");
+        if (!ResourceAmounts.TrySubtract(_snapshot.Balances, definition.Cost, out var remaining))
+            return Rejected("upgrade.cost", "Insufficient resources.");
+
+        _snapshot = _snapshot with
+        {
+            Balances = remaining,
+            PurchasedUpgradeIds = _snapshot.PurchasedUpgradeIds.Append(upgradeId).ToArray(),
+            Transactions = _snapshot.Transactions.Append(new(transactionId, "upgrade", fingerprint)).ToArray()
+        };
+        return Applied("upgrade.purchased", $"Purchased {upgradeId}.");
+    }
+
+    public UpgradePreview InspectUpgrade(string upgradeId)
+    {
+        if (!RunUpgradeCatalog.TryGet(upgradeId, out var definition))
+            throw new KeyNotFoundException($"Unknown upgrade ID '{Safe(upgradeId)}'.");
+        var purchased = _snapshot.PurchasedUpgradeIds.Contains(upgradeId, StringComparer.Ordinal);
+        var affordable = ResourceAmounts.TrySubtract(_snapshot.Balances, definition.Cost, out _);
+        var explanation = purchased
+            ? "Purchased."
+            : !affordable
+                ? "Insufficient resources."
+                : "Available for purchase.";
+        return new(definition, purchased, affordable, explanation);
     }
 
     public ResearchPreview InspectResearch(string researchId)
@@ -545,6 +583,7 @@ public sealed class ProfileAggregate
         if (snapshot.Settings is null || !snapshot.Settings.IsValid || snapshot.RequestedLoadout is null)
             throw new ArgumentException("Profile settings and loadout are required.", nameof(snapshot));
         ValidateBoundedStrings(snapshot.PurchasedResearchIds, "research");
+        ValidateBoundedStrings(snapshot.PurchasedUpgradeIds, "upgrades");
         ValidateBoundedStrings(snapshot.UnlockedEnvironmentIds, "environments");
         if (snapshot.Transactions is null || snapshot.Transactions.Count > MaxSavedIds)
             throw new ArgumentException("Profile transaction history is invalid.", nameof(snapshot));
@@ -577,6 +616,7 @@ public sealed class ProfileAggregate
         snapshot with
         {
             PurchasedResearchIds = snapshot.PurchasedResearchIds.ToArray(),
+            PurchasedUpgradeIds = snapshot.PurchasedUpgradeIds.ToArray(),
             UnlockedEnvironmentIds = snapshot.UnlockedEnvironmentIds.ToArray(),
             Transactions = snapshot.Transactions.ToArray()
         };

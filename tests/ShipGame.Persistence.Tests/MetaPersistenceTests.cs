@@ -203,6 +203,7 @@ public sealed class MetaPersistenceTests : IDisposable
             new ResourceAmounts(100, 4, 2),
             new LifetimeCounters(2, 10, 1, 80, 20, 0),
             ["RES_HULL_REINFORCEMENT"],
+            [],
             [MetaContentIds.CinderBelt],
             new LoadoutSelection(
                 "MOD_WEAPON_PULSE",
@@ -234,6 +235,7 @@ public sealed class MetaPersistenceTests : IDisposable
                 profile.Counters.ResourceCellsBroken,
                 profile.Counters.IonVeilExtractions),
             profile.PurchasedResearchIds.ToArray(),
+            profile.PurchasedUpgradeIds.ToArray(),
             profile.UnlockedEnvironmentIds.ToArray(),
             new(
                 profile.RequestedLoadout.Weapon,

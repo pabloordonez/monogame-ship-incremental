@@ -82,6 +82,7 @@ public sealed record MetaProfileDto(
     ResourceAmountsDto Balances,
     LifetimeCountersDto Counters,
     IReadOnlyList<string> PurchasedResearchIds,
+    IReadOnlyList<string>? PurchasedUpgradeIds,
     IReadOnlyList<string> UnlockedEnvironmentIds,
     LoadoutDto RequestedLoadout,
     IReadOnlyList<TransactionReceiptDto> Transactions,
@@ -98,7 +99,8 @@ public sealed record MetaSaveEnvelope(
 public sealed record MetaContentCompatibility(
     IReadOnlySet<string> ResearchIds,
     IReadOnlySet<string> EnvironmentIds,
-    IReadOnlySet<string> ModuleIds);
+    IReadOnlySet<string> ModuleIds,
+    IReadOnlySet<string>? UpgradeIds = null);
 
 public sealed record MetaSaveLoadResult(
     CompatibilityStatus Status,
@@ -404,6 +406,7 @@ public sealed class MetaSaveRepository
             new(0, 0, 0),
             new(0, 0, 0, 0, 0, 0),
             [],
+            [],
             [MetaContentIds.CinderBelt],
             ToDto(LoadoutDefaults()),
             [],
@@ -444,6 +447,7 @@ public sealed class MetaSaveRepository
             !FromDto(profile.Balances).IsValid || !FromDto(profile.Counters).IsValid)
             throw new InvalidDataException("Profile balances and counters must be nonnegative.");
         ValidateStringList(profile.PurchasedResearchIds, "research IDs");
+        ValidateStringList(profile.PurchasedUpgradeIds ?? [], "upgrade IDs");
         ValidateStringList(profile.UnlockedEnvironmentIds, "environment IDs");
         if (profile.RequestedLoadout is null)
             throw new InvalidDataException("Requested loadout is required.");
@@ -491,6 +495,7 @@ public sealed class MetaSaveRepository
             ToDto(profile.Balances),
             ToDto(profile.Counters),
             profile.PurchasedResearchIds.ToArray(),
+            profile.PurchasedUpgradeIds.ToArray(),
             profile.UnlockedEnvironmentIds.ToArray(),
             ToDto(profile.RequestedLoadout),
             profile.Transactions.Select(receipt =>
@@ -515,6 +520,7 @@ public sealed class MetaSaveRepository
             FromDto(profile.Balances),
             FromDto(profile.Counters),
             profile.PurchasedResearchIds.ToArray(),
+            (profile.PurchasedUpgradeIds ?? []).ToArray(),
             profile.UnlockedEnvironmentIds.ToArray(),
             new(
                 profile.RequestedLoadout.Weapon,
@@ -545,6 +551,13 @@ public sealed class MetaSaveRepository
         diagnostics.AddRange(profile.PurchasedResearchIds
             .Where(id => !knownContent.ResearchIds.Contains(id))
             .Select(id => $"Unknown research ID preserved for recovery: '{id}'."));
+        if (knownContent.UpgradeIds is not null)
+        {
+            diagnostics.AddRange(profile.PurchasedUpgradeIds
+                .Where(id => !knownContent.UpgradeIds.Contains(id))
+                .Select(id => $"Unknown upgrade ID preserved for recovery: '{id}'."));
+        }
+
         diagnostics.AddRange(profile.UnlockedEnvironmentIds
             .Where(id => !knownContent.EnvironmentIds.Contains(id))
             .Select(id => $"Unknown environment ID preserved for recovery: '{id}'."));

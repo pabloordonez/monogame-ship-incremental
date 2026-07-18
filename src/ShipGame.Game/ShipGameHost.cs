@@ -37,6 +37,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         _graphics.PreferredBackBufferWidth = 1280;
         _graphics.PreferredBackBufferHeight = 720;
         IsFixedTimeStep = false;
+        IsMouseVisible = false;
         Window.AllowUserResizing = true;
         Content.RootDirectory = "Content";
         _saveDirectory = saveDirectory ?? Path.Combine(
@@ -102,7 +103,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
 
         if (_windowSmoke &&
             _windowSmokeVisitedSummary &&
-            _session.Screen == MetaScreen.Lobby &&
+            _session.Screen == MetaScreen.Station &&
             _windowSmokeContentVisible)
         {
             Console.WriteLine("DESKTOPVK_COMPOSED_LOOP_COMPLETE");
@@ -151,8 +152,8 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             case MetaScreen.Title:
                 BuildTitleUi();
                 break;
-            case MetaScreen.Lobby:
-                BuildLobbyUi();
+            case MetaScreen.Station:
+                BuildStationUi();
                 break;
             case MetaScreen.Map:
                 BuildMapUi();
@@ -163,6 +164,9 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             case MetaScreen.Research:
                 BuildResearchUi();
                 break;
+            case MetaScreen.Upgrades:
+                BuildStationUpgradesUi();
+                break;
             case MetaScreen.Summary:
                 BuildSummaryUi();
                 break;
@@ -172,33 +176,23 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             case MetaScreen.Pause:
                 BuildPauseUi();
                 break;
-            case MetaScreen.Run when _run?.Status == ComposedRunStatus.AwaitingUpgradeChoice:
-                BuildUpgradeUi();
-                break;
         }
 
         _ui.EndBuild();
         SyncMapSelectionFromFocus();
     }
 
-    private MetaScreen EffectiveUiScreen()
-    {
-        if (_session is null)
-            return MetaScreen.Title;
-        if (_session.Screen == MetaScreen.Run && _run?.Status == ComposedRunStatus.AwaitingUpgradeChoice)
-            return MetaScreen.Run;
-        return _session.Screen;
-    }
+    private MetaScreen EffectiveUiScreen() => _session?.Screen ?? MetaScreen.Title;
 
     private void BuildTitleUi()
     {
         if (_session is null)
             return;
-        _ui.Add("title:new", new UiRect(200, 180, 240, 32), "Enter  New Game / Lobby", true, () =>
+        _ui.Add("title:new", new UiRect(200, 180, 240, 32), "Enter  New Game / Station", true, () =>
         {
             if (_session.RequiresExplicitNewProfile)
                 _session.CreateNewProfile();
-            _session.Navigate(MetaScreen.Lobby);
+            _session.Navigate(MetaScreen.Station);
         });
         _ui.Add(
             "title:continue",
@@ -209,19 +203,20 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             {
                 _session.ContinueFromDisk();
                 if (_session.Screen == MetaScreen.Title && !_session.RequiresExplicitNewProfile)
-                    _session.Navigate(MetaScreen.Lobby);
+                    _session.Navigate(MetaScreen.Station);
             });
         _ui.Add("title:quit", new UiRect(200, 260, 240, 32), "Esc  Quit", true, Exit);
     }
 
-    private void BuildLobbyUi()
+    private void BuildStationUi()
     {
         if (_session is null)
             return;
-        _ui.Add("lobby:map", new UiRect(24, 170, 280, 32), "M  Environment Map", true, () => _session.Navigate(MetaScreen.Map));
-        _ui.Add("lobby:loadout", new UiRect(24, 210, 280, 32), "L  Loadout", true, () => _session.Navigate(MetaScreen.Loadout));
-        _ui.Add("lobby:research", new UiRect(24, 250, 280, 32), "R  Research", true, () => _session.Navigate(MetaScreen.Research));
-        _ui.Add("lobby:settings", new UiRect(24, 290, 280, 32), "O  Settings", true, () => _session.Navigate(MetaScreen.Settings));
+        _ui.Add("station:map", new UiRect(24, 170, 280, 32), "M  Environment Map", true, () => _session.Navigate(MetaScreen.Map));
+        _ui.Add("station:loadout", new UiRect(24, 210, 280, 32), "L  Loadout", true, () => _session.Navigate(MetaScreen.Loadout));
+        _ui.Add("station:research", new UiRect(24, 250, 280, 32), "R  Research", true, () => _session.Navigate(MetaScreen.Research));
+        _ui.Add("station:upgrades", new UiRect(24, 290, 280, 32), "U  Upgrades", true, () => _session.Navigate(MetaScreen.Upgrades));
+        _ui.Add("station:settings", new UiRect(320, 170, 280, 32), "O  Settings", true, () => _session.Navigate(MetaScreen.Settings));
     }
 
     private void BuildMapUi()
@@ -300,7 +295,8 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         foreach (var node in _session.Research.Take(10))
         {
             var ready = !node.Purchased && node.Affordable && node.PrerequisitesMet && node.GateMet;
-            var status = node.Purchased ? "OWNED" : ready ? "READY" : "LOCKED";
+            var cost = $"{node.Definition.Cost.Ferrite}F/{node.Definition.Cost.Lumen}L/{node.Definition.Cost.DataCores}C";
+            var status = node.Purchased ? "OWNED" : ready ? $"READY {cost}" : node.Affordable ? "LOCKED" : $"NEED {cost}";
             var researchId = node.Definition.Id;
             _ui.Add(
                 $"research:{researchId}",
@@ -314,13 +310,36 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         _ui.Add("research:back", new UiRect(24, 320, 160, 28), "Esc  Back", true, () => _session.Back());
     }
 
+    private void BuildStationUpgradesUi()
+    {
+        if (_session is null)
+            return;
+        var y = 48;
+        foreach (var node in _session.Upgrades.Take(10))
+        {
+            var ready = !node.Purchased && node.Affordable;
+            var cost = $"{node.Definition.Cost.Ferrite}F/{node.Definition.Cost.Lumen}L/{node.Definition.Cost.DataCores}C";
+            var status = node.Purchased ? "OWNED" : ready ? $"READY {cost}" : $"NEED {cost}";
+            var upgradeId = node.Definition.Id.Value;
+            _ui.Add(
+                $"upg:{upgradeId}",
+                new UiRect(24, y, 592, 22),
+                $"{MvpPresentation.ShortId(upgradeId)}  {status}",
+                ready,
+                () => _session.PurchaseUpgrade(NextTx("upgrade"), upgradeId));
+            y += 24;
+        }
+
+        _ui.Add("upgrades:back", new UiRect(24, 320, 160, 28), "Esc  Back", true, () => _session.Back());
+    }
+
     private void BuildSummaryUi()
     {
         if (_session is null)
             return;
-        _ui.Add("summary:lobby", new UiRect(24, 280, 280, 32), "Enter  Return to Lobby", true, () =>
+        _ui.Add("summary:station", new UiRect(24, 280, 280, 32), "Enter  Return to Station", true, () =>
         {
-            _session.Navigate(MetaScreen.Lobby);
+            _session.Navigate(MetaScreen.Station);
             _run = null;
         });
     }
@@ -377,25 +396,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             _run?.SetPaused(false);
         });
         _ui.Add("pause:settings", new UiRect(200, 204, 240, 32), "O  Settings", true, () => _session.Navigate(MetaScreen.Settings));
-    }
-
-    private void BuildUpgradeUi()
-    {
-        if (_run?.Hud.PendingOffer is not { } offer)
-            return;
-        var y = 140;
-        for (var i = 0; i < offer.Choices.Count && i < 3; i++)
-        {
-            var index = i;
-            var choice = offer.Choices[i];
-            _ui.Add(
-                $"upgrade:{i}",
-                new UiRect(100, y, 440, 40),
-                $"{i + 1}  {MvpPresentation.ShortId(choice.Value)}",
-                true,
-                () => _run.ChooseUpgrade(index));
-            y += 48;
-        }
     }
 
     private void ApplySettings(GameSettings settings)
@@ -484,27 +484,13 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             {
                 var leftDown = mouse.LeftButton == ButtonState.Pressed;
                 var leftPressed = leftDown && _previousMouse.LeftButton != ButtonState.Pressed;
-                // During flight (no modal), do not steal LMB for UI.
-                if (_session.Screen == MetaScreen.Run && _run?.Status != ComposedRunStatus.AwaitingUpgradeChoice)
-                {
-                    // no UI pointer
-                }
-                else
+                // During flight, do not steal LMB for UI.
+                if (_session.Screen != MetaScreen.Run)
                 {
                     _ui.UpdatePointer(vx, vy, leftDown, leftPressed);
                     SyncMapSelectionFromFocus();
                 }
             }
-
-            return;
-        }
-
-        // Run without modal: upgrade hotkeys unused; pause via Esc already handled.
-        if (_session.Screen == MetaScreen.Run && _run?.Status == ComposedRunStatus.AwaitingUpgradeChoice)
-        {
-            if (Pressed(keyboard, Keys.D1)) _run.ChooseUpgrade(0);
-            if (Pressed(keyboard, Keys.D2)) _run.ChooseUpgrade(1);
-            if (Pressed(keyboard, Keys.D3)) _run.ChooseUpgrade(2);
         }
     }
 
@@ -522,7 +508,8 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             _session.Back();
             _run?.SetPaused(false);
         }
-        else if (_session.Screen is MetaScreen.Map or MetaScreen.Loadout or MetaScreen.Research or MetaScreen.Settings)
+        else if (_session.Screen is MetaScreen.Map or MetaScreen.Loadout or MetaScreen.Research or
+                 MetaScreen.Upgrades or MetaScreen.Settings)
             _session.Back();
         else if (_session.Screen == MetaScreen.Title)
             Exit();
@@ -540,25 +527,30 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
                 if (Pressed(keyboard, Keys.C))
                     _ui.TryActivateFocused();
                 break;
-            case MetaScreen.Lobby:
+            case MetaScreen.Station:
                 if (Pressed(keyboard, Keys.M))
                 {
-                    _ui.Focus("lobby:map");
+                    _ui.Focus("station:map");
                     _ui.TryActivateFocused();
                 }
                 else if (Pressed(keyboard, Keys.L))
                 {
-                    _ui.Focus("lobby:loadout");
+                    _ui.Focus("station:loadout");
                     _ui.TryActivateFocused();
                 }
                 else if (Pressed(keyboard, Keys.R))
                 {
-                    _ui.Focus("lobby:research");
+                    _ui.Focus("station:research");
+                    _ui.TryActivateFocused();
+                }
+                else if (Pressed(keyboard, Keys.U))
+                {
+                    _ui.Focus("station:upgrades");
                     _ui.TryActivateFocused();
                 }
                 else if (Pressed(keyboard, Keys.O))
                 {
-                    _ui.Focus("lobby:settings");
+                    _ui.Focus("station:settings");
                     _ui.TryActivateFocused();
                 }
 
@@ -567,24 +559,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
                 if (Pressed(keyboard, Keys.O))
                 {
                     _ui.Focus("pause:settings");
-                    _ui.TryActivateFocused();
-                }
-
-                break;
-            case MetaScreen.Run when _run?.Status == ComposedRunStatus.AwaitingUpgradeChoice:
-                if (Pressed(keyboard, Keys.D1))
-                {
-                    _ui.Focus("upgrade:0");
-                    _ui.TryActivateFocused();
-                }
-                else if (Pressed(keyboard, Keys.D2))
-                {
-                    _ui.Focus("upgrade:1");
-                    _ui.TryActivateFocused();
-                }
-                else if (Pressed(keyboard, Keys.D3))
-                {
-                    _ui.Focus("upgrade:2");
                     _ui.TryActivateFocused();
                 }
 
@@ -601,9 +575,22 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         var move = System.Numerics.Vector2.Zero;
         var aim = System.Numerics.Vector2.UnitX;
         var mouseVirtual = System.Numerics.Vector2.Zero;
+        var showCursor = false;
         var showReticle = false;
         var fire = false;
         var mine = false;
+
+        if (UiShell.TryMapScreenToVirtual(
+                mouse.X,
+                mouse.Y,
+                GraphicsDevice.Viewport.Width,
+                GraphicsDevice.Viewport.Height,
+                out var vx,
+                out var vy))
+        {
+            mouseVirtual = new System.Numerics.Vector2(vx, vy);
+            showCursor = true;
+        }
 
         if (_session?.Screen == MetaScreen.Run && _run is not null)
         {
@@ -615,23 +602,14 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             aim = MouseAimWorld(mouse);
             fire = mouse.LeftButton == ButtonState.Pressed;
             mine = mouse.RightButton == ButtonState.Pressed && !fire;
-            if (UiShell.TryMapScreenToVirtual(
-                    mouse.X,
-                    mouse.Y,
-                    GraphicsDevice.Viewport.Width,
-                    GraphicsDevice.Viewport.Height,
-                    out var vx,
-                    out var vy))
-            {
-                mouseVirtual = new System.Numerics.Vector2(vx, vy);
-                showReticle = _run.Status != ComposedRunStatus.AwaitingUpgradeChoice;
-            }
+            showReticle = showCursor;
         }
 
         _hints = new RunPresentationHints(
             move,
             aim,
             mouseVirtual,
+            showCursor,
             showReticle,
             flashes,
             maxHull,
@@ -643,8 +621,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
     private void StepSimulation()
     {
         if (_session is null || _session.Screen != MetaScreen.Run || _run is null)
-            return;
-        if (_run.Status == ComposedRunStatus.AwaitingUpgradeChoice)
             return;
         if (_run.Status == ComposedRunStatus.Terminal)
         {
@@ -680,7 +656,8 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             snapshot.RunIndex,
             loadout,
             stats,
-            recovery);
+            recovery,
+            purchasedUpgradeIds: snapshot.PurchasedUpgradeIds);
     }
 
     private void CommitRunReward()
@@ -699,9 +676,9 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         switch (_session.Screen)
         {
             case MetaScreen.Title when _windowSmokeTicks > 30:
-                _session.Navigate(MetaScreen.Lobby);
+                _session.Navigate(MetaScreen.Station);
                 break;
-            case MetaScreen.Lobby when _windowSmokeTicks > 60:
+            case MetaScreen.Station when _windowSmokeTicks > 60:
                 _session.Navigate(MetaScreen.Map);
                 break;
             case MetaScreen.Map when _windowSmokeTicks > 90:
@@ -716,7 +693,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
                 _run = null;
                 break;
             case MetaScreen.Summary when _windowSmokeTicks > 150:
-                _session.Navigate(MetaScreen.Lobby);
+                _session.Navigate(MetaScreen.Station);
                 break;
         }
     }
@@ -778,7 +755,7 @@ public static class SmokeRunner
         saveDirectory ??= Path.Combine(Path.GetTempPath(), "ShipGame-Smoke-" + Guid.NewGuid().ToString("N"));
         using var session = new MetaSession(saveDirectory, newProfileSeed: 123456789UL);
         if (session.Screen == MetaScreen.Title)
-            session.Navigate(MetaScreen.Lobby);
+            session.Navigate(MetaScreen.Station);
         session.Navigate(MetaScreen.Map);
         if (!session.Launch().Accepted)
             return 11;
@@ -790,7 +767,8 @@ public static class SmokeRunner
             snapshot.RunIndex,
             session.Profile.ResolveLoadout(),
             session.Profile.DeriveStatistics(),
-            recoveryProtocols: false);
+            recoveryProtocols: false,
+            purchasedUpgradeIds: snapshot.PurchasedUpgradeIds);
         var reward = run.CompleteViaHarness(succeed: true);
         if (!run.Checkpoints.Contains("extracted") || !run.Checkpoints.Contains("reward_mapped"))
             return 12;
@@ -798,10 +776,10 @@ public static class SmokeRunner
             return 13;
         if (session.Screen != MetaScreen.Summary)
             return 14;
-        session.Navigate(MetaScreen.Lobby);
+        session.Navigate(MetaScreen.Station);
 
         using var continued = new MetaSession(saveDirectory);
-        if (continued.Screen != MetaScreen.Lobby)
+        if (continued.Screen != MetaScreen.Station)
             return 15;
         continued.Navigate(MetaScreen.Map);
         if (!continued.Launch().Accepted)
@@ -813,7 +791,8 @@ public static class SmokeRunner
             continuedSnapshot.RunIndex,
             continued.Profile.ResolveLoadout(),
             continued.Profile.DeriveStatistics(),
-            recoveryProtocols: false);
+            recoveryProtocols: false,
+            purchasedUpgradeIds: continuedSnapshot.PurchasedUpgradeIds);
         var secondReward = second.CompleteViaHarness(succeed: true);
         if (continued.CommitReward(secondReward).Status != ProfileMutationStatus.Applied)
             return 17;

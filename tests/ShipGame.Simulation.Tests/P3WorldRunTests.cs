@@ -138,7 +138,10 @@ public class P3WorldRunTests
         _ = new LootGenerationSystem(new RandomStreams(777));
         baselineOffers.AddCharge(30);
         changedOffers.AddCharge(30);
-        Assert.Equal(baselineOffers.PendingOffer!.Choices, changedOffers.PendingOffer!.Choices);
+        Assert.Equal(30, baselineOffers.Charge);
+        Assert.Equal(changedOffers.Charge, baselineOffers.Charge);
+        Assert.Null(baselineOffers.PendingOffer);
+        Assert.Null(changedOffers.PendingOffer);
     }
 
     [Fact]
@@ -203,35 +206,22 @@ public class P3WorldRunTests
     }
 
     [Fact]
-    public void FourOffersAreDeterministicDistinctAndNonRepeating()
+    public void StationUpgradeCatalogIsCompleteAndFoldIsDeterministic()
     {
-        static (ContentId[][] Offers, ContentId[] Selected) Resolve(ulong seed)
-        {
-            var upgrades = new RunUpgradeSystem(new RandomStreams(seed));
-            upgrades.AddCharge(210);
-            var offers = new List<ContentId[]>();
-            var selected = new List<ContentId>();
-            while (upgrades.PendingOffer is { } offer)
-            {
-                offers.Add(offer.Choices.ToArray());
-                selected.Add(upgrades.Choose(1));
-            }
-            return (offers.ToArray(), selected.ToArray());
-        }
+        Assert.Equal(12, RunUpgradeCatalog.All.Count);
+        Assert.Equal(12, RunUpgradeCatalog.All.Select(item => item.Id.Value).Distinct().Count());
+        Assert.All(RunUpgradeCatalog.All, item => Assert.True(item.Cost.IsValid));
 
-        var first = Resolve(123);
-        var second = Resolve(123);
-        Assert.Equal(4, first.Offers.Length);
-        Assert.All(first.Offers, offer => Assert.Equal(3, offer.Distinct().Count()));
-        Assert.Equal(12, first.Offers.SelectMany(value => value).Distinct().Count());
-        Assert.Equal(4, first.Selected.Distinct().Count());
-        Assert.Equal(
-            first.Offers.SelectMany(value => value).Select(value => value.Value),
-            second.Offers.SelectMany(value => value).Select(value => value.Value));
+        var thruster = RunUpgradeCatalog.Fold(["UPG_THRUSTER_OVERCLOCK"]);
+        Assert.Equal(11_500, thruster.SpeedBasisPoints);
+        Assert.Equal(11_500, RunUpgradeCatalog.Fold(["UPG_THRUSTER_OVERCLOCK"]).SpeedBasisPoints);
+
+        var combat = RunUpgradeCatalog.ToCombatModifiers(thruster);
+        Assert.InRange(combat.SpeedMultiplier, 1.14f, 1.16f);
     }
 
     [Fact]
-    public void FourUpgradesCanBeEarnedInOneRun()
+    public void MidRunNeverOpensUpgradeOffersOrPauses()
     {
         var run = CreateRun(404);
         var facts = new List<RunFact>
@@ -242,24 +232,14 @@ public class P3WorldRunTests
             facts.Add(new(10 + index, RunFactKind.ResourceCellBroken, WorldRunIds.Ferrite));
         for (ulong index = 0; index < 8; index++)
             facts.Add(new(100 + index, RunFactKind.NormalEnemyDestroyed));
-        // Ordinary-cell breaks must not grant charge.
-        facts.Add(new(200, RunFactKind.ResourceCellBroken));
 
         run.Step(new(Facts: facts));
         Assert.Equal(RunPhase.Elite, run.Phase);
-        var selected = 0;
-        while (run.Upgrades.PendingOffer is not null)
-        {
-            selected++;
-            run.Step(new(UpgradeChoiceIndex: 0));
-        }
-        Assert.Equal(3, selected);
+        Assert.Null(run.Upgrades.PendingOffer);
+        Assert.False(run.Upgrades.PausesSimulation);
 
         run.Step(new(Facts: [new(300, RunFactKind.EliteDestroyed)]));
-        Assert.NotNull(run.Upgrades.PendingOffer);
-        Assert.Equal(210, run.Upgrades.PendingOffer!.Threshold);
-        run.Step(new(UpgradeChoiceIndex: 0));
-        Assert.Equal(4, run.Upgrades.Owned.Count);
+        Assert.Equal(RunPhase.Extraction, run.Phase);
         Assert.Null(run.Upgrades.PendingOffer);
     }
 
@@ -302,9 +282,12 @@ public class P3WorldRunTests
     }
 
     [Fact]
-    public void TemporaryEffectsApplyAndClearAtRunEnd()
+    public void TemporaryEffectsFoldFromIdentityAndClearToIdentity()
     {
-        var modifiers = new TemporaryModifiers();
+        Assert.Equal(10_000, TemporaryModifiers.Identity.SpeedBasisPoints);
+        Assert.Equal(0, default(TemporaryModifiers).SpeedBasisPoints);
+
+        var modifiers = TemporaryModifiers.Identity;
         foreach (var definition in RunUpgradeCatalog.All)
             modifiers = definition.Apply(modifiers);
         Assert.True(modifiers.ForkedOutput);
@@ -314,13 +297,15 @@ public class P3WorldRunTests
         Assert.Equal(30, modifiers.ShieldCapacityFlat);
         Assert.Equal(25, modifiers.HullFlat);
         Assert.Equal(90, modifiers.PickupRadiusFlat);
+        Assert.True(modifiers.SpeedBasisPoints > 10_000);
 
         var upgrades = new RunUpgradeSystem(new RandomStreams(91));
-        upgrades.AddCharge(30);
-        upgrades.Choose(0);
+        upgrades.SeedFromStationPurchases(["UPG_THRUSTER_OVERCLOCK"]);
+        Assert.Single(upgrades.Owned);
+        Assert.Equal(11_500, upgrades.Modifiers.SpeedBasisPoints);
         upgrades.Clear();
         Assert.Empty(upgrades.Owned);
-        Assert.Equal(new TemporaryModifiers(), upgrades.Modifiers);
+        Assert.Equal(TemporaryModifiers.Identity, upgrades.Modifiers);
     }
 
     [Fact]
@@ -351,19 +336,17 @@ public class P3WorldRunTests
     }
 
     [Fact]
-    public void PauseOffersAndLeavingExtractionDoNotAdvanceIncorrectly()
+    public void PauseAndLeavingExtractionDoNotAdvanceIncorrectly()
     {
         var run = CreateRun(88);
         run.Step(new(Paused: true));
         Assert.Equal(0, run.RunTick);
         CompleteObjective(run);
-        var pausedAt = run.RunTick;
-        Assert.NotNull(run.Upgrades.PendingOffer);
-        run.Step(new());
-        Assert.Equal(pausedAt, run.RunTick);
-        ResolveOffers(run);
+        Assert.Null(run.Upgrades.PendingOffer);
+        var afterObjective = run.RunTick;
+        run.Step(new(Paused: true));
+        Assert.Equal(afterObjective, run.RunTick);
         run.Step(new(Facts: [new(500, RunFactKind.EliteDestroyed)]));
-        ResolveOffers(run);
         run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
         Assert.Equal(1, run.ExtractionProgressTicks);
         var events = run.Step(new(PlayerInExtractionZone: false, InteractHeld: true));

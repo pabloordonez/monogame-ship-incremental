@@ -98,8 +98,8 @@ public sealed class MvpPresentation : IDisposable
             case MetaScreen.Title:
                 DrawTitle(ui);
                 break;
-            case MetaScreen.Lobby:
-                DrawLobby(session, ui);
+            case MetaScreen.Station:
+                DrawStation(session, ui);
                 break;
             case MetaScreen.Map:
                 DrawMap(session, ui);
@@ -109,6 +109,9 @@ public sealed class MvpPresentation : IDisposable
                 break;
             case MetaScreen.Research:
                 DrawResearch(session, ui);
+                break;
+            case MetaScreen.Upgrades:
+                DrawUpgrades(session, ui);
                 break;
             case MetaScreen.Summary:
                 DrawSummary(session, ui);
@@ -125,6 +128,8 @@ public sealed class MvpPresentation : IDisposable
         }
 
         Frame(0, 0, VirtualWidth, VirtualHeight, new XnaColor(180, 200, 220), 2);
+        if (hints.ShowCursor)
+            DrawMouseCursor(hints.MouseVirtual, hints.FireHeld || ui.PressedId is not null);
         _spriteBatch.End();
     }
 
@@ -137,27 +142,48 @@ public sealed class MvpPresentation : IDisposable
         DrawRegion("ui/icons/interact", 304, 300, 32, 32);
     }
 
-    private void DrawLobby(MetaSession session, UiShell ui)
+    private void DrawStation(MetaSession session, UiShell ui)
     {
-        var lobby = session.Lobby;
-        DrawText(24, 16, "LOBBY", new XnaColor(230, 240, 255), 2);
+        var station = session.Station;
+        DrawText(24, 16, "STATION", new XnaColor(230, 240, 255), 2);
+        DrawText(24, 36, "Banked materials from the field", new XnaColor(160, 180, 200));
         DrawRegion("ships/player/wayfarer", 520, 40, 72, 72);
-        DrawRegion("ui/icons/resource-ferrite", 24, 48, 16, 16);
-        DrawText(46, 50, $"{lobby.Balances.Ferrite}", new XnaColor(220, 200, 160));
-        DrawRegion("ui/icons/resource-lumen", 24, 70, 16, 16);
-        DrawText(46, 72, $"{lobby.Balances.Lumen}", new XnaColor(180, 220, 255));
-        DrawRegion("ui/icons/resource-data-core", 24, 92, 16, 16);
-        DrawText(46, 94, $"{lobby.Balances.DataCores}", new XnaColor(200, 180, 255));
-        if (lobby.PreviousRun is { } previous)
+        DrawRegion("ui/icons/resource-ferrite", 24, 56, 16, 16);
+        DrawText(46, 58, $"Ferrite {station.Balances.Ferrite}", new XnaColor(220, 200, 160));
+        DrawRegion("ui/icons/resource-lumen", 24, 78, 16, 16);
+        DrawText(46, 80, $"Lumen {station.Balances.Lumen}", new XnaColor(180, 220, 255));
+        DrawRegion("ui/icons/resource-data-core", 24, 100, 16, 16);
+        DrawText(46, 102, $"Cores {station.Balances.DataCores}", new XnaColor(200, 180, 255));
+        if (station.PreviousRun is { } previous)
             DrawText(
                 24,
-                120,
+                128,
                 previous.Succeeded ? "Last run: EXTRACTED" : "Last run: FAILED",
                 previous.Succeeded ? new XnaColor(140, 220, 160) : new XnaColor(220, 140, 140));
 
-        DrawText(24, 148, "Destinations", new XnaColor(180, 200, 220));
+        DrawText(24, 148, "Spend banked resources between flights", new XnaColor(180, 200, 220));
         DrawShellButtons(ui);
-        DrawText(24, 330, "Arrows focus  Enter/click activate  Esc unused", new XnaColor(140, 150, 160));
+        DrawText(24, 340, "Arrows focus  Enter/click activate", new XnaColor(140, 150, 160));
+    }
+
+    private void DrawUpgrades(MetaSession session, UiShell ui)
+    {
+        DrawText(24, 16, "UPGRADES", new XnaColor(230, 240, 255), 2);
+        DrawText(24, 36, "Permanent perks — paid with banked Ferrite/Lumen/Cores", new XnaColor(180, 200, 220));
+        DrawBankedPurse(session);
+        DrawShellButtons(ui);
+        DrawText(24, 340, "Enter/click purchase when READY  Esc station", new XnaColor(140, 150, 160));
+    }
+
+    private void DrawBankedPurse(MetaSession session)
+    {
+        var balances = session.Station.Balances;
+        DrawRegion("ui/icons/resource-ferrite", 400, 16, 14, 14);
+        DrawText(418, 18, $"{balances.Ferrite}", new XnaColor(220, 200, 160));
+        DrawRegion("ui/icons/resource-lumen", 470, 16, 14, 14);
+        DrawText(488, 18, $"{balances.Lumen}", new XnaColor(180, 220, 255));
+        DrawRegion("ui/icons/resource-data-core", 530, 16, 14, 14);
+        DrawText(548, 18, $"{balances.DataCores}", new XnaColor(200, 180, 255));
     }
 
     private void DrawMap(MetaSession session, UiShell ui)
@@ -189,24 +215,26 @@ public sealed class MvpPresentation : IDisposable
         }
 
         DrawShellButtons(ui, skipPrefix: "env:");
-        DrawText(24, 340, "Up/Down select  Enter/click Launch  Esc lobby", new XnaColor(140, 150, 160));
+        DrawText(24, 340, "Up/Down select  Enter/click Launch  Esc station", new XnaColor(140, 150, 160));
     }
 
     private void DrawLoadout(MetaSession session, UiShell ui)
     {
         DrawText(24, 16, "LOADOUT", new XnaColor(230, 240, 255), 2);
-        DrawRegion("ships/player/wayfarer", 520, 40, 72, 72);
+        DrawText(24, 36, "Equip modules unlocked via Research (no extra cost)", new XnaColor(180, 200, 220));
+        DrawBankedPurse(session);
+        DrawRegion("ships/player/wayfarer", 520, 48, 72, 72);
         DrawShellButtons(ui);
-        DrawText(24, 340, "Enter/click equip unlocked module  Esc lobby", new XnaColor(140, 150, 160));
-        _ = session;
+        DrawText(24, 340, "Enter/click equip unlocked module  Esc station", new XnaColor(140, 150, 160));
     }
 
     private void DrawResearch(MetaSession session, UiShell ui)
     {
         DrawText(24, 16, "RESEARCH", new XnaColor(230, 240, 255), 2);
+        DrawText(24, 36, "Spend banked Ferrite/Lumen/Cores — unlocks loadout modules", new XnaColor(180, 200, 220));
+        DrawBankedPurse(session);
         DrawShellButtons(ui);
-        DrawText(24, 340, "Enter/click purchase when READY  Esc lobby", new XnaColor(140, 150, 160));
-        _ = session;
+        DrawText(24, 340, "Enter/click purchase when READY  Esc station", new XnaColor(140, 150, 160));
     }
 
     private void DrawSummary(MetaSession session, UiShell ui)
@@ -365,16 +393,7 @@ public sealed class MvpPresentation : IDisposable
                 $"Hold E in extract zone: {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks}",
                 new XnaColor(160, 220, 180));
 
-        if (hud.PendingOffer is not null)
-        {
-            Fill(80, 70, 480, 220, new XnaColor(10, 14, 22, 230));
-            Frame(80, 70, 480, 220, new XnaColor(220, 200, 120), 2);
-            DrawText(100, 84, "UPGRADE OFFER", new XnaColor(240, 220, 140), 2);
-            DrawText(100, 110, "Choose one — 1/2/3, Enter, or click", new XnaColor(200, 210, 220));
-            DrawShellButtons(ui);
-            DrawUpgradeIcons(ui, hud.PendingOffer);
-        }
-
+        _ = ui;
         _ = session;
     }
 
@@ -405,19 +424,6 @@ public sealed class MvpPresentation : IDisposable
             var dir = System.Numerics.Vector2.Normalize(hints.MoveIntent);
             var tip = new XnaVector2(playerScreen.X + dir.X * 22f, playerScreen.Y + dir.Y * 22f);
             Fill((int)tip.X - 2, (int)tip.Y - 2, 4, 4, new XnaColor(120, 220, 160));
-        }
-    }
-
-    private void DrawUpgradeIcons(UiShell ui, UpgradeOffer offer)
-    {
-        for (var i = 0; i < offer.Choices.Count && i < 3; i++)
-        {
-            var id = $"upgrade:{i}";
-            var control = FindControl(ui, id);
-            if (control is null)
-                continue;
-            var icon = UpgradeIcon(offer.Choices[i].Value);
-            DrawRegion(icon, control.Bounds.X + 8, control.Bounds.Y + 10, 24, 24);
         }
     }
 
@@ -532,6 +538,53 @@ public sealed class MvpPresentation : IDisposable
         Fill(x - 6, y, 13, 1, new XnaColor(240, 240, 200));
         Fill(x, y - 6, 1, 13, new XnaColor(240, 240, 200));
         Frame(x - 4, y - 4, 9, 9, new XnaColor(220, 200, 120), 1);
+    }
+
+    /// <summary>
+    /// Pixel pointer with tip at the virtual mouse position. Drawn last so it sits above UI/world.
+    /// </summary>
+    private void DrawMouseCursor(System.Numerics.Vector2 mouseVirtual, bool pressed)
+    {
+        var x = (int)mouseVirtual.X;
+        var y = (int)mouseVirtual.Y;
+        if (x < 0 || y < 0 || x >= VirtualWidth || y >= VirtualHeight)
+            return;
+
+        var fill = pressed ? new XnaColor(255, 230, 140) : new XnaColor(245, 248, 255);
+        var outline = new XnaColor(20, 24, 32);
+
+        // Classic 1-pixel tip arrow (hotspot at tip).
+        ReadOnlySpan<(int Ox, int Oy, int W)> rows =
+        [
+            (0, 0, 1),
+            (0, 1, 2),
+            (0, 2, 3),
+            (0, 3, 4),
+            (0, 4, 5),
+            (0, 5, 6),
+            (0, 6, 7),
+            (0, 7, 4),
+            (0, 8, 3),
+            (2, 9, 2),
+            (2, 10, 2),
+            (3, 11, 2)
+        ];
+
+        foreach (var (ox, oy, w) in rows)
+        {
+            Fill(x + ox - 1, y + oy, w + 2, 1, outline);
+        }
+
+        foreach (var (ox, oy, w) in rows)
+        {
+            if (oy == 0)
+            {
+                Fill(x, y, 1, 1, fill);
+                continue;
+            }
+
+            Fill(x + ox, y + oy, w, 1, fill);
+        }
     }
 
     private void DrawBar(int x, int y, int width, int height, float ratio, XnaColor fill)
@@ -761,7 +814,7 @@ public sealed class MvpPresentation : IDisposable
     private static XnaColor ScreenBackground(MetaScreen screen) => screen switch
     {
         MetaScreen.Title => new XnaColor(10, 16, 32),
-        MetaScreen.Lobby => new XnaColor(14, 28, 36),
+        MetaScreen.Station or MetaScreen.Upgrades => new XnaColor(14, 28, 36),
         MetaScreen.Run => new XnaColor(6, 10, 18),
         MetaScreen.Summary => new XnaColor(28, 18, 36),
         _ => new XnaColor(12, 14, 22)

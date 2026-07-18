@@ -154,7 +154,6 @@ public sealed class WorldRunSimulation
     private readonly RunUpgradeSystem _upgrades;
     private readonly bool _recoveryProtocols;
     private readonly HashSet<ulong> _acceptedFactIds = [];
-    private readonly HashSet<int> _emittedOffers = [];
     private long _eventSequence;
     private bool _collapseWarningEmitted;
     private bool _eliteDefeated;
@@ -209,18 +208,6 @@ public sealed class WorldRunSimulation
         }
 
         var events = new List<WorldRunEvent>();
-        if (_upgrades.PendingOffer is not null)
-        {
-            EmitOfferIfNeeded(events);
-            if (input.UpgradeChoiceIndex is int choice)
-            {
-                var selected = _upgrades.Choose(choice);
-                Emit(events, WorldRunEventKind.UpgradeSelected, selected);
-                EmitOfferIfNeeded(events);
-            }
-            LastEvents = events.AsReadOnly();
-            return LastEvents;
-        }
         if (input.Paused)
         {
             LastEvents = Array.Empty<WorldRunEvent>();
@@ -251,9 +238,7 @@ public sealed class WorldRunSimulation
             Emit(events, WorldRunEventKind.ExtractionActivated, WorldRunIds.StandardGate);
         }
 
-        EmitOfferIfNeeded(events);
-        if (_upgrades.PendingOffer is null)
-            AdvanceExtraction(input, events);
+        AdvanceExtraction(input, events);
         if (RunTick >= CollapseWarningTick && !_collapseWarningEmitted)
         {
             _collapseWarningEmitted = true;
@@ -282,14 +267,10 @@ public sealed class WorldRunSimulation
         switch (fact.Kind)
         {
             case RunFactKind.ResourceCellBroken:
-                // Charge applies only to resource-bearing cells (catalog Ferrite/Lumen).
-                if (fact.ResourceId == WorldRunIds.Ferrite || fact.ResourceId == WorldRunIds.Lumen)
-                    AddCharge(3, events);
                 break;
             case RunFactKind.NormalEnemyDestroyed:
                 Objective = Objective with
                     { NormalEnemiesDestroyed = Math.Min(1_000_000, Objective.NormalEnemiesDestroyed + 1) };
-                AddCharge(8, events);
                 break;
             case RunFactKind.ResourceCollected:
                 if (fact.Quantity <= 0 || fact.Quantity > 1_000_000 ||
@@ -305,25 +286,9 @@ public sealed class WorldRunSimulation
                 break;
             case RunFactKind.EliteDestroyed:
                 if (Phase == RunPhase.Elite && !_eliteDefeated)
-                {
                     _eliteDefeated = true;
-                    AddCharge(20, events);
-                }
                 break;
         }
-    }
-
-    private void AddCharge(int amount, List<WorldRunEvent> events)
-    {
-        foreach (var threshold in _upgrades.AddCharge(amount))
-            Emit(events, WorldRunEventKind.UpgradeThresholdReached, amount: threshold);
-    }
-
-    private void EmitOfferIfNeeded(List<WorldRunEvent> events)
-    {
-        if (_upgrades.PendingOffer is not { } offer || !_emittedOffers.Add(offer.Threshold))
-            return;
-        Emit(events, WorldRunEventKind.UpgradeOffered, amount: offer.Threshold, secondaryAmount: offer.Choices.Count);
     }
 
     private void AdvanceExtraction(WorldRunTickInput input, List<WorldRunEvent> events)

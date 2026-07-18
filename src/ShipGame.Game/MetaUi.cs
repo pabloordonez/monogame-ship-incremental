@@ -8,10 +8,11 @@ namespace ShipGame.Game;
 public enum MetaScreen
 {
     Title,
-    Lobby,
+    Station,
     Map,
     Loadout,
     Research,
+    Upgrades,
     Run,
     Pause,
     Summary,
@@ -20,12 +21,24 @@ public enum MetaScreen
 
 public sealed record UiActionResult(bool Accepted, string Code, string Message);
 
-public sealed record LobbyView(
+public sealed record StationView(
     ResourceAmounts Balances,
     LifetimeCounters Counters,
     DerivedShipStatistics Statistics,
     RunSummarySnapshot? PreviousRun,
     IReadOnlyList<LoadoutDiagnostic> LoadoutDiagnostics);
+
+/// <summary>Obsolete alias — prefer <see cref="StationView"/>.</summary>
+public sealed record LobbyView(
+    ResourceAmounts Balances,
+    LifetimeCounters Counters,
+    DerivedShipStatistics Statistics,
+    RunSummarySnapshot? PreviousRun,
+    IReadOnlyList<LoadoutDiagnostic> LoadoutDiagnostics)
+{
+    public static LobbyView From(StationView view) =>
+        new(view.Balances, view.Counters, view.Statistics, view.PreviousRun, view.LoadoutDiagnostics);
+}
 
 public sealed record EnvironmentView(
     string EnvironmentId,
@@ -41,13 +54,13 @@ public sealed class MetaUiController
     public MetaUiController(ProfileAggregate profile, bool continuedProfile = false)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
-        Screen = continuedProfile ? MetaScreen.Lobby : MetaScreen.Title;
+        Screen = continuedProfile ? MetaScreen.Station : MetaScreen.Title;
     }
 
     public MetaScreen Screen { get; private set; }
     public string SelectedEnvironmentId { get; private set; } = MetaContentIds.CinderBelt;
 
-    public LobbyView BuildLobbyView()
+    public StationView BuildStationView()
     {
         var snapshot = _profile.Snapshot;
         var loadout = _profile.ResolveLoadout();
@@ -59,6 +72,8 @@ public sealed class MetaUiController
             loadout.Diagnostics);
     }
 
+    public LobbyView BuildLobbyView() => LobbyView.From(BuildStationView());
+
     public IReadOnlyList<EnvironmentView> BuildMapView() =>
     [
         BuildEnvironment(MetaContentIds.CinderBelt),
@@ -68,26 +83,31 @@ public sealed class MetaUiController
     public IReadOnlyList<ResearchPreview> BuildResearchView() =>
         ResearchCatalog.All.Select(node => _profile.InspectResearch(node.Id)).ToArray();
 
+    public IReadOnlyList<UpgradePreview> BuildUpgradeView() =>
+        RunUpgradeCatalog.All.Select(node => _profile.InspectUpgrade(node.Id.Value)).ToArray();
+
     public IReadOnlyList<LoadoutPreview> BuildLoadoutView(ModuleSlot slot) =>
         ModuleCatalog.All
             .Where(module => module.Slot == slot)
             .Select(module => _profile.InspectModule(slot, module.Id))
             .ToArray();
 
-    public UiActionResult EnterLobby()
+    public UiActionResult EnterStation()
     {
         if (Screen is not MetaScreen.Title and not MetaScreen.Summary)
-            return Rejected("navigation.invalid", "Lobby can only be entered from title or summary.");
-        Screen = MetaScreen.Lobby;
-        return Accepted("navigation.lobby", "Entered lobby.");
+            return Rejected("navigation.invalid", "Station can only be entered from title or summary.");
+        Screen = MetaScreen.Station;
+        return Accepted("navigation.station", "Entered station.");
     }
+
+    public UiActionResult EnterLobby() => EnterStation();
 
     public UiActionResult Open(MetaScreen destination)
     {
         var accepted = Screen switch
         {
-            MetaScreen.Lobby => destination is MetaScreen.Map or MetaScreen.Loadout or
-                MetaScreen.Research or MetaScreen.Settings,
+            MetaScreen.Station => destination is MetaScreen.Map or MetaScreen.Loadout or
+                MetaScreen.Research or MetaScreen.Upgrades or MetaScreen.Settings,
             MetaScreen.Title => destination == MetaScreen.Settings,
             MetaScreen.Run => destination == MetaScreen.Pause,
             MetaScreen.Pause => destination == MetaScreen.Settings,
@@ -105,7 +125,7 @@ public sealed class MetaUiController
     {
         Screen = Screen switch
         {
-            MetaScreen.Map or MetaScreen.Loadout or MetaScreen.Research => MetaScreen.Lobby,
+            MetaScreen.Map or MetaScreen.Loadout or MetaScreen.Research or MetaScreen.Upgrades => MetaScreen.Station,
             MetaScreen.Settings => _settingsReturnScreen,
             MetaScreen.Pause => MetaScreen.Run,
             _ => Screen
@@ -126,8 +146,8 @@ public sealed class MetaUiController
 
     public UiActionResult Launch()
     {
-        if (Screen is not MetaScreen.Map and not MetaScreen.Lobby)
-            return Rejected("navigation.invalid", "Launch is only available from the lobby or map.");
+        if (Screen is not MetaScreen.Map and not MetaScreen.Station)
+            return Rejected("navigation.invalid", "Launch is only available from the station or map.");
         var access = _profile.ValidateDestination(SelectedEnvironmentId);
         if (access.Status != ProfileMutationStatus.Applied)
             return Rejected(access.Code, access.Message);
@@ -148,6 +168,13 @@ public sealed class MetaUiController
         if (Screen != MetaScreen.Research)
             return Rejected("navigation.invalid", "Research purchases are only available in research.");
         return FromMutation(_profile.PurchaseResearch(transactionId, researchId));
+    }
+
+    public UiActionResult PurchaseUpgrade(string transactionId, string upgradeId)
+    {
+        if (Screen != MetaScreen.Upgrades)
+            return Rejected("navigation.invalid", "Upgrade purchases are only available in upgrades.");
+        return FromMutation(_profile.PurchaseUpgrade(transactionId, upgradeId));
     }
 
     public UiActionResult EquipModule(string transactionId, ModuleSlot slot, string moduleId)
@@ -254,9 +281,11 @@ public sealed class MetaSession : IDisposable
     /// </summary>
     public bool RequiresExplicitNewProfile { get; private set; }
 
+    public StationView Station => _ui.BuildStationView();
     public LobbyView Lobby => _ui.BuildLobbyView();
     public IReadOnlyList<EnvironmentView> Map => _ui.BuildMapView();
     public IReadOnlyList<ResearchPreview> Research => _ui.BuildResearchView();
+    public IReadOnlyList<UpgradePreview> Upgrades => _ui.BuildUpgradeView();
 
     public UiActionResult CreateNewProfile(ulong? seed = null)
     {
@@ -288,7 +317,9 @@ public sealed class MetaSession : IDisposable
     {
         if (RequiresExplicitNewProfile)
             return RejectedUnrecoverable();
-        var result = destination == MetaScreen.Lobby ? _ui.EnterLobby() : _ui.Open(destination);
+        var result = destination == MetaScreen.Station
+            ? _ui.EnterStation()
+            : _ui.Open(destination);
         if (result.Accepted)
             Record(MetaTelemetryFactKind.ScreenEntered, subjectCode: (int)_ui.Screen);
         return result;
@@ -333,6 +364,21 @@ public sealed class MetaSession : IDisposable
             result.Accepted ? MetaTelemetryFactKind.ResearchPurchased : MetaTelemetryFactKind.ResearchRejected,
             subjectCode: researchId.GetHashCode(),
             succeeded: result.Accepted);
+        return result;
+    }
+
+    public UiActionResult PurchaseUpgrade(string transactionId, string upgradeId)
+    {
+        if (RequiresExplicitNewProfile)
+            return RejectedUnrecoverable();
+        var prior = _profile.Snapshot;
+        var result = _ui.PurchaseUpgrade(transactionId, upgradeId);
+        if (result.Accepted && !TryPersist("upgrade"))
+        {
+            _profile.Restore(prior);
+            return Rejected("save.failed", "Upgrade purchase could not be persisted.");
+        }
+
         return result;
     }
 
@@ -381,8 +427,8 @@ public sealed class MetaSession : IDisposable
     {
         if (RequiresExplicitNewProfile)
             return RejectedUnrecoverable();
-        if (_ui.Screen is not MetaScreen.Map and not MetaScreen.Lobby)
-            return Rejected("navigation.invalid", "Launch is only available from the lobby or map.");
+        if (_ui.Screen is not MetaScreen.Map and not MetaScreen.Station)
+            return Rejected("navigation.invalid", "Launch is only available from the station or map.");
         var access = _profile.ValidateDestination(_ui.SelectedEnvironmentId);
         if (access.Status != ProfileMutationStatus.Applied)
             return Rejected(access.Code, access.Message);
@@ -530,5 +576,6 @@ public sealed class MetaSession : IDisposable
                 MetaContentIds.CinderBelt,
                 MetaContentIds.IonVeil
             },
-            ModuleCatalog.All.Select(module => module.Id).ToHashSet(StringComparer.Ordinal));
+            ModuleCatalog.All.Select(module => module.Id).ToHashSet(StringComparer.Ordinal),
+            RunUpgradeCatalog.All.Select(upgrade => upgrade.Id.Value).ToHashSet(StringComparer.Ordinal));
 }

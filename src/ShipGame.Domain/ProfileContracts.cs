@@ -168,6 +168,7 @@ public sealed record MetaProfileSnapshot(
     ResourceAmounts Balances,
     LifetimeCounters Counters,
     IReadOnlyList<string> PurchasedResearchIds,
+    IReadOnlyList<string> PurchasedUpgradeIds,
     IReadOnlyList<string> UnlockedEnvironmentIds,
     LoadoutSelection RequestedLoadout,
     IReadOnlyList<ProfileTransactionReceipt> Transactions,

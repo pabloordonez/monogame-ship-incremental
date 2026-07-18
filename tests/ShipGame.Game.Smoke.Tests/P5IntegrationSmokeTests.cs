@@ -12,7 +12,7 @@ public sealed class P5IntegrationSmokeTests : IDisposable
     {
         Assert.Equal(0, SmokeRunner.Run(saveDirectory: _root));
         using var session = new MetaSession(_root);
-        Assert.Equal(MetaScreen.Lobby, session.Screen);
+        Assert.Equal(MetaScreen.Station, session.Screen);
         Assert.Equal(2, session.Profile.Snapshot.RunIndex);
         Assert.True(session.Profile.Snapshot.Balances.Ferrite > 0);
         Assert.NotNull(session.Profile.Snapshot.PreviousRun);
@@ -24,7 +24,7 @@ public sealed class P5IntegrationSmokeTests : IDisposable
     {
         using var session = new MetaSession(_root, newProfileSeed: 9);
         Assert.Equal(0, session.Profile.Snapshot.RunIndex);
-        session.Navigate(MetaScreen.Lobby);
+        session.Navigate(MetaScreen.Station);
         session.Navigate(MetaScreen.Map);
         Assert.True(session.Launch().Accepted);
         Assert.Equal(1, session.Profile.Snapshot.RunIndex);

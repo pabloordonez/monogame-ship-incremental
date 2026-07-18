@@ -8,9 +8,11 @@ public enum ComposedRunStatus
 {
     Inactive,
     Active,
-    AwaitingUpgradeChoice,
     Terminal
 }
+
+public readonly record struct ComposedPickupView(int X, int Y, ContentId ResourceId, int Quantity);
+public readonly record struct ComposedAsteroidView(int CellId, int X, int Y, AsteroidCellKind Kind, bool Broken);
 
 public readonly record struct ComposedRunHud(
     long RunTick,
@@ -24,11 +26,7 @@ public readonly record struct ComposedRunHud(
     int ObjectiveKills,
     int ExtractionProgressTicks,
     int ExtractionHoldTicks,
-    UpgradeOffer? PendingOffer,
     int ThreatCap);
-
-public readonly record struct ComposedPickupView(int X, int Y, ContentId ResourceId, int Quantity);
-public readonly record struct ComposedAsteroidView(int CellId, int X, int Y, AsteroidCellKind Kind, bool Broken);
 
 /// <summary>
 /// P5 composition root: co-steps FlightCombat + WorldRun + mining/loot ECS and produces
@@ -39,6 +37,7 @@ public sealed class ComposedRunOrchestrator
     public const int MiningRangeWorldUnits = 70;
     public const int BaseCollectionRadius = 90;
     public const int BasePullSpeed = 8;
+    public const int NormalKillFerriteSalvage = 2;
 
     private readonly World _miningWorld = new();
     private readonly MiningSystem _mining = new();
@@ -57,7 +56,7 @@ public sealed class ComposedRunOrchestrator
     private long _cellsBroken;
     private bool _eliteSpawnRequested;
     private bool _rewardMapped;
-    private TemporaryModifiers _appliedModifiers;
+    private TemporaryModifiers _appliedModifiers = TemporaryModifiers.Identity;
     private int _miningDamagePerTick;
     private string _runId = "";
     private string _environmentId = "";
@@ -71,7 +70,8 @@ public sealed class ComposedRunOrchestrator
         ResolvedLoadout loadout,
         DerivedShipStatistics statistics,
         bool recoveryProtocols,
-        bool enableThreatDirector = true)
+        bool enableThreatDirector = true,
+        IReadOnlyList<string>? purchasedUpgradeIds = null)
     {
         ArgumentNullException.ThrowIfNull(loadout);
         ArgumentNullException.ThrowIfNull(statistics);
@@ -112,6 +112,8 @@ public sealed class ComposedRunOrchestrator
         });
 
         _miningDamagePerTick = Math.Max(1, (int)Math.Round((double)statistics.MiningDamagePerSecond / WorldRunSimulation.TickRate));
+        WorldRun.Upgrades.SeedFromStationPurchases(purchasedUpgradeIds ?? Array.Empty<string>());
+        ApplyUpgradeModifiersIfChanged();
         Status = ComposedRunStatus.Active;
         Checkpoints.Add("run_started");
     }
@@ -148,7 +150,6 @@ public sealed class ComposedRunOrchestrator
                 WorldRun.Objective.NormalEnemiesDestroyed,
                 WorldRun.ExtractionProgressTicks,
                 WorldRunSimulation.ExtractionHoldTicks,
-                WorldRun.Upgrades.PendingOffer,
                 WorldRun.Threat.NormalEnemyCap);
         }
     }
@@ -206,35 +207,22 @@ public sealed class ComposedRunOrchestrator
 
     public void SetPaused(bool paused) => _paused = paused;
 
-    public void ChooseUpgrade(int index)
-    {
-        if (Status != ComposedRunStatus.AwaitingUpgradeChoice)
-            return;
-        StepInternal(new FlightCommandFrame(Combat.Tick, 0, 0, 0, 0, FlightAction.None), index);
-    }
-
     public void Step(FlightCommandFrame? command = null)
     {
         if (Status is ComposedRunStatus.Inactive or ComposedRunStatus.Terminal)
             return;
-        if (Status == ComposedRunStatus.AwaitingUpgradeChoice)
-            return;
         var frame = command ?? FlightCommandFrame.Neutral(Combat.Tick);
-        StepInternal(frame, upgradeChoice: null);
+        StepInternal(frame);
     }
 
     /// <summary>
     /// Deterministic harness completion for golden traces / smoke: injects objective facts,
-    /// resolves upgrades, defeats elite, collects data core, and extracts. Uses production
-    /// WorldRun / RewardHandoff paths only.
+    /// defeats elite, collects data core, and extracts. Uses production WorldRun / RewardHandoff paths only.
     /// </summary>
     public RewardProposal CompleteViaHarness(bool succeed = true)
     {
         if (Status == ComposedRunStatus.Terminal && MappedReward is not null)
             return MappedReward;
-
-        while (Status == ComposedRunStatus.AwaitingUpgradeChoice)
-            ChooseUpgrade(0);
 
         if (!succeed)
         {
@@ -254,11 +242,12 @@ public sealed class ComposedRunOrchestrator
         for (var i = 0; i < 8; i++)
         {
             facts.Add(new(_nextFactId++, RunFactKind.NormalEnemyDestroyed));
+            facts.Add(new(_nextFactId++, RunFactKind.ResourceCollected, WorldRunIds.Ferrite, NormalKillFerriteSalvage));
             _normalKills++;
+            _ferriteCollected += NormalKillFerriteSalvage;
         }
 
         FeedWorldFacts(facts, paused: false, hullDepleted: false, interact: false, inZone: false);
-        ResolvePendingUpgrades();
         NoteCheckpoint("objective_complete");
 
         FeedWorldFacts(
@@ -268,7 +257,6 @@ public sealed class ComposedRunOrchestrator
             interact: false,
             inZone: false);
         _eliteKills++;
-        ResolvePendingUpgrades();
         NoteCheckpoint("elite_defeated");
 
         FeedWorldFacts(
@@ -302,11 +290,10 @@ public sealed class ComposedRunOrchestrator
         return MappedReward;
     }
 
-    private void StepInternal(FlightCommandFrame command, int? upgradeChoice)
+    private void StepInternal(FlightCommandFrame command)
     {
         _factBuffer.Clear();
-        var upgradePause = WorldRun.Upgrades.PendingOffer is not null || upgradeChoice is not null;
-        var paused = _paused || upgradePause;
+        var paused = _paused;
 
         if (!paused)
         {
@@ -331,25 +318,15 @@ public sealed class ComposedRunOrchestrator
         var hullDepleted = player.Destroyed || player.Hull <= 0;
 
         LastWorldEvents = WorldRun.Step(new WorldRunTickInput(
-            Paused: paused && upgradeChoice is null,
+            Paused: paused,
             PlayerHullDepleted: hullDepleted,
             PlayerInExtractionZone: inZone,
             InteractHeld: (command.Actions & FlightAction.Interact) != 0,
             PlayerCell: playerCell,
             BehindLargeAsteroid: behindCover,
-            UpgradeChoiceIndex: upgradeChoice,
             Facts: _factBuffer.Count == 0 ? null : _factBuffer.ToArray()));
 
         HandleWorldEvents(LastWorldEvents);
-        ApplyUpgradeModifiersIfChanged();
-
-        if (WorldRun.Upgrades.PendingOffer is not null && Status != ComposedRunStatus.Terminal)
-        {
-            Status = ComposedRunStatus.AwaitingUpgradeChoice;
-            NoteCheckpoint("upgrade_offered");
-        }
-        else if (Status == ComposedRunStatus.AwaitingUpgradeChoice && WorldRun.Upgrades.PendingOffer is null)
-            Status = ComposedRunStatus.Active;
 
         if (WorldRun.IsTerminal)
             FinalizeReward();
@@ -372,23 +349,8 @@ public sealed class ComposedRunOrchestrator
             BehindLargeAsteroid: false,
             Facts: facts));
         HandleWorldEvents(LastWorldEvents);
-        if (WorldRun.Upgrades.PendingOffer is not null)
-            Status = ComposedRunStatus.AwaitingUpgradeChoice;
         if (WorldRun.IsTerminal)
             FinalizeReward();
-    }
-
-    private void ResolvePendingUpgrades()
-    {
-        while (WorldRun.Upgrades.PendingOffer is not null && Status != ComposedRunStatus.Terminal)
-        {
-            LastWorldEvents = WorldRun.Step(new(UpgradeChoiceIndex: 0));
-            HandleWorldEvents(LastWorldEvents);
-            ApplyUpgradeModifiersIfChanged();
-        }
-
-        if (Status == ComposedRunStatus.AwaitingUpgradeChoice && WorldRun.Upgrades.PendingOffer is null)
-            Status = ComposedRunStatus.Active;
     }
 
     private void TranslateCombatEvents()
@@ -408,7 +370,13 @@ public sealed class ComposedRunOrchestrator
             else
             {
                 _factBuffer.Add(new(_nextFactId++, RunFactKind.NormalEnemyDestroyed));
+                _factBuffer.Add(new(
+                    _nextFactId++,
+                    RunFactKind.ResourceCollected,
+                    WorldRunIds.Ferrite,
+                    NormalKillFerriteSalvage));
                 _normalKills++;
+                _ferriteCollected += NormalKillFerriteSalvage;
             }
         }
     }
@@ -545,18 +513,10 @@ public sealed class ComposedRunOrchestrator
     private void ApplyUpgradeModifiersIfChanged()
     {
         var modifiers = WorldRun.Upgrades.Modifiers;
-        if (modifiers.Equals(_appliedModifiers))
+        if (Checkpoints.Contains("upgrade_applied") && modifiers.Equals(_appliedModifiers))
             return;
         _appliedModifiers = modifiers;
-        Combat.GrantTemporaryModifiers(new TemporaryCombatModifiers(
-            DamageMultiplier: Math.Clamp(modifiers.WeaponDamageBasisPoints / 10_000f, 0.1f, 10f),
-            FireRateMultiplier: Math.Clamp(modifiers.FireRateBasisPoints / 10_000f, 0.1f, 10f),
-            SpeedMultiplier: Math.Clamp(modifiers.SpeedBasisPoints / 10_000f, 0.1f, 10f),
-            MobilityCooldownMultiplier: Math.Clamp(modifiers.MobilityCooldownBasisPoints / 10_000f, 0.1f, 10f),
-            ExtraProjectiles: modifiers.ForkedOutput ? 1 : 0,
-            ExtraProjectileDamageMultiplier: 0.6f,
-            PierceCount: modifiers.PenetratingField ? 1 : 0,
-            ShockTransit: modifiers.ShockTransit));
+        Combat.GrantTemporaryModifiers(RunUpgradeCatalog.ToCombatModifiers(modifiers));
         NoteCheckpoint("upgrade_applied");
     }
 

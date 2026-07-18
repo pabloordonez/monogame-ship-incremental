@@ -9,7 +9,7 @@ public sealed class UiShellTests
     {
         var shell = new UiShell();
         var activated = new List<string>();
-        shell.Begin(MetaScreen.Lobby);
+        shell.Begin(MetaScreen.Station);
         shell.Add("a", new UiRect(0, 0, 10, 10), "A", true, () => activated.Add("a"));
         shell.Add("b", new UiRect(0, 20, 10, 10), "B", false, () => activated.Add("b"));
         shell.Add("c", new UiRect(0, 40, 10, 10), "C", true, () => activated.Add("c"));
@@ -70,7 +70,7 @@ public sealed class UiShellTests
     public void ScreenChangeResetsFocus()
     {
         var shell = new UiShell();
-        shell.Begin(MetaScreen.Lobby);
+        shell.Begin(MetaScreen.Station);
         shell.Add("lobby", new UiRect(0, 0, 10, 10), "Lobby", true, () => { });
         shell.EndBuild();
         shell.Focus("lobby");
@@ -100,7 +100,7 @@ public sealed class UiShellTests
         try
         {
             using var session = new MetaSession(root, newProfileSeed: 42);
-            Assert.True(session.Navigate(MetaScreen.Lobby).Accepted);
+            Assert.True(session.Navigate(MetaScreen.Station).Accepted);
             Assert.True(session.Navigate(MetaScreen.Map).Accepted);
             Assert.True(session.SelectEnvironment(MetaContentIds.CinderBelt).Accepted);
             Assert.Equal(MetaContentIds.CinderBelt, session.Ui.SelectedEnvironmentId);

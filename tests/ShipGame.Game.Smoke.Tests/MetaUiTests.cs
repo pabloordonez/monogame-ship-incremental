@@ -14,13 +14,15 @@ public sealed class MetaUiTests : IDisposable
     {
         var ui = new MetaUiController(ProfileAggregate.CreateNew(1));
         Assert.Equal(MetaScreen.Title, ui.Screen);
-        Assert.True(ui.EnterLobby().Accepted);
+        Assert.True(ui.EnterStation().Accepted);
         Assert.True(ui.Open(MetaScreen.Map).Accepted);
         Assert.True(ui.Back().Accepted);
-        Assert.Equal(MetaScreen.Lobby, ui.Screen);
+        Assert.Equal(MetaScreen.Station, ui.Screen);
         Assert.True(ui.Open(MetaScreen.Loadout).Accepted);
         Assert.True(ui.Back().Accepted);
         Assert.True(ui.Open(MetaScreen.Research).Accepted);
+        Assert.True(ui.Back().Accepted);
+        Assert.True(ui.Open(MetaScreen.Upgrades).Accepted);
         Assert.True(ui.Back().Accepted);
         Assert.True(ui.Open(MetaScreen.Map).Accepted);
         Assert.True(ui.Launch().Accepted);
@@ -30,14 +32,14 @@ public sealed class MetaUiTests : IDisposable
         Assert.Equal(MetaScreen.Run, ui.Screen);
         Assert.True(ui.ShowSummary().Accepted);
         Assert.Equal(MetaScreen.Summary, ui.Screen);
-        Assert.True(ui.EnterLobby().Accepted);
+        Assert.True(ui.EnterStation().Accepted);
     }
 
     [Fact]
     public void MapExplainsIonVeilCapabilityLock()
     {
         var ui = new MetaUiController(ProfileAggregate.CreateNew(1));
-        ui.EnterLobby();
+        ui.EnterStation();
         ui.Open(MetaScreen.Map);
         var map = ui.BuildMapView();
         var ion = Assert.Single(map, view => view.EnvironmentId == MetaContentIds.IonVeil);
@@ -57,7 +59,7 @@ public sealed class MetaUiTests : IDisposable
                 "TX_CONSENT",
                 GameSettings.Default with { TelemetryConsent = true }).Accepted);
             Assert.True(session.Back().Accepted);
-            Assert.True(session.Navigate(MetaScreen.Lobby).Accepted);
+            Assert.True(session.Navigate(MetaScreen.Station).Accepted);
             Assert.True(session.Navigate(MetaScreen.Map).Accepted);
             Assert.True(session.Launch().Accepted);
 
@@ -66,24 +68,28 @@ public sealed class MetaUiTests : IDisposable
                 "RUN_LOOP_1",
                 MetaContentIds.CinderBelt,
                 true,
-                new(40, 2, 1),
-                new(40, 2, 1),
+                new(70, 2, 1),
+                new(70, 2, 1),
                 ResourceAmounts.Zero,
                 ResourceAmounts.Zero,
-                new(1, 8, 1, 40, 12, 0));
+                new(1, 8, 1, 70, 12, 0));
             Assert.Equal(ProfileMutationStatus.Applied, session.CommitReward(reward).Status);
             Assert.Equal(MetaScreen.Summary, session.Screen);
-            Assert.True(session.Navigate(MetaScreen.Lobby).Accepted);
+            Assert.True(session.Navigate(MetaScreen.Station).Accepted);
             Assert.True(session.Navigate(MetaScreen.Research).Accepted);
             Assert.True(session.PurchaseResearch("TX_HULL", ResearchCatalog.HullReinforcement).Accepted);
+            Assert.True(session.Back().Accepted);
+            Assert.True(session.Navigate(MetaScreen.Upgrades).Accepted);
+            Assert.True(session.PurchaseUpgrade("TX_THRUSTER", "UPG_THRUSTER_OVERCLOCK").Accepted);
             Assert.True(session.Back().Accepted);
             Assert.True(session.Navigate(MetaScreen.Loadout).Accepted);
             Assert.True(session.EquipModule("TX_EQUIP_PULSE", ModuleSlot.Weapon, ModuleCatalog.WeaponPulse).Accepted);
         }
 
         using var continued = new MetaSession(_root, () => new CountingSink(() => writes++));
-        Assert.Equal(MetaScreen.Lobby, continued.Screen);
+        Assert.Equal(MetaScreen.Station, continued.Screen);
         Assert.Contains(ResearchCatalog.HullReinforcement, continued.Profile.Snapshot.PurchasedResearchIds);
+        Assert.Contains("UPG_THRUSTER_OVERCLOCK", continued.Profile.Snapshot.PurchasedUpgradeIds);
         Assert.Equal(ModuleCatalog.WeaponPulse, continued.Profile.Snapshot.RequestedLoadout.Weapon);
         Assert.Equal(new ResourceAmounts(15, 2, 1), continued.Profile.Snapshot.Balances);
         Assert.Equal(115, continued.Profile.DeriveStatistics().MaximumHull);
@@ -100,7 +106,7 @@ public sealed class MetaUiTests : IDisposable
             GameSettings.Default with { TelemetryConsent = true }).Accepted);
         Assert.True(session.Telemetry.Failed);
         Assert.True(session.Back().Accepted);
-        Assert.True(session.Navigate(MetaScreen.Lobby).Accepted);
+        Assert.True(session.Navigate(MetaScreen.Station).Accepted);
         Assert.True(session.Navigate(MetaScreen.Research).Accepted);
         Assert.Equal(MetaScreen.Research, session.Screen);
     }
@@ -119,7 +125,7 @@ public sealed class MetaUiTests : IDisposable
         Assert.Equal(CompatibilityStatus.Supported, session.LoadStatus);
         Assert.True(session.MigratedOnLoad);
         Assert.False(session.RequiresExplicitNewProfile);
-        Assert.Equal(MetaScreen.Lobby, session.Screen);
+        Assert.Equal(MetaScreen.Station, session.Screen);
         Assert.Equal(0xC0FFEEUL, session.Profile.Snapshot.ProfileSeed);
         Assert.Equal(7, session.Profile.Snapshot.RunIndex);
         Assert.True(File.Exists(Path.Combine(_root, MetaSaveRepository.MetaFileName)));
@@ -141,7 +147,7 @@ public sealed class MetaUiTests : IDisposable
             Assert.Equal(CompatibilityStatus.Corrupt, session.LoadStatus);
             Assert.True(session.RequiresExplicitNewProfile);
             Assert.Equal(MetaScreen.Title, session.Screen);
-            var blocked = session.Navigate(MetaScreen.Lobby);
+            var blocked = session.Navigate(MetaScreen.Station);
             Assert.False(blocked.Accepted);
             Assert.Equal("profile.unrecoverable", blocked.Code);
             Assert.Equal(primaryBefore, File.ReadAllText(metaPath));
@@ -150,13 +156,13 @@ public sealed class MetaUiTests : IDisposable
             Assert.True(session.CreateNewProfile(99).Accepted);
             Assert.False(session.RequiresExplicitNewProfile);
             Assert.Equal(99UL, session.Profile.Snapshot.ProfileSeed);
-            Assert.True(session.Navigate(MetaScreen.Lobby).Accepted);
+            Assert.True(session.Navigate(MetaScreen.Station).Accepted);
         }
 
         using var continued = new MetaSession(_root);
         Assert.Equal(CompatibilityStatus.Supported, continued.LoadStatus);
         Assert.Equal(99UL, continued.Profile.Snapshot.ProfileSeed);
-        Assert.Equal(MetaScreen.Lobby, continued.Screen);
+        Assert.Equal(MetaScreen.Station, continued.Screen);
     }
 
     [Fact]
@@ -164,7 +170,7 @@ public sealed class MetaUiTests : IDisposable
     {
         using (var session = new MetaSession(_root, newProfileSeed: 5))
         {
-            Assert.True(session.Navigate(MetaScreen.Lobby).Accepted);
+            Assert.True(session.Navigate(MetaScreen.Station).Accepted);
             Assert.True(session.Navigate(MetaScreen.Map).Accepted);
             Assert.True(session.Launch().Accepted);
             var reward = new RewardProposal(
@@ -178,7 +184,7 @@ public sealed class MetaUiTests : IDisposable
                 ResourceAmounts.Zero,
                 new(1, 0, 0, 40, 0, 0));
             Assert.Equal(ProfileMutationStatus.Applied, session.CommitReward(reward).Status);
-            Assert.True(session.Navigate(MetaScreen.Lobby).Accepted);
+            Assert.True(session.Navigate(MetaScreen.Station).Accepted);
             Assert.True(session.Navigate(MetaScreen.Research).Accepted);
 
             Directory.Delete(_root, recursive: true);
