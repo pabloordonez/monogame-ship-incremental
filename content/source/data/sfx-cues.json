@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "bankAssetId": "audio/essential-cues",
+  "sampleRate": 22050,
+  "channels": 1,
+  "cues": [
+    { "id": "sfx/impact", "startSample": 0, "sampleCount": 1102 },
+    { "id": "sfx/explosion", "startSample": 1102, "sampleCount": 1102 },
+    { "id": "sfx/collection", "startSample": 2204, "sampleCount": 1102 },
+    { "id": "sfx/warning", "startSample": 3306, "sampleCount": 1102 },
+    { "id": "sfx/ui-confirm", "startSample": 4408, "sampleCount": 1102 },
+    { "id": "sfx/shield-hit", "startSample": 5510, "sampleCount": 1102 },
+    { "id": "sfx/shield-break", "startSample": 6612, "sampleCount": 1102 },
+    { "id": "sfx/mining", "startSample": 7714, "sampleCount": 1102 },
+    { "id": "sfx/objective", "startSample": 8816, "sampleCount": 1102 },
+    { "id": "sfx/extraction", "startSample": 9918, "sampleCount": 1102 },
+    { "id": "sfx/dash", "startSample": 11020, "sampleCount": 1102 },
+    { "id": "sfx/blink", "startSample": 12122, "sampleCount": 1102 }
+  ],
+  "music": []
+}

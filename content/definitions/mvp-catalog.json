@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "mvp-p1-v1",
+  "definitions": [
+    { "id": "MAT_FERRITE", "kind": "resource", "references": ["pickups/ferrite", "ui/icons/resource-ferrite"], "values": { "yieldMin": 2, "yieldMax": 4 } },
+    { "id": "MAT_LUMEN", "kind": "resource", "references": ["pickups/lumen", "ui/icons/resource-lumen"], "values": { "yieldMin": 1, "yieldMax": 1 } },
+    { "id": "MAT_DATA_CORE", "kind": "resource", "references": ["pickups/data-core", "ui/icons/resource-data-core"], "values": { "yieldMin": 1, "yieldMax": 1 } },
+
+    { "id": "CAP_TRAVEL_ION_VEIL", "kind": "capability", "references": ["ui/icons/lock"], "values": {} },
+    { "id": "ENV_CINDER_BELT", "kind": "environment", "references": ["backgrounds/cinder-belt", "hazards/solar-flare", "hazards/star-glow", "field/cover-cue", "asteroids/large/ordinary"], "values": { "ferriteWeight": 85, "lumenWeight": 15, "warningSeconds": 4, "damage": 25 } },
+    { "id": "ENV_ION_VEIL", "kind": "environment", "references": ["CAP_TRAVEL_ION_VEIL", "backgrounds/ion-veil", "hazards/ion-cloud", "hazards/star-glow"], "values": { "ferriteWeight": 70, "lumenWeight": 30, "warningSeconds": 2.5, "damage": 30 } },
+
+    { "id": "ENM_INTERCEPTOR", "kind": "enemy", "references": ["enemies/interceptor", "telegraphs/muzzle-flash"], "values": { "hull": 28, "speed": 190, "range": 120, "damage": 6, "telegraph": 0.45 } },
+    { "id": "ENM_GUNSHIP", "kind": "enemy", "references": ["enemies/gunship", "telegraphs/aim-line"], "values": { "hull": 55, "speed": 105, "range": 380, "damage": 18, "telegraph": 0.8 } },
+    { "id": "ENM_SAPPER", "kind": "enemy", "references": ["enemies/sapper", "telegraphs/mine-radius"], "values": { "hull": 42, "speed": 130, "range": 260, "damage": 24, "telegraph": 1 } },
+    { "id": "MOD_ELITE_PROTOCOL", "kind": "enemy-modifier", "references": ["enemies/elite-outline", "telegraphs/elite-marker", "MAT_DATA_CORE"], "values": { "scale": 1.35, "hullMultiplier": 2.75, "damageMultiplier": 1.35, "speedMultiplier": 1.1, "cooldownMultiplier": 0.8 } },
+
+    { "id": "SHIP_WAYFARER_MK1", "kind": "ship", "references": ["ships/player/wayfarer", "ships/player/engine", "ships/player/damage-flash", "ships/player/shield-mask"], "values": { "hull": 100, "collisionRadius": 18, "pickupRadius": 70 } },
+    { "id": "SLOT_WEAPON", "kind": "slot", "references": ["ui/icons/module-weapon"], "values": {} },
+    { "id": "SLOT_MINING", "kind": "slot", "references": ["ui/icons/module-mining"], "values": {} },
+    { "id": "SLOT_SHIELD", "kind": "slot", "references": ["ui/icons/module-shield"], "values": {} },
+    { "id": "SLOT_ENGINE", "kind": "slot", "references": ["ui/icons/module-engine"], "values": {} },
+    { "id": "SLOT_UTILITY", "kind": "slot", "references": ["ui/icons/module-utility"], "values": {} },
+
+    { "id": "MOD_WEAPON_PULSE", "kind": "module", "references": ["SLOT_WEAPON", "weapons/pulse", "ui/icons/module-weapon"], "values": { "damage": 10, "rate": 5, "speed": 700, "range": 650 } },
+    { "id": "MOD_WEAPON_BEAM", "kind": "module", "references": ["SLOT_WEAPON", "weapons/beam", "RES_WEAPON_BEAM"], "values": { "damagePerSecond": 30, "range": 520, "heatSeconds": 3 } },
+    { "id": "MOD_WEAPON_SEEKER", "kind": "module", "references": ["SLOT_WEAPON", "weapons/seeker", "RES_WEAPON_SEEKER"], "values": { "damage": 16, "count": 2, "cooldown": 2.4, "range": 600 } },
+    { "id": "MOD_MINING_LASER", "kind": "module", "references": ["SLOT_MINING", "weapons/mining-beam"], "values": { "damagePerSecond": 25, "range": 260 } },
+    { "id": "MOD_MINING_CHARGE", "kind": "module", "references": ["SLOT_MINING", "weapons/seismic-charge", "RES_MINING_SEISMIC"], "values": { "cooldown": 3, "range": 300, "radius": 110, "miningDamage": 65, "combatDamage": 12 } },
+    { "id": "MOD_SHIELD_CAPACITOR", "kind": "module", "references": ["SLOT_SHIELD", "ships/player/shield-mask"], "values": { "capacity": 60, "recharge": 12, "delay": 3 } },
+    { "id": "MOD_SHIELD_REFLECTIVE", "kind": "module", "references": ["SLOT_SHIELD", "ships/player/shield-mask", "RES_SHIELD_REFLECTIVE"], "values": { "capacity": 45, "recharge": 10, "delay": 2.5, "reflect": 0.2 } },
+    { "id": "MOD_ENGINE_VECTOR", "kind": "module", "references": ["SLOT_ENGINE", "ships/player/dash"], "values": { "speed": 220, "distance": 180, "duration": 0.18, "cooldown": 4 } },
+    { "id": "MOD_ENGINE_BLINK", "kind": "module", "references": ["SLOT_ENGINE", "ships/player/blink", "RES_ENGINE_BLINK"], "values": { "speed": 200, "distance": 260, "cooldown": 6 } },
+    { "id": "MOD_UTILITY_TRACTOR", "kind": "module", "references": ["SLOT_UTILITY", "effects/tractor"], "values": { "pickupRadius": 140, "pullSpeed": 260 } },
+    { "id": "MOD_UTILITY_DRONE", "kind": "module", "references": ["SLOT_UTILITY", "ships/utility/firefly", "RES_UTILITY_DRONE"], "values": { "range": 450, "damage": 8, "cooldown": 0.8 } },
+
+    { "id": "UPG_OVERCHARGED_MUNITIONS", "kind": "upgrade", "references": ["ui/icons/upgrade-damage"], "values": { "multiplier": 1.2 } },
+    { "id": "UPG_RAPID_CYCLING", "kind": "upgrade", "references": ["ui/icons/upgrade-rate"], "values": { "multiplier": 1.18 } },
+    { "id": "UPG_FORKED_OUTPUT", "kind": "upgrade", "references": ["ui/icons/upgrade-fork"], "values": { "secondaryMultiplier": 0.85 } },
+    { "id": "UPG_PENETRATING_FIELD", "kind": "upgrade", "references": ["ui/icons/upgrade-pierce"], "values": { "pierce": 1 } },
+    { "id": "UPG_SHIELD_RESERVOIR", "kind": "upgrade", "references": ["ui/icons/upgrade-shield"], "values": { "flat": 30 } },
+    { "id": "UPG_FAST_REBOOT", "kind": "upgrade", "references": ["ui/icons/upgrade-reboot"], "values": { "delayReduction": 1, "rechargeMultiplier": 1.2 } },
+    { "id": "UPG_REINFORCED_FRAME", "kind": "upgrade", "references": ["ui/icons/upgrade-hull"], "values": { "flat": 25 } },
+    { "id": "UPG_THRUSTER_OVERCLOCK", "kind": "upgrade", "references": ["ui/icons/upgrade-speed"], "values": { "multiplier": 1.15 } },
+    { "id": "UPG_MOBILITY_LOOP", "kind": "upgrade", "references": ["ui/icons/upgrade-mobility"], "values": { "cooldownMultiplier": 0.7 } },
+    { "id": "UPG_FRACTURE_LENS", "kind": "upgrade", "references": ["ui/icons/upgrade-mining"], "values": { "damageMultiplier": 1.3, "yieldMultiplier": 1.2 } },
+    { "id": "UPG_MAGNETIC_SWEEP", "kind": "upgrade", "references": ["ui/icons/upgrade-tractor"], "values": { "radiusFlat": 90, "pullMultiplier": 1.5 } },
+    { "id": "UPG_SHOCK_TRANSIT", "kind": "upgrade", "references": ["ui/icons/upgrade-shock"], "values": { "radius": 90, "damage": 20 } },
+
+    { "id": "RES_HULL_REINFORCEMENT", "kind": "research", "references": ["ui/icons/research-hull"], "values": { "ferrite": 25, "lumen": 0, "dataCore": 0 } },
+    { "id": "RES_SHIELD_REFLECTIVE", "kind": "research", "references": ["RES_HULL_REINFORCEMENT", "ui/icons/research-shield"], "values": { "ferrite": 45, "lumen": 1, "dataCore": 1, "extractions": 1 } },
+    { "id": "RES_WEAPON_BEAM", "kind": "research", "references": ["ui/icons/research-beam"], "values": { "ferrite": 35, "lumen": 0, "dataCore": 1, "extractions": 1 } },
+    { "id": "RES_WEAPON_SEEKER", "kind": "research", "references": ["RES_WEAPON_BEAM", "ui/icons/research-seeker"], "values": { "ferrite": 60, "lumen": 2, "dataCore": 2, "kills": 20 } },
+    { "id": "RES_MINING_SEISMIC", "kind": "research", "references": ["ui/icons/research-mining"], "values": { "ferrite": 30, "lumen": 0, "dataCore": 1, "lifetimeFerrite": 60 } },
+    { "id": "RES_MINING_ASSAY", "kind": "research", "references": ["RES_MINING_SEISMIC", "ui/icons/research-assay"], "values": { "ferrite": 50, "lumen": 2, "dataCore": 1, "cells": 40 } },
+    { "id": "RES_ENGINE_TUNING", "kind": "research", "references": ["ui/icons/research-engine"], "values": { "ferrite": 25, "lumen": 0, "dataCore": 0 } },
+    { "id": "RES_ENGINE_BLINK", "kind": "research", "references": ["RES_ENGINE_TUNING", "RES_SHIELD_REFLECTIVE", "ui/icons/research-blink"], "values": { "ferrite": 60, "lumen": 2, "dataCore": 2, "extractions": 3 } },
+    { "id": "RES_UTILITY_DRONE", "kind": "research", "references": ["RES_HULL_REINFORCEMENT", "ui/icons/research-drone"], "values": { "ferrite": 40, "lumen": 0, "dataCore": 1, "eliteKills": 1 } },
+    { "id": "RES_TRACTOR_CALIBRATION", "kind": "research", "references": ["RES_UTILITY_DRONE", "ui/icons/research-tractor"], "values": { "ferrite": 45, "lumen": 1, "dataCore": 0, "lifetimeFerrite": 150 } },
+    { "id": "RES_NAV_ION_VEIL", "kind": "research", "references": ["RES_SHIELD_REFLECTIVE", "RES_ENGINE_BLINK", "CAP_TRAVEL_ION_VEIL", "ui/icons/research-ion"], "values": { "ferrite": 80, "lumen": 4, "dataCore": 3, "extractions": 5, "eliteKills": 5 } },
+    { "id": "RES_RECOVERY_PROTOCOLS", "kind": "research", "references": ["RES_WEAPON_SEEKER", "RES_MINING_ASSAY", "ui/icons/research-recovery"], "values": { "ferrite": 70, "lumen": 2, "dataCore": 3, "ionExtractions": 1 } },
+
+    { "id": "OBJ_FIELD_PROOF", "kind": "objective", "references": ["MAT_FERRITE", "ui/icons/objective"], "values": { "ferrite": 30, "normalKills": 8 } },
+    { "id": "EXT_STANDARD_GATE", "kind": "extraction", "references": ["field/extraction-marker", "ui/icons/interact"], "values": { "holdSeconds": 6 } }
+  ]
+}
