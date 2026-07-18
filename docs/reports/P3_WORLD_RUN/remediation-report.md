@@ -4,6 +4,7 @@
 **Worktree:** `C:\Repositories\github\ship-game-p3`  
 **Branch:** `phase2-p3-world-run`  
 **Reviewer verdict remediated:** `REMEDIATE` (reviewer-report.md)  
+**Remediation candidate:** `9f30f7e6bea9fc3d17f1581b09d99e569bccb485`  
 **Date:** 2026-07-18  
 
 ---
