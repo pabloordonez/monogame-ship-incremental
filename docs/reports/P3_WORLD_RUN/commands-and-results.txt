@@ -1,0 +1,44 @@
+P3_WORLD_RUN COMMANDS AND OBSERVED RESULTS
+Environment: Windows 10.0.26200, bash host, Windows PowerShell, .NET SDK 9.0.x
+Date: 2026-07-18
+Branch: phase2-p3-world-run
+Worktree: C:\Repositories\github\ship-game-p3
+Pinned base: 0b12902972d5a98ff785c78a9e0c10728b2a2df0
+
+FOCUSED P3 SUITE
+Command: dotnet test tests/ShipGame.Simulation.Tests/ShipGame.Simulation.Tests.csproj --filter "FullyQualifiedName~P3WorldRunTests" --configuration Release --verbosity normal
+Exit: 0
+Observed: Passed 17 / 17.
+  - TenThousandSeedsPerEnvironmentSatisfyGenerationInvariants(ENV_CINDER_BELT): 10,000 seeds, ~933 ms
+  - TenThousandSeedsPerEnvironmentSatisfyGenerationInvariants(ENV_ION_VEIL): 10,000 seeds, ~627 ms
+  - Total generation sweep: 20,000 seeds for generation version 1
+  - Also passed: fallback determinism, RNG isolation, mining conservation, hazards, four offers, four upgrades in one run, threat transitions, collapse warning, objective/elite/extraction/reward order, pause/extraction reset, terminal precedence, failure retention, same-seed determinism, bounds
+
+FULL PACKAGE / SOLUTION GATE
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
+Exit: 0
+Observed: content builder 2 succeeded / 0 failed; build 0 Warning(s) / 0 Error(s).
+  ShipGame.Ecs.Tests: 10 passed
+  ShipGame.Telemetry.Tests: 7 passed
+  ShipGame.Persistence.Tests: 14 passed
+  ShipGame.Content.Tests: 8 passed
+  ShipGame.Game.Smoke.Tests: 2 passed
+  ShipGame.Architecture.Tests: 8 passed
+  ShipGame.Simulation.Tests: 29 passed
+  Total: 78 passed, 0 failed
+
+HEADLESS SMOKE
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -Smoke
+Exit: 0
+Observed: content rebuild + Release build succeeded; smoke process exited 0.
+
+GRAPHICAL WINDOW SMOKE
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/launch.ps1 -WindowSmoke
+Exit: 0
+Observed: DESKTOPVK_CONTENT_READY; DESKTOPVK_WALKING_SKELETON_COMPLETE; Vulkan/SDL surface path initialized (NVIDIA GeForce RTX 3090).
+
+GENERATION SWEEP COUNTS (authoritative from executed Theory)
+  ENV_CINDER_BELT: 10000 / 10000 pass
+  ENV_ION_VEIL: 10000 / 10000 pass
+  Combined: 20000 / 20000 pass
+  GenerationVersion: 1

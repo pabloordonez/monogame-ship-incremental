@@ -1,0 +1,429 @@
+using System.Collections.ObjectModel;
+using ShipGame.Domain;
+
+namespace ShipGame.Simulation;
+
+public static class WorldRunIds
+{
+    public static readonly ContentId CinderBelt = new("ENV_CINDER_BELT");
+    public static readonly ContentId IonVeil = new("ENV_ION_VEIL");
+    public static readonly ContentId FieldProof = new("OBJ_FIELD_PROOF");
+    public static readonly ContentId StandardGate = new("EXT_STANDARD_GATE");
+    public static readonly ContentId Ferrite = new("MAT_FERRITE");
+    public static readonly ContentId Lumen = new("MAT_LUMEN");
+    public static readonly ContentId DataCore = new("MAT_DATA_CORE");
+}
+
+public readonly record struct GridPoint(int X, int Y);
+
+public readonly record struct GenerationIdentity(
+    ContentId EnvironmentId,
+    ulong RunSeed,
+    int ContentVersion,
+    int GenerationVersion,
+    int RngVersion)
+{
+    public static GenerationIdentity Current(ContentId environmentId, ulong runSeed) =>
+        new(environmentId, runSeed, ContractVersions.Content, ContractVersions.Generation, ContractVersions.Rng);
+}
+
+public enum SectorKind
+{
+    Spawn,
+    Objective,
+    EliteArena,
+    Extraction
+}
+
+public readonly record struct SectorDescriptor(SectorKind Kind, GridPoint Center);
+public readonly record struct CorridorDescriptor(GridPoint From, GridPoint To);
+
+public enum AsteroidCellKind
+{
+    Ordinary,
+    Ferrite,
+    Lumen
+}
+
+public readonly record struct AsteroidCellDescriptor(
+    int CellId,
+    GridPoint Position,
+    AsteroidCellKind Kind,
+    int Health,
+    bool ProvidesCompleteCover);
+
+public readonly record struct HazardDescriptor(
+    long WarningTick,
+    long ResolveTick,
+    int Damage,
+    GridPoint Center,
+    int Radius,
+    int Direction);
+
+public sealed record FieldDescriptor
+{
+    public const int Width = 64;
+    public const int Height = 48;
+    public const int WorldUnitsPerCell = 50;
+    public const int MaximumAsteroidCells = 160;
+    public const int MaximumHazards = 64;
+
+    public required GenerationIdentity Identity { get; init; }
+    public required int Attempt { get; init; }
+    public required IReadOnlyList<SectorDescriptor> Sectors { get; init; }
+    public required IReadOnlyList<CorridorDescriptor> Corridors { get; init; }
+    public required IReadOnlyList<AsteroidCellDescriptor> AsteroidCells { get; init; }
+    public required IReadOnlyList<HazardDescriptor> Hazards { get; init; }
+
+    public SectorDescriptor Spawn => Sectors.Single(sector => sector.Kind == SectorKind.Spawn);
+    public SectorDescriptor EliteArena => Sectors.Single(sector => sector.Kind == SectorKind.EliteArena);
+    public SectorDescriptor Extraction => Sectors.Single(sector => sector.Kind == SectorKind.Extraction);
+}
+
+public sealed record GenerationResult(FieldDescriptor Descriptor, bool FallbackUsed);
+
+public sealed record EncounterValidationResult(bool IsValid, IReadOnlyList<string> Issues);
+
+public sealed class EncounterGenerator
+{
+    public const int CurrentGenerationVersion = 1;
+    private const int MaximumAttempts = 4;
+
+    public GenerationResult Generate(GenerationIdentity identity, bool invalidatePrimaryForTest = false)
+    {
+        ValidateIdentity(identity);
+        for (var attempt = 0; attempt < MaximumAttempts; attempt++)
+        {
+            var descriptor = GenerateAttempt(identity, attempt);
+            if (attempt == 0 && invalidatePrimaryForTest)
+                descriptor = descriptor with { Corridors = Array.Empty<CorridorDescriptor>() };
+            if (EncounterValidator.Validate(descriptor).IsValid)
+                return new(descriptor, attempt > 0);
+        }
+
+        var fallback = GenerateFallback(identity);
+        var validation = EncounterValidator.Validate(fallback);
+        if (!validation.IsValid)
+            throw new InvalidOperationException($"Deterministic fallback was invalid: {string.Join("; ", validation.Issues)}");
+        return new(fallback, true);
+    }
+
+    private static FieldDescriptor GenerateAttempt(GenerationIdentity identity, int attempt)
+    {
+        var random = CreateAttemptRandom(identity, attempt);
+        var spawn = new GridPoint(4, FieldDescriptor.Height / 2);
+        var objectives = new[]
+        {
+            new GridPoint(18 + NextInt(random, 0, 4), 8 + NextInt(random, 0, 5)),
+            new GridPoint(30 + NextInt(random, 0, 5), 34 + NextInt(random, 0, 5)),
+            new GridPoint(43 + NextInt(random, 0, 4), 10 + NextInt(random, 0, 6))
+        };
+        var elite = new GridPoint(52, 35);
+        var extraction = new GridPoint(59, 6);
+        var sectors = new List<SectorDescriptor>
+        {
+            new(SectorKind.Spawn, spawn),
+            new(SectorKind.Objective, objectives[0]),
+            new(SectorKind.Objective, objectives[1]),
+            new(SectorKind.Objective, objectives[2]),
+            new(SectorKind.EliteArena, elite),
+            new(SectorKind.Extraction, extraction)
+        };
+        var corridors = new List<CorridorDescriptor>();
+        var previous = spawn;
+        foreach (var destination in objectives.Append(elite).Append(extraction))
+        {
+            corridors.Add(new(previous, new(destination.X, previous.Y)));
+            corridors.Add(new(new(destination.X, previous.Y), destination));
+            previous = destination;
+        }
+
+        var blocked = BuildProtectedCells(sectors, corridors);
+        var asteroidCount = identity.EnvironmentId == WorldRunIds.CinderBelt ? 112 : 72;
+        var asteroids = new List<AsteroidCellDescriptor>(asteroidCount);
+        var occupied = new HashSet<GridPoint>(blocked);
+        var ferriteCells = 0;
+        for (var cellId = 0; cellId < asteroidCount; cellId++)
+        {
+            GridPoint position;
+            var placementAttempts = 0;
+            do
+            {
+                position = new(2 + NextInt(random, 0, FieldDescriptor.Width - 4), 2 + NextInt(random, 0, FieldDescriptor.Height - 4));
+                placementAttempts++;
+            } while (!occupied.Add(position) && placementAttempts < 512);
+            if (placementAttempts >= 512)
+                break;
+
+            // Ordinary cells provide cover/topology. Resource-bearing cells use catalog weights.
+            AsteroidCellKind kind;
+            if (NextInt(random, 0, 100) < 55)
+            {
+                kind = AsteroidCellKind.Ordinary;
+            }
+            else
+            {
+                var lumenPercent = identity.EnvironmentId == WorldRunIds.CinderBelt ? 15 : 30;
+                kind = NextInt(random, 0, 100) < lumenPercent
+                    ? AsteroidCellKind.Lumen
+                    : AsteroidCellKind.Ferrite;
+            }
+            if (kind == AsteroidCellKind.Ferrite)
+                ferriteCells++;
+            asteroids.Add(new(
+                cellId,
+                position,
+                kind,
+                kind == AsteroidCellKind.Ordinary ? 60 : 45,
+                identity.EnvironmentId == WorldRunIds.CinderBelt && NextInt(random, 0, 4) == 0));
+        }
+
+        EnsureObjectiveFerrite(asteroids, ferriteCells);
+        return CreateDescriptor(identity, attempt, sectors, corridors, asteroids, BuildHazards(identity, random));
+    }
+
+    private static FieldDescriptor GenerateFallback(GenerationIdentity identity)
+    {
+        var sectors = new[]
+        {
+            new SectorDescriptor(SectorKind.Spawn, new(4, 24)),
+            new SectorDescriptor(SectorKind.Objective, new(18, 24)),
+            new SectorDescriptor(SectorKind.Objective, new(32, 24)),
+            new SectorDescriptor(SectorKind.Objective, new(45, 24)),
+            new SectorDescriptor(SectorKind.EliteArena, new(54, 24)),
+            new SectorDescriptor(SectorKind.Extraction, new(59, 6))
+        };
+        var corridors = new[]
+        {
+            new CorridorDescriptor(new(4, 24), new(54, 24)),
+            new CorridorDescriptor(new(54, 24), new(59, 24)),
+            new CorridorDescriptor(new(59, 24), new(59, 6))
+        };
+        var asteroids = Enumerable.Range(0, 20)
+            .Select(index => new AsteroidCellDescriptor(
+                index,
+                new GridPoint(10 + index * 2, index % 2 == 0 ? 15 : 33),
+                index < 12 ? AsteroidCellKind.Ferrite : AsteroidCellKind.Ordinary,
+                45,
+                identity.EnvironmentId == WorldRunIds.CinderBelt && index % 4 == 0))
+            .ToArray();
+        var random = CreateAttemptRandom(identity, MaximumAttempts);
+        return CreateDescriptor(identity, MaximumAttempts, sectors, corridors, asteroids, BuildHazards(identity, random));
+    }
+
+    private static FieldDescriptor CreateDescriptor(
+        GenerationIdentity identity,
+        int attempt,
+        IEnumerable<SectorDescriptor> sectors,
+        IEnumerable<CorridorDescriptor> corridors,
+        IEnumerable<AsteroidCellDescriptor> asteroids,
+        IEnumerable<HazardDescriptor> hazards) =>
+        new()
+        {
+            Identity = identity,
+            Attempt = attempt,
+            Sectors = ReadOnly(sectors),
+            Corridors = ReadOnly(corridors),
+            AsteroidCells = ReadOnly(asteroids),
+            Hazards = ReadOnly(hazards)
+        };
+
+    private static IEnumerable<HazardDescriptor> BuildHazards(GenerationIdentity identity, Pcg32 random)
+    {
+        var hazards = new List<HazardDescriptor>();
+        if (identity.EnvironmentId == WorldRunIds.CinderBelt)
+        {
+            var resolve = 60 * 60L + NextInt(random, -5 * 60, 5 * 60 + 1);
+            while (hazards.Count < FieldDescriptor.MaximumHazards && resolve < WorldRunSimulation.DeadlineTick)
+            {
+                hazards.Add(new(resolve - 4 * 60, resolve, 25, default, 0, NextInt(random, 0, 8)));
+                resolve += 75 * 60L + NextInt(random, -10 * 60, 10 * 60 + 1);
+            }
+        }
+        else
+        {
+            for (var wave = 1;
+                 hazards.Count < FieldDescriptor.MaximumHazards &&
+                 wave * 45 * 60L < WorldRunSimulation.DeadlineTick;
+                 wave++)
+            for (var circle = 0; circle < 3 && hazards.Count < FieldDescriptor.MaximumHazards; circle++)
+            {
+                var resolve = wave * 45 * 60L;
+                hazards.Add(new(
+                    resolve - 150,
+                    resolve,
+                    30,
+                    new(6 + NextInt(random, 0, FieldDescriptor.Width - 12), 6 + NextInt(random, 0, FieldDescriptor.Height - 12)),
+                    3,
+                    0));
+            }
+        }
+        return hazards;
+    }
+
+    private static HashSet<GridPoint> BuildProtectedCells(
+        IEnumerable<SectorDescriptor> sectors,
+        IEnumerable<CorridorDescriptor> corridors)
+    {
+        var protectedCells = new HashSet<GridPoint>();
+        foreach (var sector in sectors)
+        for (var y = sector.Center.Y - 2; y <= sector.Center.Y + 2; y++)
+        for (var x = sector.Center.X - 2; x <= sector.Center.X + 2; x++)
+            protectedCells.Add(new(x, y));
+        foreach (var corridor in corridors)
+        foreach (var point in Rasterize(corridor))
+        for (var y = point.Y - 1; y <= point.Y + 1; y++)
+        for (var x = point.X - 1; x <= point.X + 1; x++)
+            protectedCells.Add(new(x, y));
+        return protectedCells;
+    }
+
+    internal static IEnumerable<GridPoint> Rasterize(CorridorDescriptor corridor)
+    {
+        var x = corridor.From.X;
+        var y = corridor.From.Y;
+        var dx = Math.Sign(corridor.To.X - x);
+        var dy = Math.Sign(corridor.To.Y - y);
+        while (x != corridor.To.X)
+        {
+            yield return new(x, y);
+            x += dx;
+        }
+        while (y != corridor.To.Y)
+        {
+            yield return new(x, y);
+            y += dy;
+        }
+        yield return corridor.To;
+    }
+
+    private static void EnsureObjectiveFerrite(List<AsteroidCellDescriptor> asteroids, int ferriteCells)
+    {
+        const int minimumFerriteCells = 15;
+        for (var index = 0; ferriteCells < minimumFerriteCells && index < asteroids.Count; index++)
+        {
+            if (asteroids[index].Kind != AsteroidCellKind.Ordinary)
+                continue;
+            asteroids[index] = asteroids[index] with { Kind = AsteroidCellKind.Ferrite, Health = 45 };
+            ferriteCells++;
+        }
+    }
+
+    private static Pcg32 CreateAttemptRandom(GenerationIdentity identity, int attempt)
+    {
+        var hash = StableHash.Add(StableHash.Offset, identity.RunSeed);
+        hash = StableHash.Add(hash, identity.EnvironmentId.Value);
+        hash = StableHash.Add(hash, unchecked((ulong)identity.ContentVersion));
+        hash = StableHash.Add(hash, unchecked((ulong)identity.GenerationVersion));
+        hash = StableHash.Add(hash, unchecked((ulong)identity.RngVersion));
+        hash = StableHash.Add(hash, unchecked((ulong)attempt));
+        var streams = new RandomStreams(hash);
+        return streams.Get(RngStream.Layout);
+    }
+
+    internal static int NextInt(Pcg32 random, int minimumInclusive, int maximumExclusive)
+    {
+        if (minimumInclusive >= maximumExclusive)
+            throw new ArgumentOutOfRangeException(nameof(maximumExclusive));
+        var range = (uint)(maximumExclusive - minimumInclusive);
+        var threshold = unchecked((uint)(0 - range)) % range;
+        uint value;
+        do value = random.NextUInt(); while (value < threshold);
+        return minimumInclusive + (int)(value % range);
+    }
+
+    private static ReadOnlyCollection<T> ReadOnly<T>(IEnumerable<T> values) =>
+        Array.AsReadOnly(values.ToArray());
+
+    private static void ValidateIdentity(GenerationIdentity identity)
+    {
+        if (identity.EnvironmentId != WorldRunIds.CinderBelt && identity.EnvironmentId != WorldRunIds.IonVeil)
+            throw new ArgumentException("Unsupported environment ID.", nameof(identity));
+        if (identity.ContentVersion != ContractVersions.Content ||
+            identity.GenerationVersion != CurrentGenerationVersion ||
+            identity.RngVersion != ContractVersions.Rng)
+            throw new ArgumentException("Unsupported generation identity version.", nameof(identity));
+    }
+}
+
+public static class EncounterValidator
+{
+    public static EncounterValidationResult Validate(FieldDescriptor? descriptor)
+    {
+        if (descriptor is null)
+            return new(false, ["Descriptor is required."]);
+        var issues = new List<string>();
+        if (descriptor.Sectors.Count != 6 ||
+            descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Spawn) != 1 ||
+            descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Objective) != 3 ||
+            descriptor.Sectors.Count(sector => sector.Kind == SectorKind.EliteArena) != 1 ||
+            descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Extraction) != 1)
+            issues.Add("Required sector cardinality is invalid.");
+        if (descriptor.AsteroidCells.Count > FieldDescriptor.MaximumAsteroidCells)
+            issues.Add("Asteroid cell bound exceeded.");
+        if (descriptor.Hazards.Count > FieldDescriptor.MaximumHazards)
+            issues.Add("Hazard bound exceeded.");
+        if (descriptor.AsteroidCells.GroupBy(cell => cell.CellId).Any(group => group.Count() != 1))
+            issues.Add("Asteroid cell IDs must be unique.");
+        if (descriptor.AsteroidCells.Sum(cell => cell.Kind == AsteroidCellKind.Ferrite ? 2 : 0) < 30)
+            issues.Add("Guaranteed Ferrite cannot satisfy the objective.");
+        if (descriptor.Sectors.Any(sector => !InBounds(sector.Center)) ||
+            descriptor.AsteroidCells.Any(cell => !InBounds(cell.Position)))
+            issues.Add("Descriptor contains out-of-bounds positions.");
+        if (descriptor.Sectors.Count > 0 && !RequiredSectorsReachable(descriptor))
+            issues.Add("Required sectors are not reachable with player clearance.");
+        if (descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Spawn) == 1 &&
+            descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Extraction) == 1)
+        {
+            var spawn = descriptor.Sectors.Single(sector => sector.Kind == SectorKind.Spawn).Center;
+            var extraction = descriptor.Sectors.Single(sector => sector.Kind == SectorKind.Extraction).Center;
+            var dx = (spawn.X - extraction.X) * FieldDescriptor.WorldUnitsPerCell;
+            var dy = (spawn.Y - extraction.Y) * FieldDescriptor.WorldUnitsPerCell;
+            if ((long)dx * dx + (long)dy * dy < 700L * 700L)
+                issues.Add("Extraction is less than 700 world units from spawn.");
+        }
+        return new(issues.Count == 0, issues.AsReadOnly());
+    }
+
+    private static bool RequiredSectorsReachable(FieldDescriptor descriptor)
+    {
+        var walkable = new bool[FieldDescriptor.Width, FieldDescriptor.Height];
+        foreach (var corridor in descriptor.Corridors)
+        foreach (var point in EncounterGenerator.Rasterize(corridor))
+        for (var y = point.Y - 1; y <= point.Y + 1; y++)
+        for (var x = point.X - 1; x <= point.X + 1; x++)
+            if (InBounds(new(x, y)))
+                walkable[x, y] = true;
+        foreach (var sector in descriptor.Sectors)
+        for (var y = sector.Center.Y - 2; y <= sector.Center.Y + 2; y++)
+        for (var x = sector.Center.X - 2; x <= sector.Center.X + 2; x++)
+            if (InBounds(new(x, y)))
+                walkable[x, y] = true;
+        foreach (var asteroid in descriptor.AsteroidCells)
+            walkable[asteroid.Position.X, asteroid.Position.Y] = false;
+
+        var spawn = descriptor.Sectors.FirstOrDefault(sector => sector.Kind == SectorKind.Spawn).Center;
+        if (!InBounds(spawn) || !walkable[spawn.X, spawn.Y])
+            return false;
+        var visited = new bool[FieldDescriptor.Width, FieldDescriptor.Height];
+        var queue = new Queue<GridPoint>();
+        queue.Enqueue(spawn);
+        visited[spawn.X, spawn.Y] = true;
+        var directions = new[] { new GridPoint(1, 0), new GridPoint(-1, 0), new GridPoint(0, 1), new GridPoint(0, -1) };
+        while (queue.TryDequeue(out var point))
+        foreach (var direction in directions)
+        {
+            var next = new GridPoint(point.X + direction.X, point.Y + direction.Y);
+            if (InBounds(next) && walkable[next.X, next.Y] && !visited[next.X, next.Y])
+            {
+                visited[next.X, next.Y] = true;
+                queue.Enqueue(next);
+            }
+        }
+        return descriptor.Sectors.All(sector => visited[sector.Center.X, sector.Center.Y]);
+    }
+
+    private static bool InBounds(GridPoint point) =>
+        point.X >= 0 && point.X < FieldDescriptor.Width &&
+        point.Y >= 0 && point.Y < FieldDescriptor.Height;
+}
