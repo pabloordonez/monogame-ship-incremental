@@ -311,6 +311,94 @@ public sealed class FlightCombatTests
         Assert.Null(exception);
     }
 
+    [Fact]
+    public void SeekerMissileRenderRotationTracksVelocityHeading()
+    {
+        var simulation = NewSimulation(Seeker);
+        // Straight free-fire along +Y (no lock): rotation must stay on that heading.
+        simulation.Queue(Command(0, aim: Vector2.UnitY, actions: FlightAction.Fire));
+        simulation.Step();
+
+        var items = new List<CombatRenderItem>(32);
+        simulation.CollectRenderItems(items);
+        var missiles = items.Where(item => item.Kind == CombatRenderKind.Projectile && item.IsMissile).ToList();
+        Assert.NotEmpty(missiles);
+        foreach (var missile in missiles)
+            Assert.InRange(WrapPi(missile.Rotation - MathF.PI / 2f), -0.05f, 0.05f);
+
+        var tracked = missiles[0];
+        var previous = tracked.Position;
+        var samples = 0;
+        for (var i = 0; i < 20; i++)
+        {
+            simulation.Step();
+            items.Clear();
+            simulation.CollectRenderItems(items);
+            var current = items.FirstOrDefault(item => item.Entity == tracked.Entity);
+            if (current.Entity == default)
+                break;
+            var delta = current.Position - previous;
+            if (delta.LengthSquared() > 0.0001f)
+            {
+                var heading = MathF.Atan2(delta.Y, delta.X);
+                Assert.InRange(WrapPi(current.Rotation - heading), -0.05f, 0.05f);
+                samples++;
+            }
+
+            previous = current.Position;
+            tracked = current;
+        }
+
+        Assert.True(samples > 0);
+
+        // Homing path: lock a target off the launch axis and keep rotation on velocity.
+        var target = simulation.SpawnEnemy(Interceptor, new Vector2(240, 120));
+        for (var i = 0; i < 40; i++)
+            simulation.Step();
+        var aim = Vector2.Normalize(new Vector2(240, 120));
+        simulation.Queue(Command(simulation.Tick, aim: aim, actions: FlightAction.Fire));
+        simulation.Step();
+        Assert.Contains(simulation.Events, value =>
+            value.Kind == CombatEventKind.WeaponFired && value.Other == target);
+
+        items.Clear();
+        simulation.CollectRenderItems(items);
+        missiles = items.Where(item => item.Kind == CombatRenderKind.Projectile && item.IsMissile).ToList();
+        Assert.NotEmpty(missiles);
+        tracked = missiles[0];
+        previous = tracked.Position;
+        samples = 0;
+        for (var i = 0; i < 40; i++)
+        {
+            simulation.Step();
+            items.Clear();
+            simulation.CollectRenderItems(items);
+            var current = items.FirstOrDefault(item => item.Entity == tracked.Entity);
+            if (current.Entity == default)
+                break;
+            var delta = current.Position - previous;
+            if (delta.LengthSquared() > 0.0001f)
+            {
+                Assert.InRange(WrapPi(current.Rotation - MathF.Atan2(delta.Y, delta.X)), -0.05f, 0.05f);
+                samples++;
+            }
+
+            previous = current.Position;
+            tracked = current;
+        }
+
+        Assert.True(samples > 0);
+    }
+
+    private static float WrapPi(float radians)
+    {
+        while (radians > MathF.PI)
+            radians -= MathF.Tau;
+        while (radians < -MathF.PI)
+            radians += MathF.Tau;
+        return radians;
+    }
+
     [Theory]
     [InlineData(MobilityBehavior.Dash, 240)]
     [InlineData(MobilityBehavior.Blink, 360)]

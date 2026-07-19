@@ -1,0 +1,8 @@
+Command:
+  dotnet test tests/ShipGame.Gameplay.Tests/ShipGame.Gameplay.Tests.csproj --filter "FullyQualifiedName~Seeker"
+
+Result:
+  Passed!  - Failed: 0, Passed: 3, Skipped: 0, Total: 3
+
+Working directory:
+  C:/Repositories/github/ship-game-u3-seeker

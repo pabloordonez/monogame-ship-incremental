@@ -38,6 +38,17 @@ internal sealed class IntegrateFlightMovementSystem(FlightCombatContext context)
             }
             if (context.Has<Homing>(entity))
                 context.GuideProjectile(entity);
+            // Missiles may fly straight without Homing; keep Transform.Rotation on velocity heading.
+            if (context.Has<Projectile>(entity) &&
+                context.World.Get<Projectile>(entity).IsMissile &&
+                velocity.Value.LengthSquared() > 0.0001f)
+            {
+                transform = transform with
+                {
+                    Rotation = MathF.Atan2(velocity.Value.Y, velocity.Value.X)
+                };
+            }
+
             transform = transform with { Position = transform.Position + velocity.Value * FlightCombatConstants.TickSeconds };
         }
     }

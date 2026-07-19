@@ -127,7 +127,7 @@ CI rejects duplicate IDs/paths, missing files, wrong dimensions, unresolved atla
 ### Required visual content
 
 - Wayfarer hull, engine frames, damage flash, shield mask, and dash/blink frames.
-- Pulse, beam, seeker missile, mining beam, and seismic charge.
+- Pulse, beam, seeker missile, mining beam, and seismic charge. Seeker missile frames face +X (nose right); ships face up. Rotated ship draws add +π/2; seeker draws subtract that offset so velocity heading matches the sprite.
 - Interceptor, Gunship, Sapper, elite outline/marker, and telegraphs.
 - Three asteroid sizes with ordinary/Ferrite/Lumen cell variants and break frames.
 - Ferrite, Lumen, Data Core, station upgrade icons, and extraction marker.

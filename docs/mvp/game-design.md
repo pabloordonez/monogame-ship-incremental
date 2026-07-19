@@ -115,7 +115,7 @@ Spawn anchors must be at least 450 units away and outside the camera. Compositio
 
 - Pulse Cannon fires discrete projectiles (10 damage, 5 shots/second, range 650).
 - Beam Emitter applies continuous hitscan damage at 100 DPS, range 600, with heat lockout after sustained fire.
-- Seeker Rack launches two missiles (16 damage each) every 0.6 seconds; they home inside a 35° aim cone, otherwise fly straight.
+- Seeker Rack launches two missiles (16 damage each) every 0.6 seconds; they home inside a 35° aim cone, otherwise fly straight. Missile facing follows velocity (seeker atlas is +X-forward; presentation cancels the ship-centric up-facing draw offset).
 - Shields recharge only after their no-damage delay.
 - Simultaneous damage resolves in stable source/entity order.
 - Player weapons apply a reduced share of listed damage to asteroid cells unless a module says otherwise.

@@ -157,7 +157,14 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                 }
                 case CombatRenderKind.Projectile:
                     if (item.IsMissile)
-                        canvas.DrawRegionRotated("projectiles/seeker", screen, item.Rotation, 10);
+                    {
+                        // DrawRegionRotated adds +π/2 for up-facing ship art; seeker atlas faces +X.
+                        canvas.DrawRegionRotated(
+                            "projectiles/seeker",
+                            screen,
+                            item.Rotation - MathF.PI / 2f,
+                            10);
+                    }
                     else
                         canvas.DrawRegion("projectiles/hostile", (int)screen.X - 3, (int)screen.Y - 3, 6, 6);
                     break;

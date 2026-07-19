@@ -355,6 +355,9 @@ internal sealed class FlightCombatContext
         var maxTurn = homing.TurnRadiansPerSecond * FlightCombatConstants.TickSeconds;
         var angle = currentAngle + Math.Clamp(difference, -maxTurn, maxTurn);
         velocity = new Velocity2(new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * homing.Speed);
+        // Keep render facing on the velocity heading (seekers home by rewriting velocity only).
+        ref var transform = ref World.Get<Transform2>(entity);
+        transform = transform with { Rotation = angle };
     }
 
     internal EntityId FindTargetInCone(EntityId source, Vector2 aim, float range, float halfConeDegrees)
