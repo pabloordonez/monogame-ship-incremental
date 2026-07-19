@@ -302,6 +302,46 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         }
     }
 
+    public void DrawBeamRay(
+        XnaVector2 shipCenter,
+        System.Numerics.Vector2 aim,
+        float rangeWorld,
+        float? hitDistanceWorld = null)
+    {
+        if (aim.LengthSquared() < 0.01f)
+            return;
+        var dir = System.Numerics.Vector2.Normalize(aim);
+        var start = new XnaVector2(shipCenter.X + dir.X * 14f, shipCenter.Y + dir.Y * 14f);
+        // World units map ~1:1 to virtual pixels near the ship; clamp so the beam reads on-screen.
+        var worldLength = hitDistanceWorld is > 0 and var hit
+            ? MathF.Min(hit, rangeWorld)
+            : rangeWorld;
+        var length = Math.Clamp(worldLength, 40f, 340f);
+        var rotation = MathF.Atan2(dir.Y, dir.X);
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 7f, new XnaColor(255, 140, 40, 70));
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 3f, new XnaColor(255, 200, 90, 180));
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 1f, new XnaColor(255, 245, 210, 240));
+        var tip = new XnaVector2(start.X + dir.X * length, start.Y + dir.Y * length);
+        Fill((int)start.X - 2, (int)start.Y - 2, 5, 5, new XnaColor(255, 240, 180));
+        if (hitDistanceWorld is > 0)
+            Fill((int)tip.X - 2, (int)tip.Y - 2, 5, 5, new XnaColor(255, 220, 120));
+        _drewSprites = true;
+    }
+
+    private void DrawRotatedBeamLayer(XnaVector2 start, float length, float rotation, float thickness, XnaColor color)
+    {
+        _spriteBatch.Draw(
+            _pixel,
+            start,
+            null,
+            color,
+            rotation,
+            new XnaVector2(0f, 0.5f),
+            new XnaVector2(length, thickness),
+            SpriteEffects.None,
+            0f);
+    }
+
     public void DrawAimReticle(System.Numerics.Vector2 mouseVirtual)
     {
         var x = (int)mouseVirtual.X;

@@ -82,7 +82,18 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                     canvas.DrawThrustTrail(screen, hints.MoveIntent, hud.RunTick);
                     canvas.DrawRegionRotated("ships/player/wayfarer", screen, item.Rotation, 32);
                     if (hints.FireHeld)
-                        canvas.DrawMuzzleFlash(screen, hints.AimDirection, hud.RunTick);
+                    {
+                        if (run.Combat.TryGetPlayerWeapon(out var weapon, out var beamRange) &&
+                            weapon == WeaponBehavior.Beam)
+                        {
+                            float? hit = run.Combat.TryGetPlayerBeamHitDistance(out var hitDistance)
+                                ? hitDistance
+                                : null;
+                            canvas.DrawBeamRay(screen, hints.AimDirection, beamRange, hit);
+                        }
+                        else
+                            canvas.DrawMuzzleFlash(screen, hints.AimDirection, hud.RunTick);
+                    }
                     if (hints.MineHeld)
                         canvas.DrawMineRay(screen, hints.AimDirection);
                     break;

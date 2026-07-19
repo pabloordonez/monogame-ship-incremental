@@ -130,10 +130,11 @@ public sealed class FlightCombatTests
     }
 
     [Fact]
-    public void BeamOverheatsAfterThreeSecondsAndRequiresTwoIdleSeconds()
+    public void BeamOverheatsAfterSixSecondsAndVentsWhileTriggerHeld()
     {
         var simulation = NewSimulation(Beam);
-        for (var tick = 0; tick < 180; tick++)
+        // HeatPerTick 0.5 → 360 ticks to reach 180.
+        for (var tick = 0; tick < 360; tick++)
         {
             simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
             simulation.Step();
@@ -141,12 +142,102 @@ public sealed class FlightCombatTests
 
         Assert.True(simulation.WeaponStatus(simulation.Player).HeatLocked);
         Assert.Equal(180, simulation.WeaponStatus(simulation.Player).Heat);
-        for (var tick = 0; tick < 119; tick++)
+
+        // CoolPerTick 3 while locked, even with Fire held.
+        for (var tick = 0; tick < 59; tick++)
+        {
+            simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
             simulation.Step();
+        }
+
         Assert.True(simulation.WeaponStatus(simulation.Player).HeatLocked);
+        simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
         simulation.Step();
         Assert.False(simulation.WeaponStatus(simulation.Player).HeatLocked);
         Assert.Equal(0, simulation.WeaponStatus(simulation.Player).Heat);
+    }
+
+    [Fact]
+    public void BeamDamagesEnemyAimedAtCenter()
+    {
+        var simulation = NewSimulation(Beam);
+        var target = simulation.SpawnEnemy(Interceptor, new Vector2(200, 0));
+        var beforeHull = simulation.Snapshot(target).Hull;
+        var fired = false;
+        var destroyed = false;
+        float? afterHull = null;
+        for (var i = 0; i < 30; i++)
+        {
+            simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
+            simulation.Step();
+            fired |= simulation.Events.Any(value => value.Kind == CombatEventKind.WeaponFired && value.Other == target);
+            destroyed |= simulation.Events.Any(value =>
+                value.Kind == CombatEventKind.EntityDestroyed && value.Entity == target);
+            if (!destroyed)
+                afterHull = simulation.Snapshot(target).Hull;
+        }
+
+        Assert.True(fired, "Expected WeaponFired against the aimed target.");
+        Assert.True(destroyed || afterHull < beforeHull, "Expected beam damage on-center.");
+    }
+
+    [Fact]
+    public void BeamKillsInterceptorQuicklyWhenHeldOnTarget()
+    {
+        var simulation = NewSimulation(Beam);
+        var target = simulation.SpawnEnemy(Interceptor, new Vector2(180, 0));
+        for (var i = 0; i < 45; i++)
+        {
+            simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
+            simulation.Step();
+            if (simulation.Events.Any(value => value.Kind == CombatEventKind.EntityDestroyed && value.Entity == target))
+                return;
+        }
+
+        Assert.Fail("Beam should delete a 28-hull interceptor within ~0.75s on target.");
+    }
+
+    [Fact]
+    public void BeamDamagesEnemyWhenAimSkimsCollider()
+    {
+        var simulation = NewSimulation(Beam);
+        // Interceptor collider radius 16; offset Y=12 keeps center outside a tight cone but ray clips body.
+        var target = simulation.SpawnEnemy(Interceptor, new Vector2(200, 12));
+        var beforeHull = simulation.Snapshot(target).Hull;
+        var destroyed = false;
+        float? afterHull = null;
+        for (var i = 0; i < 30; i++)
+        {
+            simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
+            simulation.Step();
+            destroyed |= simulation.Events.Any(value =>
+                value.Kind == CombatEventKind.EntityDestroyed && value.Entity == target);
+            if (!destroyed)
+                afterHull = simulation.Snapshot(target).Hull;
+        }
+
+        Assert.True(destroyed || afterHull < beforeHull, "Expected collider-aware beam hit.");
+    }
+
+    [Fact]
+    public void BeamDoesNotDamageFarOffAngleEnemy()
+    {
+        var simulation = NewSimulation(Beam);
+        var target = simulation.SpawnEnemy(Interceptor, new Vector2(200, 180));
+        var before = simulation.Snapshot(target);
+        var firedAtTarget = false;
+        for (var i = 0; i < 30; i++)
+        {
+            simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
+            simulation.Step();
+            firedAtTarget |= simulation.Events.Any(value =>
+                value.Kind == CombatEventKind.WeaponFired && value.Other == target);
+        }
+
+        var after = simulation.Snapshot(target);
+        Assert.False(firedAtTarget);
+        Assert.Equal(before.Hull, after.Hull);
+        Assert.False(after.Destroyed);
     }
 
     [Fact]

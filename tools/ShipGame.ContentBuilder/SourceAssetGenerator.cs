@@ -3,15 +3,16 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 
+/// <summary>
+/// Packs authored per-region sprites into atlas PNGs + metadata JSON.
+/// Does not invent pixel art; sprites live under content/source/textures/sprites/.
+/// </summary>
 internal static class SourceAssetGenerator
 {
-    private static readonly Rgba[] Palette =
-    [
-        new(0, 0, 0, 0), new(6, 10, 22), new(16, 25, 46), new(42, 55, 79),
-        new(91, 107, 127), new(190, 207, 214), new(244, 241, 222), new(43, 205, 219),
-        new(96, 239, 255), new(237, 75, 55), new(255, 137, 60), new(255, 214, 92),
-        new(70, 190, 102), new(145, 232, 126), new(137, 85, 211), new(207, 126, 255)
-    ];
+    private static readonly JsonSerializerOptions JsonRead = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     private static readonly JsonSerializerOptions JsonWrite = new()
     {
@@ -19,456 +20,233 @@ internal static class SourceAssetGenerator
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public static void Generate(string sourceRoot)
+    public static void Generate(string sourceRoot) => PackAtlases(sourceRoot);
+
+    public static void PackAtlases(string sourceRoot)
     {
-        var textureRoot = Path.Combine(sourceRoot, "textures", "atlases");
-        var backgroundRoot = Path.Combine(sourceRoot, "textures", "backgrounds");
+        var catalogPath = Path.Combine(sourceRoot, "data", "atlas-pack-catalog.json");
+        if (!File.Exists(catalogPath))
+            throw new FileNotFoundException("Missing atlas pack catalog.", catalogPath);
+
+        var catalog = JsonSerializer.Deserialize<PackCatalog>(File.ReadAllText(catalogPath), JsonRead)
+            ?? throw new InvalidDataException("atlas-pack-catalog.json is empty.");
+
+        var spriteRoot = Path.Combine(sourceRoot, catalog.SpriteRoot.Replace('/', Path.DirectorySeparatorChar));
+        var atlasRoot = Path.Combine(sourceRoot, catalog.AtlasRoot.Replace('/', Path.DirectorySeparatorChar));
         var dataRoot = Path.Combine(sourceRoot, "data");
-        var sfxRoot = Path.Combine(sourceRoot, "sfx");
-        Directory.CreateDirectory(textureRoot);
-        Directory.CreateDirectory(backgroundRoot);
+        Directory.CreateDirectory(atlasRoot);
         Directory.CreateDirectory(dataRoot);
-        Directory.CreateDirectory(sfxRoot);
 
-        WriteAtlas(
-            Path.Combine(textureRoot, "player-modules.png"),
-            Path.Combine(dataRoot, "atlas-player-modules.json"),
-            "atlases/player-modules",
-            PlayerModules(),
-            PlayerCollisions());
-        WriteAtlas(
-            Path.Combine(textureRoot, "enemies-telegraphs.png"),
-            Path.Combine(dataRoot, "atlas-enemies-telegraphs.json"),
-            "atlases/enemies-telegraphs",
-            EnemyTelegraphs(),
-            EnemyCollisions());
-        WriteAtlas(
-            Path.Combine(textureRoot, "asteroids-resources.png"),
-            Path.Combine(dataRoot, "atlas-asteroids-resources.json"),
-            "atlases/asteroids-resources",
-            AsteroidsResources(),
-            AsteroidCollisions());
-        WriteAtlas(
-            Path.Combine(textureRoot, "ui-icons.png"),
-            Path.Combine(dataRoot, "atlas-ui-icons.json"),
-            "atlases/ui-icons",
-            UiIcons(),
-            []);
-        WriteBackground(Path.Combine(backgroundRoot, "cinder-belt.png"), warm: true);
-        WriteBackground(Path.Combine(backgroundRoot, "ion-veil.png"), warm: false);
-        WriteContactSheet(Path.Combine(textureRoot, "contact-sheet.png"));
-        WriteWav(Path.Combine(sfxRoot, "essential-cues.wav"));
+        foreach (var atlas in catalog.Atlases)
+        {
+            PackAtlas(atlas, spriteRoot, atlasRoot, dataRoot, catalog.AtlasSize, catalog.Gap, catalog.Padding, catalog.Extrusion);
+        }
+
+        var dataRootForSheet = Path.Combine(sourceRoot, "data");
+        WriteContactSheet(
+            Path.Combine(atlasRoot, "contact-sheet.png"),
+            atlasRoot,
+            dataRootForSheet,
+            catalog);
+        Console.WriteLine($"Packed {catalog.Atlases.Count} atlases from authored sprites.");
     }
 
-    private static List<RegionDef> PlayerModules() =>
-    [
-        // Animation fps reserved; frames=[0] until multi-frame strips are packed.
-        Region("ships/player/wayfarer", 64, 64, Family.Player, 0, hardpoints: WayfarerHardpoints(), collision: "collision/wayfarer"),
-        Region("ships/player/engine", 64, 64, Family.Player, 1, animation: Anim(8, 1)),
-        Region("ships/player/damage-flash", 64, 64, Family.Player, 2, animation: Anim(12, 1)),
-        Region("ships/player/shield-mask", 64, 64, Family.Player, 3),
-        Region("ships/player/dash", 64, 64, Family.Player, 4, animation: Anim(12, 1)),
-        Region("ships/player/blink", 64, 64, Family.Player, 5, animation: Anim(12, 1)),
-        Region("ships/utility/firefly", 32, 32, Family.Player, 6, animation: Anim(8, 1), collision: "collision/projectile"),
-        Region("weapons/pulse", 16, 16, Family.Weapon, 0, collision: "collision/projectile"),
-        Region("weapons/beam", 16, 32, Family.Weapon, 1, animation: Anim(12, 1)),
-        Region("weapons/seeker", 12, 12, Family.Weapon, 2, animation: Anim(8, 1), collision: "collision/projectile"),
-        Region("weapons/mining-beam", 16, 32, Family.Weapon, 3, animation: Anim(12, 1)),
-        Region("weapons/seismic-charge", 16, 16, Family.Weapon, 4, animation: Anim(6, 1), collision: "collision/projectile"),
-        Region("effects/tractor", 32, 32, Family.Player, 7, animation: Anim(8, 1))
-    ];
-
-    private static List<RegionDef> EnemyTelegraphs() =>
-    [
-        Region("enemies/interceptor", 32, 32, Family.Enemy, 0, animation: Anim(8, 1), collision: "collision/enemy-small",
-            hardpoints: Dict(("primaryWeapon", 16, 4), ("leftEngine", 8, 26), ("rightEngine", 24, 26))),
-        Region("enemies/gunship", 64, 64, Family.Enemy, 1, animation: Anim(6, 1), collision: "collision/enemy-medium",
-            hardpoints: Dict(("primaryWeapon", 32, 8))),
-        Region("enemies/sapper", 48, 48, Family.Enemy, 2, animation: Anim(8, 1), collision: "collision/enemy-small",
-            hardpoints: Dict(("utility", 24, 36))),
-        Region("enemies/elite-outline", 64, 64, Family.Enemy, 3, animation: Anim(8, 1)),
-        Region("projectiles/hostile", 12, 12, Family.HostileProjectile, 0, collision: "collision/projectile"),
-        Region("telegraphs/elite-marker", 32, 32, Family.Telegraph, 0, animation: Anim(6, 1)),
-        Region("telegraphs/muzzle-flash", 32, 32, Family.Telegraph, 1, animation: Anim(12, 1)),
-        Region("telegraphs/aim-line", 64, 16, Family.Telegraph, 2, animation: Anim(12, 1)),
-        Region("telegraphs/mine-radius", 64, 64, Family.Telegraph, 3, animation: Anim(8, 1)),
-        Region("effects/enemy-destruction", 64, 64, Family.Enemy, 4, animation: Anim(12, 1))
-    ];
-
-    private static List<RegionDef> AsteroidsResources() =>
-    [
-        Region("asteroids/small/ordinary", 32, 32, Family.Asteroid, 0, collision: "collision/asteroid-small"),
-        Region("asteroids/small/ferrite", 32, 32, Family.Asteroid, 1, collision: "collision/asteroid-small"),
-        Region("asteroids/small/lumen", 32, 32, Family.Asteroid, 2, collision: "collision/asteroid-small"),
-        Region("asteroids/medium/ordinary", 64, 64, Family.Asteroid, 3, collision: "collision/asteroid-medium"),
-        Region("asteroids/medium/ferrite", 64, 64, Family.Asteroid, 4, collision: "collision/asteroid-medium"),
-        Region("asteroids/medium/lumen", 64, 64, Family.Asteroid, 5, collision: "collision/asteroid-medium"),
-        Region("asteroids/large/ordinary", 96, 96, Family.Asteroid, 6, collision: "collision/asteroid-large"),
-        Region("asteroids/large/ferrite", 96, 96, Family.Asteroid, 7, collision: "collision/asteroid-large"),
-        Region("asteroids/large/lumen", 96, 96, Family.Asteroid, 8, collision: "collision/asteroid-large"),
-        Region("asteroids/break", 32, 32, Family.Asteroid, 9, animation: Anim(8, 1)),
-        Region("pickups/ferrite", 10, 10, Family.Pickup, 0, animation: Anim(8, 1), collision: "collision/pickup"),
-        Region("pickups/lumen", 10, 10, Family.Pickup, 1, animation: Anim(8, 1), collision: "collision/pickup"),
-        Region("pickups/data-core", 12, 12, Family.Pickup, 2, animation: Anim(8, 1), collision: "collision/pickup"),
-        Region("pickups/upgrade-charge", 12, 12, Family.Pickup, 3, animation: Anim(8, 1), collision: "collision/pickup"),
-        Region("field/extraction-marker", 32, 32, Family.Field, 0, animation: Anim(6, 1)),
-        Region("field/cover-cue", 32, 32, Family.Field, 1),
-        Region("hazards/solar-flare", 64, 32, Family.Hazard, 0, animation: Anim(12, 1)),
-        Region("hazards/ion-cloud", 48, 48, Family.Hazard, 1, animation: Anim(8, 1)),
-        Region("hazards/star-glow", 48, 48, Family.Hazard, 2, animation: Anim(6, 1))
-    ];
-
-    private static List<RegionDef> UiIcons()
+    private static void PackAtlas(
+        AtlasPackDef atlas,
+        string spriteRoot,
+        string atlasRoot,
+        string dataRoot,
+        int atlasSize,
+        int gap,
+        int padding,
+        int extrusion)
     {
-        string[] ids =
-        [
-            "ui/icons/resource-ferrite", "ui/icons/resource-lumen", "ui/icons/resource-data-core", "ui/icons/lock",
-            "ui/icons/module-weapon", "ui/icons/module-mining", "ui/icons/module-shield", "ui/icons/module-engine",
-            "ui/icons/module-utility", "ui/icons/upgrade-damage", "ui/icons/upgrade-rate", "ui/icons/upgrade-fork",
-            "ui/icons/upgrade-pierce", "ui/icons/upgrade-shield", "ui/icons/upgrade-reboot", "ui/icons/upgrade-hull",
-            "ui/icons/upgrade-speed", "ui/icons/upgrade-mobility", "ui/icons/upgrade-mining", "ui/icons/upgrade-tractor",
-            "ui/icons/upgrade-shock", "ui/icons/research-hull", "ui/icons/research-shield", "ui/icons/research-beam",
-            "ui/icons/research-seeker", "ui/icons/research-mining", "ui/icons/research-assay", "ui/icons/research-engine",
-            "ui/icons/research-blink", "ui/icons/research-drone", "ui/icons/research-tractor", "ui/icons/research-ion",
-            "ui/icons/research-recovery", "ui/icons/objective", "ui/icons/interact", "ui/icons/pause",
-            "ui/icons/input-keyboard", "ui/icons/input-gamepad", "ui/icons/hull", "ui/icons/shield"
-        ];
-        return ids.Select((id, index) => Region(id, 32, 32, Family.Ui, index)).ToList();
-    }
+        var regions = atlas.Regions.Select(region =>
+        {
+            var spritePath = Path.Combine(spriteRoot, region.Id.Replace('/', Path.DirectorySeparatorChar) + ".png");
+            if (!File.Exists(spritePath))
+                throw new FileNotFoundException($"Missing authored sprite for '{region.Id}'.", spritePath);
 
-    private static List<object> PlayerCollisions() =>
-    [
-        Collision("collision/wayfarer", "circle", [32, 32, 18]),
-        Collision("collision/projectile", "circle", [8, 8, 3])
-    ];
+            var sprite = Png.Read(spritePath);
+            if (sprite.Width != region.Width || sprite.Height != region.Height)
+            {
+                throw new InvalidDataException(
+                    $"Sprite '{region.Id}' is {sprite.Width}x{sprite.Height}, expected {region.Width}x{region.Height}.");
+            }
 
-    private static List<object> EnemyCollisions() =>
-    [
-        Collision("collision/enemy-small", "circle", [16, 16, 12]),
-        Collision("collision/enemy-medium", "circle", [32, 32, 20]),
-        Collision("collision/projectile", "circle", [6, 6, 3])
-    ];
+            return new PackedRegion(region, sprite);
+        }).ToList();
 
-    private static List<object> AsteroidCollisions() =>
-    [
-        Collision("collision/asteroid-small", "circle", [16, 16, 12]),
-        Collision("collision/asteroid-medium", "circle", [32, 32, 24]),
-        Collision("collision/asteroid-large", "circle", [48, 48, 40]),
-        Collision("collision/pickup", "circle", [6, 6, 5])
-    ];
-
-    private static Dictionary<string, object> WayfarerHardpoints() => Dict(
-        ("primaryWeapon", 32, 8),
-        ("miningTool", 18, 18),
-        ("utility", 46, 28),
-        ("leftEngine", 20, 52),
-        ("rightEngine", 44, 52),
-        ("shieldOrigin", 32, 32));
-
-    private static void WriteAtlas(
-        string pngPath,
-        string jsonPath,
-        string textureAssetId,
-        List<RegionDef> regions,
-        List<object> collisions)
-    {
-        const int atlasSize = 512;
-        const int gap = 5;
-        Pack(regions, atlasSize, gap);
+        PackShelf(regions, atlasSize, gap);
         var image = new Image(atlasSize, atlasSize);
         foreach (var region in regions)
-            DrawRegion(image, region);
+            image.Blit(region.Sprite, region.X, region.Y);
 
+        var pngPath = Path.Combine(atlasRoot, atlas.AtlasFile);
+        var jsonPath = Path.Combine(dataRoot, atlas.MetadataFile);
         Png.Write(pngPath, image);
+
         var document = new Dictionary<string, object?>
         {
             ["schemaVersion"] = 1,
-            ["textureAssetId"] = textureAssetId,
+            ["textureAssetId"] = atlas.TextureAssetId,
             ["width"] = atlasSize,
             ["height"] = atlasSize,
-            ["padding"] = 2,
-            ["extrusion"] = 1,
+            ["padding"] = padding,
+            ["extrusion"] = extrusion,
             ["rotatedPacking"] = false,
-            ["collisions"] = collisions,
+            ["collisions"] = atlas.Collisions,
             ["regions"] = regions.Select(region => new Dictionary<string, object?>
             {
-                ["id"] = region.Id,
+                ["id"] = region.Def.Id,
                 ["x"] = region.X,
                 ["y"] = region.Y,
-                ["width"] = region.Width,
-                ["height"] = region.Height,
+                ["width"] = region.Def.Width,
+                ["height"] = region.Def.Height,
                 ["pivotX"] = 0.5,
                 ["pivotY"] = 0.5,
-                ["collision"] = region.Collision,
-                ["hardpoints"] = region.Hardpoints,
-                ["animation"] = region.Animation
+                ["collision"] = region.Def.Collision,
+                ["hardpoints"] = region.Def.Hardpoints,
+                ["animation"] = region.Def.Animation
             }).ToList()
         };
         File.WriteAllText(jsonPath, JsonSerializer.Serialize(document, JsonWrite) + Environment.NewLine);
     }
 
-    private static void Pack(List<RegionDef> regions, int atlasSize, int gap)
+    private static void PackShelf(List<PackedRegion> regions, int atlasSize, int gap)
     {
-        var ordered = regions.OrderByDescending(region => region.Height * 1000 + region.Width).ToList();
+        var ordered = regions.OrderByDescending(region => region.Def.Height * 1000 + region.Def.Width).ToList();
         var x = gap;
         var y = gap;
         var rowHeight = 0;
         foreach (var region in ordered)
         {
-            if (x + region.Width + gap > atlasSize)
+            if (x + region.Def.Width + gap > atlasSize)
             {
                 x = gap;
                 y += rowHeight + gap;
                 rowHeight = 0;
             }
-            if (y + region.Height + gap > atlasSize)
-                throw new InvalidOperationException($"Atlas overflow packing '{region.Id}'.");
+            if (y + region.Def.Height + gap > atlasSize)
+                throw new InvalidOperationException($"Atlas overflow packing '{region.Def.Id}'.");
             region.X = x;
             region.Y = y;
-            x += region.Width + gap;
-            rowHeight = Math.Max(rowHeight, region.Height);
+            x += region.Def.Width + gap;
+            rowHeight = Math.Max(rowHeight, region.Def.Height);
         }
 
-        // Restore stable catalog order for JSON readability.
-        var positions = ordered.ToDictionary(region => region.Id);
+        var positions = ordered.ToDictionary(region => region.Def.Id);
         foreach (var region in regions)
         {
-            var packed = positions[region.Id];
+            var packed = positions[region.Def.Id];
             region.X = packed.X;
             region.Y = packed.Y;
         }
     }
 
-    private static void DrawRegion(Image image, RegionDef region)
+    private static void WriteContactSheet(string path, string atlasRoot, string dataRoot, PackCatalog catalog)
     {
-        var cx = region.X + region.Width / 2;
-        var cy = region.Y + region.Height / 2;
-        var primary = Palette[7 + ((region.Seed + (int)region.Family) % 9)];
-        var secondary = Palette[3 + ((region.Seed * 3 + (int)region.Family) % 4)];
-        var accent = region.Family is Family.Enemy or Family.Telegraph or Family.Hazard ? Palette[9] : primary;
+        var image = new Image(640, 360, new Rgba(6, 10, 22));
+        Rgba[] swatches =
+        [
+            new(16, 25, 46), new(42, 55, 79), new(91, 107, 127), new(190, 207, 214),
+            new(244, 241, 222), new(43, 205, 219), new(96, 239, 255), new(237, 75, 55),
+            new(255, 137, 60), new(255, 214, 92), new(70, 190, 102), new(145, 232, 126),
+            new(137, 85, 211), new(207, 126, 255)
+        ];
+        for (var i = 0; i < swatches.Length; i++)
+            image.Rect(16 + i * 38, 16, 32, 32, swatches[i]);
 
-        switch (region.Family)
+        var samples = new (string Atlas, string Id, int X, int Y)[]
         {
-            case Family.Player:
-                image.Diamond(cx, cy, Math.Max(4, region.Width / 3), Math.Max(4, region.Height / 3), Palette[5]);
-                image.Rect(cx - 2, region.Y + 2, 5, Math.Max(6, region.Height / 2), primary);
-                image.Rect(region.X + 4, region.Y + region.Height - 10, 6, 6, Palette[8]);
-                image.Rect(region.X + region.Width - 10, region.Y + region.Height - 10, 6, 6, Palette[8]);
-                break;
-            case Family.Weapon:
-                // Friendly projectile: tall vertical bolt (shape + luminance, not hue alone).
-                image.Rect(cx - 1, region.Y + 1, 3, region.Height - 2, Palette[8]);
-                image.Rect(cx - 2, cy - Math.Max(2, region.Height / 4), 5, Math.Max(3, region.Height / 2), Palette[7]);
-                image.Rect(cx, cy - 1, 1, 2, Palette[6]);
-                break;
-            case Family.HostileProjectile:
-                // Hostile projectile: wide chevron / horizontal wedge, darker silhouette.
-                image.Rect(region.X + 1, cy - 1, region.Width - 2, 3, Palette[9]);
-                image.Rect(region.X + 2, cy - 3, region.Width / 2, 2, Palette[10]);
-                image.Rect(region.X + 2, cy + 2, region.Width / 2, 2, Palette[10]);
-                image.Rect(cx, cy - 1, 2, 3, Palette[3]);
-                break;
-            case Family.Enemy:
-                image.Rect(region.X + 2, cy - 3, region.Width - 4, 7, accent);
-                image.Rect(cx - 3, region.Y + 2, 7, region.Height - 4, secondary);
-                image.Rect(cx - 1, cy - 1, 3, 3, Palette[6]);
-                break;
-            case Family.Telegraph:
-                image.Rect(region.X + 1, cy - 1, region.Width - 2, 3, Palette[10]);
-                image.Rect(cx - 1, region.Y + 1, 3, region.Height - 2, Palette[10]);
-                break;
-            case Family.Asteroid:
-                // Shape-distinct ore variants (not hue-only): ordinary diamond, ferrite block, lumen ring.
-                var radius = Math.Max(4, Math.Min(region.Width, region.Height) / 2 - 2);
-                if (region.Id.Contains("ferrite", StringComparison.Ordinal))
-                {
-                    image.Rect(cx - radius + 1, cy - radius + 1, radius * 2 - 1, radius * 2 - 1, secondary);
-                    image.Rect(cx - radius + 3, cy - 1, radius * 2 - 5, 3, Palette[11]);
-                    image.Rect(cx - 1, cy - radius + 3, 3, radius * 2 - 5, Palette[11]);
-                }
-                else if (region.Id.Contains("lumen", StringComparison.Ordinal))
-                {
-                    image.Diamond(cx, cy, radius, radius - 1, Palette[4]);
-                    image.Diamond(cx, cy, Math.Max(2, radius / 2), Math.Max(2, radius / 2 - 1), Palette[0]);
-                    image.Rect(cx - 1, cy - radius + 1, 3, 3, Palette[14]);
-                }
-                else
-                {
-                    image.Diamond(cx, cy, radius, radius - 1, secondary);
-                }
-                break;
-            case Family.Pickup:
-                if (region.Id.Contains("ferrite", StringComparison.Ordinal))
-                {
-                    image.Rect(region.X + 1, region.Y + 1, region.Width - 2, region.Height - 2, Palette[11]);
-                    image.Rect(cx - 1, cy - 1, 2, 2, Palette[3]);
-                }
-                else if (region.Id.Contains("lumen", StringComparison.Ordinal))
-                {
-                    image.Diamond(cx, cy, region.Width / 2 - 1, region.Height / 2 - 1, Palette[14]);
-                    image.Rect(cx, region.Y + 1, 1, region.Height - 2, Palette[6]);
-                }
-                else
-                {
-                    image.Diamond(cx, cy, region.Width / 2 - 1, region.Height / 2 - 1, primary);
-                    image.Rect(cx - 1, cy - 1, 2, 2, Palette[6]);
-                }
-                break;
-            case Family.Field:
-                image.Rect(region.X + 4, region.Y + 4, region.Width - 8, region.Height - 8, Palette[11]);
-                image.Rect(cx - 1, region.Y + 2, 3, region.Height - 4, Palette[6]);
-                break;
-            case Family.Hazard:
-                image.Diamond(cx, cy, region.Width / 3, region.Height / 3, accent);
-                image.Rect(region.X + 2, cy, region.Width - 4, 2, Palette[10]);
-                break;
-            case Family.Ui:
-                image.Diamond(cx, cy, 10, 10, primary);
-                image.Rect(cx - 2, cy - 8, 5, 17, Palette[1]);
-                image.Rect(cx - 8, cy - 2, 17, 5, Palette[1]);
-                if (region.Seed % 2 == 0)
-                    image.Rect(cx - 2, cy - 2, 5, 5, Palette[6]);
-                break;
-        }
-    }
+            ("player-modules.png", "ships/player/wayfarer", 40, 80),
+            ("enemies-telegraphs.png", "enemies/interceptor", 120, 80),
+            ("enemies-telegraphs.png", "enemies/gunship", 170, 80),
+            ("enemies-telegraphs.png", "enemies/sapper", 250, 80),
+            ("asteroids-resources.png", "asteroids/small/ordinary", 320, 80),
+            ("asteroids-resources.png", "asteroids/medium/ordinary", 370, 80),
+            ("asteroids-resources.png", "asteroids/large/ordinary", 450, 80),
+            ("asteroids-resources.png", "pickups/ferrite", 40, 200),
+            ("asteroids-resources.png", "pickups/data-core", 70, 200),
+            ("ui-icons.png", "ui/icons/resource-ferrite", 110, 200),
+            ("ui-icons.png", "ui/icons/shield", 160, 200)
+        };
 
-    private static void WriteBackground(string path, bool warm)
-    {
-        var image = new Image(640, 360, Palette[1]);
-        for (var i = 0; i < 150; i++)
-        {
-            var x = (i * 97 + 31) % image.Width;
-            var y = (i * 53 + 17) % image.Height;
-            var color = i % 9 == 0 ? (warm ? Palette[10] : Palette[15]) : Palette[4];
-            image.Rect(x, y, i % 13 == 0 ? 2 : 1, i % 13 == 0 ? 2 : 1, color);
-        }
-        var glow = warm ? Palette[10] : Palette[7];
-        image.Diamond(warm ? 90 : 530, warm ? 80 : 110, 25, 25, glow);
-        image.Diamond(warm ? 90 : 530, warm ? 80 : 110, 10, 10, Palette[6]);
-        Png.Write(path, image);
-    }
-
-    private static void WriteContactSheet(string path)
-    {
-        var image = new Image(640, 360, Palette[1]);
-        for (var i = 1; i < Palette.Length; i++)
-            image.Rect(16 + (i - 1) * 38, 16, 32, 32, Palette[i]);
-        DrawSized(image, 40, 80, 64, 64, Family.Player, 0);
-        DrawSized(image, 120, 80, 32, 32, Family.Enemy, 0);
-        DrawSized(image, 170, 80, 64, 64, Family.Enemy, 1);
-        DrawSized(image, 250, 80, 48, 48, Family.Enemy, 2);
-        DrawSized(image, 320, 80, 32, 32, Family.Asteroid, 0);
-        DrawSized(image, 370, 80, 64, 64, Family.Asteroid, 3);
-        DrawSized(image, 450, 80, 96, 96, Family.Asteroid, 6);
-        DrawSized(image, 40, 200, 10, 10, Family.Pickup, 0);
-        DrawSized(image, 70, 200, 12, 12, Family.Pickup, 2);
-        DrawSized(image, 110, 200, 32, 32, Family.Ui, 0);
-        DrawSized(image, 160, 200, 24, 24, Family.Ui, 1);
-        Png.Write(path, image);
-    }
-
-    private static void DrawSized(Image image, int x, int y, int width, int height, Family family, int seed)
-    {
-        var region = Region("preview", width, height, family, seed);
-        region.X = x;
-        region.Y = y;
-        DrawRegion(image, region);
-    }
-
-    private static void WriteWav(string path)
-    {
-        const int sampleRate = 22050;
-        const int cueSamples = 1102;
-        const int cueCount = 12;
-        var samples = new short[cueSamples * cueCount];
-        for (var cue = 0; cue < cueCount; cue++)
-        for (var i = 0; i < cueSamples; i++)
-        {
-            var envelope = 1.0 - i / (double)cueSamples;
-            var frequency = 180 + cue * 55;
-            samples[cue * cueSamples + i] = (short)(Math.Sin(2 * Math.PI * frequency * i / sampleRate) * envelope * 9000);
-        }
-
-        using var stream = File.Create(path);
-        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: false);
-        writer.Write(Encoding.ASCII.GetBytes("RIFF"));
-        writer.Write(36 + samples.Length * 2);
-        writer.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
-        writer.Write(16);
-        writer.Write((short)1);
-        writer.Write((short)1);
-        writer.Write(sampleRate);
-        writer.Write(sampleRate * 2);
-        writer.Write((short)2);
-        writer.Write((short)16);
-        writer.Write(Encoding.ASCII.GetBytes("data"));
-        writer.Write(samples.Length * 2);
+        var atlasCache = new Dictionary<string, (Image Image, Dictionary<string, (int X, int Y, int W, int H)> Regions)>(StringComparer.Ordinal);
         foreach (var sample in samples)
-            writer.Write(sample);
+        {
+            if (!atlasCache.TryGetValue(sample.Atlas, out var packed))
+            {
+                var atlasPath = Path.Combine(atlasRoot, sample.Atlas);
+                var metaName = catalog.Atlases.First(a => a.AtlasFile == sample.Atlas).MetadataFile;
+                var metaPath = Path.Combine(dataRoot, metaName);
+                var atlasImage = Png.Read(atlasPath);
+                var meta = JsonSerializer.Deserialize<AtlasMetaDoc>(File.ReadAllText(metaPath), JsonRead)
+                    ?? throw new InvalidDataException(metaPath);
+                var map = meta.Regions.ToDictionary(
+                    r => r.Id,
+                    r => (r.X, r.Y, r.Width, r.Height),
+                    StringComparer.Ordinal);
+                packed = (atlasImage, map);
+                atlasCache[sample.Atlas] = packed;
+            }
+
+            if (!packed.Regions.TryGetValue(sample.Id, out var rect))
+                continue;
+            packed.Image.CopyRegion(image, rect.X, rect.Y, rect.W, rect.H, sample.X, sample.Y);
+        }
+
+        Png.Write(path, image);
     }
 
-    private static RegionDef Region(
-        string id,
-        int width,
-        int height,
-        Family family,
-        int seed,
-        object? animation = null,
-        string? collision = null,
-        Dictionary<string, object>? hardpoints = null) =>
-        new(id, width, height, family, seed, animation, collision, hardpoints);
-
-    private static object Anim(int fps, int frames) => new Dictionary<string, object>
+    private sealed class PackCatalog
     {
-        ["fps"] = fps,
-        ["frames"] = Enumerable.Range(0, frames).ToArray()
-    };
-
-    private static Dictionary<string, object> Dict(params (string Name, int X, int Y)[] points) =>
-        points.ToDictionary(
-            point => point.Name,
-            point => (object)new Dictionary<string, int> { ["x"] = point.X, ["y"] = point.Y },
-            StringComparer.Ordinal);
-
-    private static object Collision(string id, string kind, double[] values) => new Dictionary<string, object>
-    {
-        ["id"] = id,
-        ["kind"] = kind,
-        ["values"] = values
-    };
-
-    private enum Family
-    {
-        Player,
-        Weapon,
-        HostileProjectile,
-        Enemy,
-        Telegraph,
-        Asteroid,
-        Pickup,
-        Field,
-        Hazard,
-        Ui
+        public string SpriteRoot { get; set; } = "textures/sprites";
+        public string AtlasRoot { get; set; } = "textures/atlases";
+        public int AtlasSize { get; set; } = 512;
+        public int Gap { get; set; } = 5;
+        public int Padding { get; set; } = 2;
+        public int Extrusion { get; set; } = 1;
+        public List<AtlasPackDef> Atlases { get; set; } = [];
     }
 
-    private sealed class RegionDef(
-        string id,
-        int width,
-        int height,
-        Family family,
-        int seed,
-        object? animation,
-        string? collision,
-        Dictionary<string, object>? hardpoints)
+    private sealed class AtlasPackDef
     {
-        public string Id { get; } = id;
-        public int Width { get; } = width;
-        public int Height { get; } = height;
-        public Family Family { get; } = family;
-        public int Seed { get; } = seed;
-        public object? Animation { get; } = animation;
-        public string? Collision { get; } = collision;
-        public Dictionary<string, object>? Hardpoints { get; } = hardpoints;
+        public string TextureAssetId { get; set; } = "";
+        public string AtlasFile { get; set; } = "";
+        public string MetadataFile { get; set; } = "";
+        public List<object> Collisions { get; set; } = [];
+        public List<RegionPackDef> Regions { get; set; } = [];
+    }
+
+    private sealed class RegionPackDef
+    {
+        public string Id { get; set; } = "";
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public string? Collision { get; set; }
+        public object? Hardpoints { get; set; }
+        public object? Animation { get; set; }
+    }
+
+    private sealed class AtlasMetaDoc
+    {
+        public List<AtlasMetaRegion> Regions { get; set; } = [];
+    }
+
+    private sealed class AtlasMetaRegion
+    {
+        public string Id { get; set; } = "";
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    private sealed class PackedRegion(RegionPackDef def, Image sprite)
+    {
+        public RegionPackDef Def { get; } = def;
+        public Image Sprite { get; } = sprite;
         public int X { get; set; }
         public int Y { get; set; }
     }
@@ -482,23 +260,45 @@ internal static class SourceAssetGenerator
         {
             Width = width;
             Height = height;
-            _pixels = Enumerable.Repeat(clear ?? Palette[0], width * height).ToArray();
+            _pixels = Enumerable.Repeat(clear ?? default, width * height).ToArray();
         }
         public int Width { get; }
         public int Height { get; }
-        public ReadOnlySpan<Rgba> Pixels => _pixels;
+        public Rgba[] Pixels => _pixels;
+        public Rgba Get(int x, int y) => _pixels[y * Width + x];
+        public void Set(int x, int y, Rgba color)
+        {
+            if ((uint)x < (uint)Width && (uint)y < (uint)Height)
+                _pixels[y * Width + x] = color;
+        }
         public void Rect(int x, int y, int width, int height, Rgba color)
         {
             for (var py = Math.Max(0, y); py < Math.Min(Height, y + height); py++)
             for (var px = Math.Max(0, x); px < Math.Min(Width, x + width); px++)
                 _pixels[py * Width + px] = color;
         }
-        public void Diamond(int cx, int cy, int rx, int ry, Rgba color)
+        public void Blit(Image source, int destX, int destY)
         {
-            for (var y = -ry; y <= ry; y++)
+            for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
             {
-                var span = (int)Math.Floor(rx * (1.0 - Math.Abs(y) / (double)Math.Max(1, ry)));
-                Rect(cx - span, cy + y, span * 2 + 1, 1, color);
+                var px = source.Get(x, y);
+                if (px.A == 0)
+                    continue;
+                Set(destX + x, destY + y, px);
+            }
+        }
+        public void CopyRegion(Image dest, int srcX, int srcY, int width, int height, int destX, int destY)
+        {
+            for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+            {
+                if ((uint)(srcX + x) >= (uint)Width || (uint)(srcY + y) >= (uint)Height)
+                    continue;
+                var px = Get(srcX + x, srcY + y);
+                if (px.A == 0)
+                    continue;
+                dest.Set(destX + x, destY + y, px);
             }
         }
     }
@@ -506,6 +306,112 @@ internal static class SourceAssetGenerator
     private static class Png
     {
         private static readonly uint[] CrcTable = BuildCrcTable();
+
+        public static Image Read(string path)
+        {
+            using var stream = File.OpenRead(path);
+            Span<byte> signature = stackalloc byte[8];
+            if (stream.Read(signature) != 8 || !signature.SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
+                throw new InvalidDataException($"Not a PNG: {path}");
+
+            var width = 0;
+            var height = 0;
+            byte bitDepth = 0;
+            byte colorType = 0;
+            Span<byte> lengthBytes = stackalloc byte[4];
+            Span<byte> typeBytes = stackalloc byte[4];
+            using var idat = new MemoryStream();
+            while (stream.Position < stream.Length)
+            {
+                if (stream.Read(lengthBytes) != 4)
+                    break;
+                var length = BinaryPrimitives.ReadInt32BigEndian(lengthBytes);
+                if (stream.Read(typeBytes) != 4)
+                    break;
+                var type = Encoding.ASCII.GetString(typeBytes);
+                var data = new byte[length];
+                if (length > 0 && stream.Read(data) != length)
+                    throw new InvalidDataException($"Truncated PNG chunk {type} in {path}");
+                stream.Position += 4;
+                if (type == "IHDR")
+                {
+                    width = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(0, 4));
+                    height = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(4, 4));
+                    bitDepth = data[8];
+                    colorType = data[9];
+                }
+                else if (type == "IDAT")
+                    idat.Write(data);
+                else if (type == "IEND")
+                    break;
+            }
+
+            if (width <= 0 || height <= 0 || bitDepth != 8 || colorType is not (2 or 6))
+                throw new InvalidDataException($"Unsupported PNG format in {path} (need 8-bit RGB/RGBA).");
+
+            idat.Position = 0;
+            using var zlib = new ZLibStream(idat, CompressionMode.Decompress);
+            var channels = colorType == 6 ? 4 : 3;
+            var stride = 1 + width * channels;
+            var raw = new byte[stride * height];
+            var read = 0;
+            while (read < raw.Length)
+            {
+                var n = zlib.Read(raw, read, raw.Length - read);
+                if (n == 0)
+                    break;
+                read += n;
+            }
+            if (read != raw.Length)
+                throw new InvalidDataException($"Incomplete PNG pixel data in {path}.");
+
+            var image = new Image(width, height);
+            var prior = new byte[width * channels];
+            var current = new byte[width * channels];
+            for (var y = 0; y < height; y++)
+            {
+                var row = y * stride;
+                var filter = raw[row];
+                var src = raw.AsSpan(row + 1, width * channels);
+                for (var i = 0; i < current.Length; i++)
+                {
+                    var left = i >= channels ? current[i - channels] : (byte)0;
+                    var up = prior[i];
+                    var upLeft = i >= channels ? prior[i - channels] : (byte)0;
+                    current[i] = filter switch
+                    {
+                        0 => src[i],
+                        1 => (byte)(src[i] + left),
+                        2 => (byte)(src[i] + up),
+                        3 => (byte)(src[i] + ((left + up) / 2)),
+                        4 => (byte)(src[i] + Paeth(left, up, upLeft)),
+                        _ => throw new InvalidDataException($"Unsupported PNG filter {filter} in {path}.")
+                    };
+                }
+
+                for (var x = 0; x < width; x++)
+                {
+                    var i = x * channels;
+                    var a = channels == 4 ? current[i + 3] : (byte)255;
+                    image.Set(x, y, new Rgba(current[i], current[i + 1], current[i + 2], a));
+                }
+
+                (prior, current) = (current, prior);
+            }
+            return image;
+        }
+
+        private static byte Paeth(byte a, byte b, byte c)
+        {
+            var p = a + b - c;
+            var pa = Math.Abs(p - a);
+            var pb = Math.Abs(p - b);
+            var pc = Math.Abs(p - c);
+            if (pa <= pb && pa <= pc)
+                return a;
+            return pb <= pc ? b : c;
+        }
+
         public static void Write(string path, Image image)
         {
             using var stream = File.Create(path);
@@ -520,13 +426,12 @@ internal static class SourceAssetGenerator
             using var raw = new MemoryStream();
             using (var zlib = new ZLibStream(raw, CompressionLevel.SmallestSize, leaveOpen: true))
             {
-                var pixels = image.Pixels;
                 for (var y = 0; y < image.Height; y++)
                 {
                     zlib.WriteByte(0);
                     for (var x = 0; x < image.Width; x++)
                     {
-                        var pixel = pixels[y * image.Width + x];
+                        var pixel = image.Get(x, y);
                         zlib.WriteByte(pixel.R);
                         zlib.WriteByte(pixel.G);
                         zlib.WriteByte(pixel.B);
@@ -537,6 +442,7 @@ internal static class SourceAssetGenerator
             WriteChunk(stream, "IDAT", raw.ToArray());
             WriteChunk(stream, "IEND", []);
         }
+
         private static void WriteChunk(Stream stream, string type, ReadOnlySpan<byte> data)
         {
             Span<byte> length = stackalloc byte[4];
@@ -554,6 +460,7 @@ internal static class SourceAssetGenerator
             BinaryPrimitives.WriteUInt32BigEndian(crcBytes, crc ^ 0xffffffffu);
             stream.Write(crcBytes);
         }
+
         private static uint[] BuildCrcTable()
         {
             var table = new uint[256];

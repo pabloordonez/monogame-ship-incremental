@@ -19,14 +19,21 @@ internal sealed class BeamWeaponFireStrategy : IWeaponFireStrategy
     {
         if (!firing)
         {
-            var heat = MathF.Max(0, state.Heat - definition.CoolPerTick);
-            state = state with { Heat = heat, HeatLocked = state.HeatLocked && heat > 0 };
+            var idleHeat = MathF.Max(0, state.Heat - definition.CoolPerTick);
+            state = state with { Heat = idleHeat, HeatLocked = state.HeatLocked && idleHeat > 0, Target = default };
             return;
         }
 
+        // Overheated: vent even if the trigger is still held so the beam recovers in combat.
         if (state.HeatLocked)
+        {
+            var ventHeat = MathF.Max(0, state.Heat - definition.CoolPerTick);
+            state = state with { Heat = ventHeat, HeatLocked = ventHeat > 0, Target = default };
             return;
-        var target = actions.FindTargetInCone(entity, aim, definition.Range, 4);
+        }
+
+        var cone = definition.LockConeDegrees > 0 ? definition.LockConeDegrees : 24f;
+        var target = actions.FindTargetInCone(entity, aim, definition.Range, cone);
         if (target != default)
         {
             actions.QueueDamage(

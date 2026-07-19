@@ -210,6 +210,38 @@ public sealed class FlightCombatWorld
         return true;
     }
 
+    public bool TryGetPlayerWeapon(out WeaponBehavior behavior, out float range)
+    {
+        behavior = default;
+        range = 0f;
+        if (_context.Player == default ||
+            !_context.World.IsAlive(_context.Player) ||
+            !_context.Has<WeaponMount>(_context.Player))
+            return false;
+        var mount = _context.World.Get<WeaponMount>(_context.Player);
+        behavior = mount.Behavior;
+        range = _context.Registry.Weapon(mount.BehaviorId).Range;
+        return true;
+    }
+
+    /// <summary>When the beam is locked on a live target, returns world distance to that target.</summary>
+    public bool TryGetPlayerBeamHitDistance(out float distance)
+    {
+        distance = 0f;
+        if (_context.Player == default ||
+            !_context.World.IsAlive(_context.Player) ||
+            !_context.Has<WeaponState>(_context.Player) ||
+            !_context.Has<Transform2>(_context.Player))
+            return false;
+        var target = _context.World.Get<WeaponState>(_context.Player).Target;
+        if (target == default || !_context.World.IsAlive(target) || !_context.Has<Transform2>(target))
+            return false;
+        var from = _context.World.Get<Transform2>(_context.Player).Position;
+        var to = _context.World.Get<Transform2>(target).Position;
+        distance = Vector2.Distance(from, to);
+        return distance > 0.001f;
+    }
+
     public WeaponState WeaponStatus(EntityId entity)
     {
         if (!_context.World.IsAlive(entity) || !_context.Has<WeaponState>(entity))

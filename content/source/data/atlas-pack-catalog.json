@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "spriteRoot": "textures/sprites",
+  "atlasRoot": "textures/atlases",
+  "atlasSize": 512,
+  "gap": 5,
+  "padding": 2,
+  "extrusion": 1,
+  "atlases": [
+    {
+      "textureAssetId": "atlases/player-modules",
+      "atlasFile": "player-modules.png",
+      "metadataFile": "atlas-player-modules.json",
+      "collisions": [
+        { "id": "collision/wayfarer", "kind": "circle", "values": [32, 32, 18] },
+        { "id": "collision/projectile", "kind": "circle", "values": [8, 8, 3] }
+      ],
+      "regions": [
+        {
+          "id": "ships/player/wayfarer",
+          "width": 64,
+          "height": 64,
+          "collision": "collision/wayfarer",
+          "hardpoints": {
+            "primaryWeapon": { "x": 32, "y": 8 },
+            "miningTool": { "x": 18, "y": 18 },
+            "utility": { "x": 46, "y": 28 },
+            "leftEngine": { "x": 20, "y": 52 },
+            "rightEngine": { "x": 44, "y": 52 },
+            "shieldOrigin": { "x": 32, "y": 32 }
+          }
+        },
+        {
+          "id": "ships/player/engine",
+          "width": 64,
+          "height": 64,
+          "animation": { "fps": 8, "frames": [0] }
+        },
+        {
+          "id": "ships/player/damage-flash",
+          "width": 64,
+          "height": 64,
+          "animation": { "fps": 12, "frames": [0] }
+        },
+        {
+          "id": "ships/player/shield-mask",
+          "width": 64,
+          "height": 64
+        },
+        {
+          "id": "ships/player/dash",
+          "width": 64,
+          "height": 64,
+          "animation": { "fps": 12, "frames": [0] }
+        },
+        {
+          "id": "ships/player/blink",
+          "width": 64,
+          "height": 64,
+          "animation": { "fps": 12, "frames": [0] }
+        },
+        {
+          "id": "ships/utility/firefly",
+          "width": 32,
+          "height": 32,
+          "collision": "collision/projectile",
+          "animation": { "fps": 8, "frames": [0] }
+        },
+        {
+          "id": "weapons/pulse",
+          "width": 16,
+          "height": 16,
+          "collision": "collision/projectile"
+        },
+        {
+          "id": "weapons/beam",
+          "width": 16,
+          "height": 32,
+          "animation": { "fps": 12, "frames": [0] }
+        },
+        {
+          "id": "weapons/seeker",
+          "width": 12,
+          "height": 12,
+          "collision": "collision/projectile",
+          "animation": { "fps": 8, "frames": [0] }
+        },
+        {
+          "id": "weapons/mining-beam",
+          "width": 16,
+          "height": 32,
+          "animation": { "fps": 12, "frames": [0] }
+        },
+        {
+          "id": "weapons/seismic-charge",
+          "width": 16,
+          "height": 16,
+          "collision": "collision/projectile",
+          "animation": { "fps": 6, "frames": [0] }
+        },
+        {
+          "id": "effects/tractor",
+          "width": 32,
+          "height": 32,
+          "animation": { "fps": 8, "frames": [0] }
+        }
+      ]
+    },
+    {
+      "textureAssetId": "atlases/enemies-telegraphs",
+      "atlasFile": "enemies-telegraphs.png",
+      "metadataFile": "atlas-enemies-telegraphs.json",
+      "collisions": [
+        { "id": "collision/enemy-small", "kind": "circle", "values": [16, 16, 12] },
+        { "id": "collision/enemy-medium", "kind": "circle", "values": [32, 32, 20] },
+        { "id": "collision/projectile", "kind": "circle", "values": [6, 6, 3] }
+      ],
+      "regions": [
+        {
+          "id": "enemies/interceptor",
+          "width": 32,
+          "height": 32,
+          "collision": "collision/enemy-small",
+          "hardpoints": {
+            "primaryWeapon": { "x": 16, "y": 4 },
+            "leftEngine": { "x": 8, "y": 26 },
+            "rightEngine": { "x": 24, "y": 26 }
+          },
+          "animation": { "fps": 8, "frames": [0] }
+        },
+        {
+          "id": "enemies/gunship",
+          "width": 64,
+          "height": 64,
+          "collision": "collision/enemy-medium",
+          "hardpoints": {
+            "primaryWeapon": { "x": 32, "y": 8 }
+          },
+          "animation": { "fps": 6, "frames": [0] }
+        },
+        {
+          "id": "enemies/sapper",
+          "width": 48,
+          "height": 48,
+          "collision": "collision/enemy-small",
+          "hardpoints": {
+            "utility": { "x": 24, "y": 36 }
+          },
+          "animation": { "fps": 8, "frames": [0] }
+        },
+        {
+          "id": "enemies/elite-outline",
+          "width": 64,
+          "height": 64,
+          "animation": { "fps": 8, "frames": [0] }
+        },
+        {
+          "id": "projectiles/hostile",
+          "width": 12,
+          "height": 12,
+          "collision": "collision/projectile"
+        },
+        {
+          "id": "telegraphs/elite-marker",
+          "width": 32,
+          "height": 32,
+          "animation": { "fps": 6, "frames": [0] }
+        },
+        {
+          "id": "telegraphs/muzzle-flash",
+          "width": 32,
+          "height": 32,
+          "animation": { "fps": 12, "frames": [0] }
+        },
+        {
+          "id": "telegraphs/aim-line",
+          "width": 64,
+          "height": 16,
+          "animation": { "fps": 12, "frames": [0] }
+        },
+        {
+          "id": "telegraphs/mine-radius",
+          "width": 64,
+          "height": 64,
+          "animation": { "fps": 8, "frames": [0] }
+        },
+        {
+          "id": "effects/enemy-destruction",
+          "width": 64,
+          "height": 64,
+          "animation": { "fps": 12, "frames": [0] }
+        }
+      ]
+    },
+    {
+      "textureAssetId": "atlases/asteroids-resources",
+      "atlasFile": "asteroids-resources.png",
+      "metadataFile": "atlas-asteroids-resources.json",
+      "collisions": [
+        { "id": "collision/asteroid-small", "kind": "circle", "values": [16, 16, 12] },
+        { "id": "collision/asteroid-medium", "kind": "circle", "values": [32, 32, 24] },
+        { "id": "collision/asteroid-large", "kind": "circle", "values": [48, 48, 40] },
+        { "id": "collision/pickup", "kind": "circle", "values": [6, 6, 5] }
+      ],
+      "regions": [
+        { "id": "asteroids/small/ordinary", "width": 32, "height": 32, "collision": "collision/asteroid-small" },
+        { "id": "asteroids/small/ferrite", "width": 32, "height": 32, "collision": "collision/asteroid-small" },
+        { "id": "asteroids/small/lumen", "width": 32, "height": 32, "collision": "collision/asteroid-small" },
+        { "id": "asteroids/medium/ordinary", "width": 64, "height": 64, "collision": "collision/asteroid-medium" },
+        { "id": "asteroids/medium/ferrite", "width": 64, "height": 64, "collision": "collision/asteroid-medium" },
+        { "id": "asteroids/medium/lumen", "width": 64, "height": 64, "collision": "collision/asteroid-medium" },
+        { "id": "asteroids/large/ordinary", "width": 96, "height": 96, "collision": "collision/asteroid-large" },
+        { "id": "asteroids/large/ferrite", "width": 96, "height": 96, "collision": "collision/asteroid-large" },
+        { "id": "asteroids/large/lumen", "width": 96, "height": 96, "collision": "collision/asteroid-large" },
+        { "id": "asteroids/break", "width": 32, "height": 32, "animation": { "fps": 8, "frames": [0] } },
+        { "id": "pickups/ferrite", "width": 10, "height": 10, "collision": "collision/pickup", "animation": { "fps": 8, "frames": [0] } },
+        { "id": "pickups/lumen", "width": 10, "height": 10, "collision": "collision/pickup", "animation": { "fps": 8, "frames": [0] } },
+        { "id": "pickups/data-core", "width": 12, "height": 12, "collision": "collision/pickup", "animation": { "fps": 8, "frames": [0] } },
+        { "id": "pickups/upgrade-charge", "width": 12, "height": 12, "collision": "collision/pickup", "animation": { "fps": 8, "frames": [0] } },
+        { "id": "field/extraction-marker", "width": 32, "height": 32, "animation": { "fps": 6, "frames": [0] } },
+        { "id": "field/cover-cue", "width": 32, "height": 32 },
+        { "id": "hazards/solar-flare", "width": 64, "height": 32, "animation": { "fps": 12, "frames": [0] } },
+        { "id": "hazards/ion-cloud", "width": 48, "height": 48, "animation": { "fps": 8, "frames": [0] } },
+        { "id": "hazards/star-glow", "width": 48, "height": 48, "animation": { "fps": 6, "frames": [0] } }
+      ]
+    },
+    {
+      "textureAssetId": "atlases/ui-icons",
+      "atlasFile": "ui-icons.png",
+      "metadataFile": "atlas-ui-icons.json",
+      "collisions": [],
+      "regions": [
+        { "id": "ui/icons/resource-ferrite", "width": 32, "height": 32 },
+        { "id": "ui/icons/resource-lumen", "width": 32, "height": 32 },
+        { "id": "ui/icons/resource-data-core", "width": 32, "height": 32 },
+        { "id": "ui/icons/lock", "width": 32, "height": 32 },
+        { "id": "ui/icons/module-weapon", "width": 32, "height": 32 },
+        { "id": "ui/icons/module-mining", "width": 32, "height": 32 },
+        { "id": "ui/icons/module-shield", "width": 32, "height": 32 },
+        { "id": "ui/icons/module-engine", "width": 32, "height": 32 },
+        { "id": "ui/icons/module-utility", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-damage", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-rate", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-fork", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-pierce", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-shield", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-reboot", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-hull", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-speed", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-mobility", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-mining", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-tractor", "width": 32, "height": 32 },
+        { "id": "ui/icons/upgrade-shock", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-hull", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-shield", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-beam", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-seeker", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-mining", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-assay", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-engine", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-blink", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-drone", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-tractor", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-ion", "width": 32, "height": 32 },
+        { "id": "ui/icons/research-recovery", "width": 32, "height": 32 },
+        { "id": "ui/icons/objective", "width": 32, "height": 32 },
+        { "id": "ui/icons/interact", "width": 32, "height": 32 },
+        { "id": "ui/icons/pause", "width": 32, "height": 32 },
+        { "id": "ui/icons/input-keyboard", "width": 32, "height": 32 },
+        { "id": "ui/icons/input-gamepad", "width": 32, "height": 32 },
+        { "id": "ui/icons/hull", "width": 32, "height": 32 },
+        { "id": "ui/icons/shield", "width": 32, "height": 32 }
+      ]
+    }
+  ]
+}

@@ -335,7 +335,16 @@ internal sealed class FlightCombatContext
             var distanceSquared = delta.LengthSquared();
             if (distanceSquared > bestDistanceSquared || distanceSquared <= 0.0001f)
                 continue;
-            if (Vector2.Dot(direction, Vector2.Normalize(delta)) < minimumDot)
+            var along = Vector2.Dot(direction, delta);
+            if (along <= 0f || along > range)
+                continue;
+            var closestDistSq = distanceSquared - along * along;
+            if (closestDistSq < 0f)
+                closestDistSq = 0f;
+            var radius = Has<Collider>(candidate) ? World.Get<Collider>(candidate).Radius : 0f;
+            var rayHits = closestDistSq <= radius * radius;
+            var inCone = Vector2.Dot(direction, Vector2.Normalize(delta)) >= minimumDot;
+            if (!rayHits && !inCone)
                 continue;
             best = candidate;
             bestDistanceSquared = distanceSquared;

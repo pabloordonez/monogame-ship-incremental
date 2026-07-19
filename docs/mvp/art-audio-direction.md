@@ -135,17 +135,16 @@ CI rejects duplicate IDs/paths, missing files, wrong dimensions, unresolved atla
 - Hull/shield/resource/module/research/lock/objective/pause/input UI icons.
 - Essential impacts, explosions, collection, warnings, UI confirmation, shield, and mining SFX placeholders.
 
-### Generated first-pass art workflow
+### Authored sprite + pack workflow
 
-1. Art implementer creates a contact sheet for palette, silhouettes, scale, and UI language.
-2. Generate separate candidate sheets for player/modules, enemies, asteroids/resources, environments, and icons.
-3. Pixel-clean generated output manually: enforce grid, palette, alpha, pivots, and silhouette.
-4. Split/pack source regions and write metadata.
-5. Mark each manifest entry `candidate` with provenance.
-6. Test at native virtual resolution, in grayscale, and with effects disabled.
-7. Reviewer rejects inconsistent pixel density, unreadable telegraphs, copied visual identity, bad alpha, or missing provenance.
+1. Author exact-size region PNGs under `content/source/textures/sprites/` (IDs match atlas region paths, e.g. `ships/player/wayfarer.png`).
+2. Keep pack metadata in `content/source/data/atlas-pack-catalog.json` (sizes, hardpoints, collisions, animation placeholders).
+3. Run ContentBuilder with `--pack-atlases` (alias: `--generate-source`) to stitch sprites into atlas PNGs + `data/atlas-*.json`. The packer does not invent pixels.
+4. Mark each manifest entry `candidate` with provenance until playfeel review.
+5. Test at native virtual resolution, in grayscale, and with effects disabled.
+6. Reviewer rejects inconsistent pixel density, unreadable telegraphs, copied visual identity, bad alpha, or missing provenance.
 
-Image generation provides candidates, not final unattended assets. Text inside generated images is prohibited; UI labels use the selected font.
+AI or external image tools may supply candidates; pixel-clean to exact frame tiers and the shared palette before commit. Text inside generated images is prohibited; UI labels use the selected font.
 
 ## MonoGame 3.8.5 C# Content Builder
 

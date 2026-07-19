@@ -15,10 +15,10 @@ var repositoryRoot = repository?.FullName
 var sourceRoot = Path.Combine(repositoryRoot, "content", "source");
 var definitionsRoot = Path.Combine(repositoryRoot, "content", "definitions");
 
-if (args.Contains("--generate-source", StringComparer.Ordinal))
+if (args.Contains("--pack-atlases", StringComparer.Ordinal)
+    || args.Contains("--generate-source", StringComparer.Ordinal))
 {
-    SourceAssetGenerator.Generate(sourceRoot);
-    Console.WriteLine("P1 original source assets generated.");
+    SourceAssetGenerator.PackAtlases(sourceRoot);
     return 0;
 }
 
