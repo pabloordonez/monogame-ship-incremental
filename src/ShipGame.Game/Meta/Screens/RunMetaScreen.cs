@@ -95,7 +95,12 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                             canvas.DrawMuzzleFlash(screen, hints.AimDirection, hud.RunTick);
                     }
                     if (hints.MineHeld)
-                        canvas.DrawMineRay(screen, hints.AimDirection);
+                    {
+                        var mining = run.LastMiningPresentation;
+                        float? mineHit = mining.Active ? mining.HitDistance : 36f;
+                        canvas.DrawMineRay(screen, hints.AimDirection, mineHit);
+                    }
+
                     break;
                 case CombatRenderKind.EnemyShip:
                     if (item.Elite)
@@ -143,6 +148,8 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
             if (ScreenEdgePing.Project(hostileScreen, MvpPresentation.VirtualWidth, MvpPresentation.VirtualHeight) is { } hostilePing)
                 canvas.DrawEdgePing("enemies/interceptor", hostilePing, 16, "HOSTILE");
         }
+
+        canvas.DrawParticles(camera);
 
         if (hints.ShowAimReticle)
             canvas.DrawAimReticle(hints.MouseVirtual);

@@ -7,6 +7,7 @@ public readonly record struct RunPresentationHints(
     bool ShowCursor,
     bool ShowAimReticle,
     bool FlashesEnabled,
+    bool ParticlesEnabled,
     float MaxHull,
     float MaxShield,
     bool FireHeld,

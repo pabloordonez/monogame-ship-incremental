@@ -97,6 +97,21 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             steps++;
         }
 
+        if (_presentation is not null &&
+            _run is not null &&
+            _session.Screen == MetaScreen.Run)
+        {
+            var camera = _run.Combat.Player != default
+                ? _run.Combat.Snapshot(_run.Combat.Player).Position
+                : System.Numerics.Vector2.Zero;
+            _presentation.UpdateRunParticles(
+                _run,
+                _hints,
+                camera,
+                (float)gameTime.ElapsedGameTime.TotalSeconds,
+                paused: false);
+        }
+
         if (_windowSmoke &&
             _presentation?.DrewAtlasRegionThisFrame == true &&
             _presentation.TexturesLoaded > 0)
@@ -301,6 +316,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         var maxHull = stats?.MaximumHull ?? 100;
         var maxShield = stats?.ShieldCapacity ?? 50;
         var flashes = _session?.Profile.Snapshot.Settings.Flashes ?? true;
+        var particles = _session?.Profile.Snapshot.Settings.Particles ?? true;
         var move = System.Numerics.Vector2.Zero;
         var aim = System.Numerics.Vector2.UnitX;
         var mouseVirtual = System.Numerics.Vector2.Zero;
@@ -344,6 +360,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             showCursor,
             showReticle,
             flashes,
+            particles,
             maxHull,
             maxShield,
             fire,

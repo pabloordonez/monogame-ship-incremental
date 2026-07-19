@@ -24,6 +24,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     private readonly List<RunFact> _factBuffer = new(64);
     private readonly List<CombatSnapshot> _snapshotBuffer = new(256);
     private readonly List<CombatRenderItem> _renderBuffer = new(256);
+    private readonly List<BrokenAsteroidPresentation> _brokenAsteroidBuffer = new(16);
+    private readonly System.Collections.ObjectModel.ReadOnlyCollection<BrokenAsteroidPresentation> _brokenAsteroidView;
     private EntityId _collector;
     private EntityId _eliteEntity;
     private ulong _nextFactId = 1;
@@ -51,6 +53,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     {
         ArgumentNullException.ThrowIfNull(loadout);
         ArgumentNullException.ThrowIfNull(statistics);
+        _brokenAsteroidView = _brokenAsteroidBuffer.AsReadOnly();
         _threatEnabled = enableThreatDirector;
         EnvironmentId = environmentId;
         RunSeed = FoundationSession.DeriveRunSeed(profileSeed, runIndex);
@@ -105,6 +108,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public RewardProposal? MappedReward { get; private set; }
     public IReadOnlyList<WorldRunEvent> LastWorldEvents { get; private set; } = Array.Empty<WorldRunEvent>();
     public IReadOnlyList<CombatEvent> LastCombatEvents => Combat.Events;
+    public MiningPresentationState LastMiningPresentation { get; private set; }
+    public IReadOnlyList<BrokenAsteroidPresentation> LastBrokenAsteroids => _brokenAsteroidView;
     public List<string> Checkpoints { get; } = [];
     public string RunId => _runId;
 
@@ -310,6 +315,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     private void StepInternal(FlightCommandFrame command)
     {
         _factBuffer.Clear();
+        _brokenAsteroidBuffer.Clear();
+        LastMiningPresentation = default;
         var paused = _paused;
 
         if (!paused)
@@ -407,6 +414,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         var origin = player.Position;
         EntityId best = default;
         var bestScore = float.MaxValue;
+        var bestPosition = Vector2.Zero;
+        var bestKind = AsteroidCellKind.Ordinary;
+        var bestDistance = 0f;
         foreach (var pair in _asteroidEntities)
         {
             var entity = pair.Value;
@@ -416,7 +426,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             if (cell.Broken)
                 continue;
             var position = _miningWorld.Get<WorldPosition>(entity);
-            var delta = new Vector2(position.X, position.Y) - origin;
+            var world = new Vector2(position.X, position.Y);
+            var delta = world - origin;
             var distance = delta.Length();
             if (distance > MiningRangeWorldUnits)
                 continue;
@@ -427,11 +438,33 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             {
                 bestScore = score;
                 best = entity;
+                bestPosition = world;
+                bestKind = cell.Kind;
+                bestDistance = distance;
             }
         }
 
         if (best == default)
+        {
+            var search = aim.LengthSquared() > 0.01f ? Vector2.Normalize(aim) : Vector2.UnitX;
+            const float searchLength = 36f;
+            LastMiningPresentation = new MiningPresentationState(
+                Active: true,
+                Hit: false,
+                Origin: origin,
+                HitPosition: origin + search * searchLength,
+                HitDistance: searchLength,
+                Kind: default);
             return;
+        }
+
+        LastMiningPresentation = new MiningPresentationState(
+            Active: true,
+            Hit: true,
+            Origin: origin,
+            HitPosition: bestPosition,
+            HitDistance: bestDistance,
+            Kind: bestKind);
 
         var damage = Math.Max(
             1,
@@ -450,6 +483,14 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             };
             // Every broken cell routes through the fact pipeline for lifetime accounting.
             _factBuffer.Add(new(_nextFactId++, RunFactKind.ResourceCellBroken, resource, 1));
+            var breakPosition = bestPosition;
+            if (_miningWorld.IsAlive(cell.Cell) && _miningWorld.Store<WorldPosition>().Has(cell.Cell))
+            {
+                var pos = _miningWorld.Get<WorldPosition>(cell.Cell);
+                breakPosition = new Vector2(pos.X, pos.Y);
+            }
+
+            _brokenAsteroidBuffer.Add(new BrokenAsteroidPresentation(breakPosition, cell.Kind));
         }
 
         var spawned = _loot.Spawn(_miningWorld, broken, _appliedModifiers.FractureLens);

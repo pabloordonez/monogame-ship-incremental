@@ -1,7 +1,4 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using ShipGame.Domain;
+using System.Text.Json.Serialization;
 
 namespace ShipGame.Persistence;
 
@@ -13,4 +10,6 @@ public sealed record SettingsDto(
     bool ScreenShake,
     bool Flashes,
     bool Fullscreen,
-    bool TelemetryConsent);
+    bool TelemetryConsent,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    bool? Particles = null);

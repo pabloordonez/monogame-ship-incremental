@@ -497,7 +497,8 @@ public sealed class MetaSaveRepository
             value.ScreenShake,
             value.Flashes,
             value.Fullscreen,
-            value.TelemetryConsent);
+            value.TelemetryConsent,
+            value.Particles);
 
     private static ResourceAmounts FromDto(ResourceAmountsDto value) =>
         new(value.Ferrite, value.Lumen, value.DataCores);
@@ -519,6 +520,7 @@ public sealed class MetaSaveRepository
             value.Vibration,
             value.ScreenShake,
             value.Flashes,
+            value.Particles ?? true,
             value.Fullscreen,
             value.TelemetryConsent);
 

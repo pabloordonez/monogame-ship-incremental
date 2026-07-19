@@ -24,20 +24,26 @@ internal sealed class SettingsMetaScreen : MetaScreenHandlerBase
             true,
             () => context.ApplySettings(settings with { Flashes = !settings.Flashes }));
         ui.Add(
-            "settings:vibration",
+            "settings:particles",
             new UiRect(24, 142, 400, 28),
+            $"Particles  {(settings.Particles ? "ON" : "OFF")}",
+            true,
+            () => context.ApplySettings(settings with { Particles = !settings.Particles }));
+        ui.Add(
+            "settings:vibration",
+            new UiRect(24, 178, 400, 28),
             $"Vibration  {(settings.Vibration ? "ON" : "OFF")}",
             true,
             () => context.ApplySettings(settings with { Vibration = !settings.Vibration }));
         ui.Add(
             "settings:telemetry",
-            new UiRect(24, 178, 400, 28),
+            new UiRect(24, 214, 400, 28),
             $"Telemetry Consent  {(settings.TelemetryConsent ? "ON" : "OFF")}",
             true,
             () => context.ApplySettings(settings with { TelemetryConsent = !settings.TelemetryConsent }));
         ui.Add(
             "settings:master",
-            new UiRect(24, 214, 400, 28),
+            new UiRect(24, 250, 400, 28),
             $"Master Volume  {settings.MasterVolume}",
             true,
             () =>
@@ -45,7 +51,7 @@ internal sealed class SettingsMetaScreen : MetaScreenHandlerBase
                 var next = settings.MasterVolume <= 0 ? 100 : Math.Max(0, settings.MasterVolume - 20);
                 context.ApplySettings(settings with { MasterVolume = next });
             });
-        ui.Add("settings:back", new UiRect(24, 280, 160, 28), "Esc  Back", true, () => session.Back());
+        ui.Add("settings:back", new UiRect(24, 310, 160, 28), "Esc  Back", true, () => session.Back());
     }
 
     public override void Draw(MetaDrawContext context)

@@ -7,10 +7,11 @@ public sealed record GameSettings(
     bool Vibration,
     bool ScreenShake,
     bool Flashes,
+    bool Particles,
     bool Fullscreen,
     bool TelemetryConsent)
 {
-    public static GameSettings Default { get; } = new(100, 80, 100, true, true, true, false, false);
+    public static GameSettings Default { get; } = new(100, 80, 100, true, true, true, true, false, false);
 
     public bool IsValid =>
         MasterVolume is >= 0 and <= 100 &&

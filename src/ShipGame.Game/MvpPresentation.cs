@@ -24,6 +24,7 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
     private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.Ordinal);
     private readonly Texture2D _pixel;
     private readonly CombatPresentationBinding _combatCues = new();
+    private readonly ParticleSystem _particles = new();
     private readonly MetaScreenHandlerRegistry _screenHandlers;
     private bool _drewSprites;
     private bool _drewAtlasRegion;
@@ -31,6 +32,9 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
     private float _flashAlpha;
     private XnaColor _flashColor = XnaColor.White;
     private long _lastFlashTick = -1;
+    private long _particlesSpawnedForCombatTick = -1;
+    private long _lastMiningSparkTick = -1;
+    private long _lastBeamSparkTick = -1;
     private string? _phaseToast;
     private int _phaseToastFrames;
 
@@ -289,17 +293,28 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         Fill((int)tip.X - 2, (int)tip.Y - 2, pulse ? 5 : 3, pulse ? 5 : 3, new XnaColor(255, 230, 140));
     }
 
-    public void DrawMineRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim)
+    public void DrawMineRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim, float? hitDistanceWorld = null)
     {
         if (aim.LengthSquared() < 0.01f)
             return;
         var dir = System.Numerics.Vector2.Normalize(aim);
-        for (var i = 1; i <= 8; i++)
+        var start = new XnaVector2(shipCenter.X + dir.X * 14f, shipCenter.Y + dir.Y * 14f);
+        var worldLength = hitDistanceWorld is > 0 and var hit
+            ? hit
+            : 36f;
+        var length = Math.Clamp(worldLength, 16f, ComposedRunOrchestrator.MiningRangeWorldUnits + 8f);
+        var rotation = MathF.Atan2(dir.Y, dir.X);
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 6f, new XnaColor(40, 140, 180, 60));
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 3f, new XnaColor(90, 210, 240, 170));
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 1f, new XnaColor(200, 250, 255, 230));
+        Fill((int)start.X - 2, (int)start.Y - 2, 5, 5, new XnaColor(180, 240, 255));
+        if (hitDistanceWorld is > 0)
         {
-            var px = (int)(shipCenter.X + dir.X * (12 + i * 7));
-            var py = (int)(shipCenter.Y + dir.Y * (12 + i * 7));
-            Fill(px - 1, py - 1, 3, 3, new XnaColor((byte)120, (byte)220, (byte)255, (byte)(220 - i * 20)));
+            var tip = new XnaVector2(start.X + dir.X * length, start.Y + dir.Y * length);
+            Fill((int)tip.X - 2, (int)tip.Y - 2, 5, 5, new XnaColor(160, 230, 255));
         }
+
+        _drewSprites = true;
     }
 
     public void DrawBeamRay(
@@ -471,6 +486,124 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
                 _flashColor = new XnaColor(240, 160, 60);
                 _flashAlpha = MathF.Max(_flashAlpha, 0.25f);
             }
+        }
+    }
+
+    public void UpdateRunParticles(
+        ComposedRunOrchestrator run,
+        RunPresentationHints hints,
+        System.Numerics.Vector2 camera,
+        float deltaSeconds,
+        bool paused)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        _ = camera;
+
+        if (!hints.ParticlesEnabled)
+        {
+            _particles.Clear();
+            return;
+        }
+
+        var combatTick = run.Combat.Tick;
+        if (combatTick != _particlesSpawnedForCombatTick)
+        {
+            _particlesSpawnedForCombatTick = combatTick;
+            var cues = _combatCues.Translate(run.LastCombatEvents, id =>
+            {
+                try
+                {
+                    return run.Combat.Snapshot(id);
+                }
+                catch (Exception)
+                {
+                    return null;
+                }
+            });
+
+            foreach (var cue in cues)
+                SpawnParticlesForCue(cue);
+
+            foreach (var broken in run.LastBrokenAsteroids)
+                _particles.Burst(broken.Position, ParticlePresets.AsteroidBreak(broken.Kind));
+        }
+
+        var mining = run.LastMiningPresentation;
+        if (!paused &&
+            mining.Active &&
+            mining.Hit &&
+            combatTick != _lastMiningSparkTick &&
+            combatTick % 3 == 0)
+        {
+            _lastMiningSparkTick = combatTick;
+            _particles.Burst(mining.HitPosition, ParticlePresets.MiningSparks);
+        }
+
+        if (!paused &&
+            hints.FireHeld &&
+            run.Combat.TryGetPlayerWeapon(out var weapon, out _) &&
+            weapon == WeaponBehavior.Beam &&
+            run.Combat.TryGetPlayerBeamHitDistance(out var beamHit) &&
+            beamHit > 0 &&
+            combatTick != _lastBeamSparkTick &&
+            combatTick % 2 == 0)
+        {
+            _lastBeamSparkTick = combatTick;
+            var player = run.Combat.Player != default
+                ? run.Combat.Snapshot(run.Combat.Player).Position
+                : System.Numerics.Vector2.Zero;
+            var aim = hints.AimDirection.LengthSquared() > 0.01f
+                ? System.Numerics.Vector2.Normalize(hints.AimDirection)
+                : System.Numerics.Vector2.UnitX;
+            _particles.Burst(player + aim * beamHit, ParticlePresets.BeamTip);
+        }
+
+        if (!paused)
+            _particles.Update(Math.Max(0f, deltaSeconds));
+    }
+
+    public void DrawParticles(System.Numerics.Vector2 camera)
+    {
+        var span = _particles.AsSpan();
+        for (var i = 0; i < span.Length; i++)
+        {
+            ref readonly var particle = ref span[i];
+            if (!particle.Active)
+                continue;
+
+            var screen = WorldToScreen(particle.Position, camera);
+            if (!OnScreen(screen, 8))
+                continue;
+
+            var fade = Math.Clamp(particle.Life / Math.Max(0.001f, particle.MaxLife), 0f, 1f);
+            var color = particle.Color * fade;
+            var size = particle.Size;
+            Fill((int)screen.X - size / 2, (int)screen.Y - size / 2, size, size, color);
+        }
+
+        if (_particles.ActiveCount > 0)
+            _drewSprites = true;
+    }
+
+    private void SpawnParticlesForCue(CombatCue cue)
+    {
+        switch (cue.Kind)
+        {
+            case CombatCueKind.Impact:
+                _particles.Burst(cue.Position, ParticlePresets.Impact);
+                break;
+            case CombatCueKind.Shield:
+                _particles.Burst(cue.Position, ParticlePresets.ShieldHit);
+                break;
+            case CombatCueKind.ShieldBreak:
+                _particles.Burst(cue.Position, ParticlePresets.ShieldBreak);
+                break;
+            case CombatCueKind.Hull:
+                _particles.Burst(cue.Position, ParticlePresets.HullHit);
+                break;
+            case CombatCueKind.Destruction:
+                _particles.Burst(cue.Position, ParticlePresets.Destruction);
+                break;
         }
     }
 

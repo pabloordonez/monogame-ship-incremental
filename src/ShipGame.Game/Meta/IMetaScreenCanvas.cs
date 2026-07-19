@@ -18,11 +18,18 @@ public interface IMetaScreenCanvas
     void DrawParallaxBackground(string bgId, System.Numerics.Vector2 camera);
     void DrawThrustTrail(XnaVector2 shipCenter, System.Numerics.Vector2 move, long tick);
     void DrawMuzzleFlash(XnaVector2 shipCenter, System.Numerics.Vector2 aim, long tick);
-    void DrawMineRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim);
+    void DrawMineRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim, float? hitDistanceWorld = null);
     void DrawBeamRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim, float rangeWorld, float? hitDistanceWorld = null);
     void DrawAimReticle(System.Numerics.Vector2 mouseVirtual);
     void DrawRunHud(ComposedRunHud hud, RunPresentationHints hints, XnaVector2 playerScreen);
     void UpdateCombatFlash(ComposedRunOrchestrator run, RunPresentationHints hints);
+    void UpdateRunParticles(
+        ComposedRunOrchestrator run,
+        RunPresentationHints hints,
+        System.Numerics.Vector2 camera,
+        float deltaSeconds,
+        bool paused);
+    void DrawParticles(System.Numerics.Vector2 camera);
     void DrawRunFlashOverlay(RunPresentationHints hints);
     void DrawEdgePing(string regionId, EdgePing ping, int size, string? label = null);
     void DrawPhaseToast();
