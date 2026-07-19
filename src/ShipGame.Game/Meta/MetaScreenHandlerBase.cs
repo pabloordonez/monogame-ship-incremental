@@ -8,6 +8,10 @@ internal abstract class MetaScreenHandlerBase : IMetaScreenHandler
 
     public abstract void BuildUi(MetaUiContext context);
 
+    public virtual void Update(MetaUiContext context)
+    {
+    }
+
     public abstract void Draw(MetaDrawContext context);
 
     public virtual void HandleHotkeys(MetaUiContext context, Func<Keys, bool> pressed)

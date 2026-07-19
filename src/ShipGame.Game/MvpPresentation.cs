@@ -127,26 +127,32 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         _drewSprites = true;
     }
 
-    public void DrawRegion(string regionId, int x, int y, int width, int height)
+    public void DrawRegion(string regionId, int x, int y, int width, int height) =>
+        DrawRegion(regionId, x, y, width, height, XnaColor.White);
+
+    public void DrawRegion(string regionId, int x, int y, int width, int height, XnaColor color)
     {
         if (!TryGetRegionTexture(regionId, out var region, out var texture))
         {
-            Fill(x, y, width, height, new XnaColor(160, 120, 80));
+            Fill(x, y, width, height, new XnaColor(160, 120, 80) * (color.A / 255f));
             _drewSprites = true;
             return;
         }
 
         var source = new XnaRectangle(region.X, region.Y, region.Width, region.Height);
-        _spriteBatch.Draw(texture, new XnaRectangle(x, y, width, height), source, XnaColor.White);
+        _spriteBatch.Draw(texture, new XnaRectangle(x, y, width, height), source, color);
         _drewSprites = true;
         _drewAtlasRegion = true;
     }
 
-    public void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size)
+    public void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size) =>
+        DrawRegionRotated(regionId, center, rotationRadians, size, XnaColor.White);
+
+    public void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size, XnaColor color)
     {
         if (!TryGetRegionTexture(regionId, out var region, out var texture))
         {
-            Fill((int)center.X - size / 2, (int)center.Y - size / 2, size, size, new XnaColor(160, 120, 80));
+            Fill((int)center.X - size / 2, (int)center.Y - size / 2, size, size, new XnaColor(160, 120, 80) * (color.A / 255f));
             _drewSprites = true;
             return;
         }
@@ -158,7 +164,7 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
             texture,
             center,
             source,
-            XnaColor.White,
+            color,
             rotation,
             origin,
             size / (float)Math.Max(region.Width, region.Height),
@@ -897,7 +903,7 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
 
     private static XnaColor ScreenBackground(MetaScreen screen) => screen switch
     {
-        MetaScreen.Title => new XnaColor(10, 16, 32),
+        MetaScreen.Title => new XnaColor(8, 6, 22),
         MetaScreen.Station or MetaScreen.Upgrades => new XnaColor(14, 28, 36),
         MetaScreen.Run => new XnaColor(6, 10, 18),
         MetaScreen.Summary => new XnaColor(28, 18, 36),

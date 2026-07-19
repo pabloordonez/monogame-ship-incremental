@@ -48,6 +48,15 @@
       "width": 512, "height": 512, "metadata": "data/atlas-ui-icons.json", "sourceHash": null
     },
     {
+      "id": "ui/title/wordmark", "kind": "texture", "source": "textures/ui/title-wordmark.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel wordmark authored programmatically for Mine Your Own Business.", "sourceUrl": null,
+      "provenance": "Deterministic chunky display letterforms authored as RGBA PNG; no model, font file, or copied identity.",
+      "replacementCriterion": "Replace after title presentation review while preserving the stable asset ID and 384x96 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 384, "height": 96, "metadata": null, "sourceHash": null
+    },
+    {
       "id": "backgrounds/cinder-belt", "kind": "texture", "source": "textures/backgrounds/cinder-belt.png",
       "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
       "attribution": "Original procedural star field authored for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,

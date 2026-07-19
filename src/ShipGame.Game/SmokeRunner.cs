@@ -13,7 +13,7 @@ public static class SmokeRunner
         var contentRoot = Path.Combine(repositoryRoot, "content", "generated", "DesktopVK", "Content");
         var manifest = ContentValidator.LoadAndValidateManifest(contentRoot, "data/asset-manifest.json");
         var catalog = new FileAssetCatalog(contentRoot, manifest);
-        if (!catalog.LoadText(new ContentId("data/title-placeholder")).Contains("SHIP GAME", StringComparison.Ordinal))
+        if (!catalog.LoadText(new ContentId("data/title-placeholder")).Contains("Mine Your Own Business", StringComparison.Ordinal))
             return 10;
 
         saveDirectory ??= Path.Combine(Path.GetTempPath(), "ShipGame-Smoke-" + Guid.NewGuid().ToString("N"));

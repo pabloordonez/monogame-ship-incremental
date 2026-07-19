@@ -8,6 +8,8 @@ public interface IMetaScreenHandler
 
     void BuildUi(MetaUiContext context);
 
+    void Update(MetaUiContext context);
+
     void Draw(MetaDrawContext context);
 
     void HandleHotkeys(MetaUiContext context, Func<Keys, bool> pressed);

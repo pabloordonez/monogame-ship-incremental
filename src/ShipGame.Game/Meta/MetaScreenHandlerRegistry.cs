@@ -25,6 +25,9 @@ public sealed class MetaScreenHandlerRegistry
     public void BuildUi(MetaScreen screen, MetaUiContext context) =>
         _handlers[screen].BuildUi(context);
 
+    public void Update(MetaScreen screen, MetaUiContext context) =>
+        _handlers[screen].Update(context);
+
     public void Draw(MetaScreen screen, MetaDrawContext context) =>
         _handlers[screen].Draw(context);
 

@@ -25,7 +25,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
     private RunPresentationHints _hints;
     private double _accumulator;
     private bool _windowSmokeContentVisible;
-    private string _title = "SHIP GAME";
+    private string _title = "Mine Your Own Business";
     private int _windowSmokeTicks;
     private string? _lastFocusedId;
 
@@ -78,13 +78,34 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         var mouse = Mouse.GetState();
         var screenBefore = _session.Screen;
         var runStatusBefore = _run?.Status;
+        var deltaSeconds = (float)Math.Clamp(gameTime.ElapsedGameTime.TotalSeconds, 0, 0.25);
+        var leftPressed = mouse.LeftButton == ButtonState.Pressed &&
+                          _previousMouse.LeftButton != ButtonState.Pressed;
+        var uiContext = EnsureUiContext();
+        uiContext.Run = _run;
+        uiContext.DeltaSeconds = deltaSeconds;
+        uiContext.WindowSmoke = _windowSmoke;
+        uiContext.ActivatePressed = Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space);
+        uiContext.PointerPressed = leftPressed &&
+            UiShell.TryMapScreenToVirtual(
+                mouse.X,
+                mouse.Y,
+                GraphicsDevice.Viewport.Width,
+                GraphicsDevice.Viewport.Height,
+                out _,
+                out _);
+        EnsureScreenHandlers().Update(EffectiveUiScreen(), uiContext);
         RebuildUi();
         HandleUiInput(keyboard, mouse);
         if (_session.Screen != screenBefore || _run?.Status != runStatusBefore)
             RebuildUi();
         RefreshHints(keyboard, mouse);
         if (_windowSmoke)
+        {
             DriveWindowSmoke();
+            if (_session.Screen != screenBefore)
+                RebuildUi();
+        }
 
         _accumulator += Math.Clamp(gameTime.ElapsedGameTime.TotalSeconds, 0, 0.25);
         const double tickSeconds = 1d / WorldRun.TickRate;
@@ -116,7 +137,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             _presentation.TexturesLoaded > 0)
             _windowSmokeContentVisible = true;
 
-        var uiContext = EnsureUiContext();
         if (_windowSmoke &&
             uiContext.WindowSmokeVisitedSummary &&
             _session.Screen == MetaScreen.Station &&

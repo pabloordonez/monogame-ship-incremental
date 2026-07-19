@@ -175,7 +175,7 @@ public class MvpContentTests
 
         var manifest = ContentValidator.LoadAndValidateManifest(GeneratedRoot, "data/asset-manifest.json");
         var catalog = new FileAssetCatalog(GeneratedRoot, manifest);
-        Assert.Contains("SHIP GAME", catalog.LoadText(new ContentId("data/title-placeholder")), StringComparison.Ordinal);
+        Assert.Contains("Mine Your Own Business", catalog.LoadText(new ContentId("data/title-placeholder")), StringComparison.Ordinal);
 
         foreach (var asset in manifest.Assets.Where(item => item.Kind is "atlas" or "texture" or "sound"))
             Assert.True(

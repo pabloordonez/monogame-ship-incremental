@@ -9,7 +9,9 @@ public interface IMetaScreenCanvas
 {
     void DrawText(int x, int y, string text, XnaColor color, int scale = 1);
     void DrawRegion(string regionId, int x, int y, int width, int height);
+    void DrawRegion(string regionId, int x, int y, int width, int height, XnaColor color);
     void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size);
+    void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size, XnaColor color);
     void DrawTexture(string assetId, int x, int y, int width, int height, XnaColor color);
     void DrawShellButtons(UiShell ui, string? skipPrefix = null);
     void DrawButton(UiRect bounds, string label, UiControlState state);

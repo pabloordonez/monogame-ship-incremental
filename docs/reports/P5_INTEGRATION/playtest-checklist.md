@@ -3,12 +3,12 @@
 ## Build
 
 - [ ] `scripts/build.ps1` succeeds (content 16/0)
-- [ ] Launch without `--smoke` opens DesktopVK window with title **SHIP GAME**
+- [ ] Launch without `--smoke` opens DesktopVK window with title **Mine Your Own Business**
 - [ ] Local telemetry file may appear under `%LocalAppData%/ShipGame/telemetry.jsonl` when consent enabled
 
 ## Fresh profile loop
 
-- [ ] Title shows readable **SHIP GAME** text and focusable New Game / Continue / Quit buttons
+- [ ] Title shows animated **Mine Your Own Business** wordmark + ship splash, then focusable New Game / Continue / Quit buttons
 - [ ] **STATION** shows banked Ferrite/Lumen/Cores and Map / Loadout / Research / Upgrades / Settings
 - [ ] Mouse click or keyboard (arrows/Enter, hotkeys M/L/R/U/O) navigates station destinations
 - [ ] Custom mouse cursor is visible over the virtual canvas (OS cursor hidden); brightens when pressed
