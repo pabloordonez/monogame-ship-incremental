@@ -8,4 +8,5 @@ public readonly record struct AsteroidCellDescriptor(
     GridPoint Position,
     AsteroidCellKind Kind,
     int Health,
-    bool ProvidesCompleteCover);
+    bool ProvidesCompleteCover,
+    AsteroidCellSize Size = AsteroidCellSize.Medium);

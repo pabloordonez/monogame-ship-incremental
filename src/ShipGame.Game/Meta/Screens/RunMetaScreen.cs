@@ -39,16 +39,52 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
         {
             if (asteroid.Broken)
                 continue;
+            var drawSize = AsteroidSizing.DrawSize(asteroid.Size);
             var screen = canvas.WorldToScreen(new System.Numerics.Vector2(asteroid.X, asteroid.Y), camera);
-            if (!canvas.OnScreen(screen, 32))
+            if (!canvas.OnScreen(screen, drawSize + 8))
                 continue;
-            var region = asteroid.Kind switch
+            var region = AsteroidSizing.AtlasRegion(asteroid.Kind, asteroid.Size);
+            canvas.DrawRegion(
+                region,
+                (int)screen.X - drawSize / 2,
+                (int)screen.Y - drawSize / 2,
+                drawSize,
+                drawSize);
+            // Visible ore chunks for ferrite / lumen veins (ordinary stays rock-only).
+            if (asteroid.Kind is AsteroidCellKind.Ferrite or AsteroidCellKind.Lumen)
             {
-                AsteroidCellKind.Ferrite => "asteroids/medium/ferrite",
-                AsteroidCellKind.Lumen => "asteroids/medium/lumen",
-                _ => "asteroids/medium/ordinary"
-            };
-            canvas.DrawRegion(region, (int)screen.X - 12, (int)screen.Y - 12, 24, 24);
+                var oreIcon = asteroid.Kind == AsteroidCellKind.Lumen
+                    ? "ui/icons/resource-lumen"
+                    : "ui/icons/resource-ferrite";
+                var chip = Math.Max(5, drawSize / 3);
+                canvas.DrawRegion(
+                    oreIcon,
+                    (int)screen.X - chip / 2 + drawSize / 6,
+                    (int)screen.Y - chip / 2 - drawSize / 8,
+                    chip,
+                    chip);
+                canvas.DrawRegion(
+                    oreIcon,
+                    (int)screen.X - chip / 2 - drawSize / 7,
+                    (int)screen.Y - chip / 2 + drawSize / 7,
+                    Math.Max(4, chip - 2),
+                    Math.Max(4, chip - 2));
+            }
+
+            // Damage tiers: cracked overlays as health falls.
+            var fraction = asteroid.MaxHealth <= 0 ? 1f : asteroid.Health / asteroid.MaxHealth;
+            if (fraction < 0.66f)
+            {
+                var crackAlpha = fraction < 0.33f ? (byte)200 : (byte)120;
+                var crackSize = Math.Max(8, drawSize - 4);
+                canvas.DrawRegion(
+                    "asteroids/break",
+                    (int)screen.X - crackSize / 2,
+                    (int)screen.Y - crackSize / 2,
+                    crackSize,
+                    crackSize,
+                    new XnaColor((byte)255, (byte)220, (byte)180, crackAlpha));
+            }
         }
 
         foreach (var pickup in run.Pickups)
