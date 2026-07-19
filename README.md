@@ -17,7 +17,7 @@ flowchart LR
 
 ## Current status
 
-The vertical slice through P5 integration is playable end to end: new or continue profile, Station and loadout, environment select, composed flight combat and mining, elite and extraction, rewards, research, station upgrades, and local save. Automated tests across architecture, gameplay, content, persistence, telemetry, and smoke paths are green on a normal full suite run.
+The vertical slice through P5 integration is playable end to end: new or continue profile, Station and loadout, environment select, composed flight combat and mining, elite and extraction, rewards, research, station upgrades, and local save. Post-P5 upgrades on `main` include Ion Veil dual elites (two Data Cores), sized drifting asteroids with ore/loot burst, seeker orientation fix, and extraction charge VFX (no tick fraction HUD). Automated tests across architecture, gameplay, content, persistence, telemetry, and smoke paths are green on a normal full suite run.
 
 What remains for Round A confidence is mostly evidence and polish rather than missing core systems. A full 1080p performance capture and the longer multi run reliability marathon are still outstanding. Art and the procedural pixel font are provisional. Music is intentionally a brief only. Known gaps and waivers live under the P5 integration reports.
 
