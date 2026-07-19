@@ -17,7 +17,8 @@ public sealed class LootGenerationSystem(RandomStreams random)
         IEnumerable<CellBrokenFact> brokenCells,
         long currentTick,
         bool fractureLens = false,
-        decimal ferriteYieldMultiplier = 1m)
+        decimal ferriteYieldMultiplier = 1m,
+        bool richEnvironmentYield = false)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(brokenCells);
@@ -42,14 +43,19 @@ public sealed class LootGenerationSystem(RandomStreams random)
 
             if (broken.Kind == AsteroidCellKind.Lumen)
             {
-                var lumenCount = EncounterGenerator.NextInt(_loot, 1, 3);
+                // Cinder: NextInt(1,3) → 1–2; Ion rich: NextInt(2,5) → 2–4.
+                var lumenCount = richEnvironmentYield
+                    ? EncounterGenerator.NextInt(_loot, 2, 5)
+                    : EncounterGenerator.NextInt(_loot, 1, 3);
                 for (var i = 0; i < lumenCount; i++)
                     spawned.Add(SpawnOne(world, sourcePosition, WorldRunIds.Lumen, 1, afterTick));
                 continue;
             }
 
-            // Ferrite vein: several visible gems.
+            // Ferrite vein: several visible gems. Ion Veil veins roll +1 quantity.
             var quantity = EncounterGenerator.NextInt(_loot, 3, 7);
+            if (richEnvironmentYield)
+                quantity += 1;
             if (fractureLens)
                 quantity = (quantity * 120 + 99) / 100;
             if (ferriteYieldMultiplier > 1m)

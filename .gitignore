@@ -2,6 +2,7 @@ bin/
 obj/
 TestResults/
 content/generated/
+artifacts/
 *.user
 *.suo
 .vs/

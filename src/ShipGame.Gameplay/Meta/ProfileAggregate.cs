@@ -288,7 +288,7 @@ public sealed class ProfileAggregate
             MetaContentIds.IonVeil when HasCapability(MetaContentIds.TravelIonVeil) =>
                 Applied("travel.allowed", "Ion Veil capability is present."),
             MetaContentIds.IonVeil =>
-                Rejected("travel.capability-required", $"Requires capability {MetaContentIds.TravelIonVeil}."),
+                Rejected("travel.capability-required", "Requires Ion Sheathing research."),
             _ => Rejected("travel.unknown", $"Unknown environment ID '{Safe(environmentId)}'.")
         };
 

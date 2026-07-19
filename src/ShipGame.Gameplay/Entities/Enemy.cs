@@ -15,10 +15,11 @@ public sealed class Enemy
         EnemyDefinition definition,
         Vector2 position,
         EntityId playerTarget,
-        bool elite = false)
+        bool elite = false,
+        float environmentHullMultiplier = 1f)
     {
         Entity = entity;
-        var healthMultiplier = elite ? 2.75f : 1;
+        var healthMultiplier = (elite ? 2.75f : 1f) * environmentHullMultiplier;
         var speedMultiplier = elite ? 1.10f : 1;
         world.Set(entity, new Transform2(position, 0));
         world.Set(entity, new Velocity2(Vector2.Zero));

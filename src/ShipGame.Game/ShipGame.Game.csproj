@@ -18,11 +18,17 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <MonoGamePlatform>DesktopVK</MonoGamePlatform>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>ShipGame</AssemblyName>
+    <Product>Ship Game</Product>
+    <AssemblyTitle>Ship Game</AssemblyTitle>
+    <Description>Short space expeditions — fly, fight, mine, extract, research.</Description>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>

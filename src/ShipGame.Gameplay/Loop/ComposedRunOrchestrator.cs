@@ -14,6 +14,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public const int BaseCollectionRadius = 90;
     public const int BasePullSpeed = 8;
     public const int NormalKillFerriteSalvage = 5;
+    public const int IonKillFerriteSalvage = 7;
+    public const int CinderThreatIntervalTicks = 90;
+    public const int IonThreatIntervalTicks = 70;
     /// <summary>Matches drawn medium asteroid sprites (24×24).</summary>
     public const float AsteroidVisualRadius = 12f;
     /// <summary>Aim cone (half-angle) for near-miss mining assist when the ray barely misses.</summary>
@@ -84,6 +87,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         _loot = new(Random);
         WorldRun = new WorldRun(Descriptor, Random, recoveryProtocols);
         Combat = new FlightCombatWorld(RunSeed);
+        if (IsIonVeil)
+            Combat.ConfigureEnvironmentCombat(hullMultiplier: 1.20f, damageMultiplier: 1.15f);
 
         var spawn = CellToWorld(Descriptor.Spawn.Center);
         var weapon = new ContentId(loadout.Effective.Weapon);
@@ -103,7 +108,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         foreach (var sector in Descriptor.Sectors)
             Combat.AddSpawnAnchor(CellToWorld(sector.Center), outsideCamera: sector.Kind != SectorKind.Spawn);
         if (enableThreatDirector)
-            Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
+            Combat.ConfigureThreatDirector(
+                ThreatIntervalTicks,
+                Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
 
         SeedAsteroids();
         _basePickupRadius = Math.Max(BaseCollectionRadius, statistics.PickupRadius);
@@ -306,9 +313,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         for (var i = 0; i < 8; i++)
         {
             facts.Add(new(_nextFactId++, RunFactKind.NormalEnemyDestroyed));
-            facts.Add(new(_nextFactId++, RunFactKind.ResourceCollected, WorldRunIds.Ferrite, NormalKillFerriteSalvage));
+            facts.Add(new(_nextFactId++, RunFactKind.ResourceCollected, WorldRunIds.Ferrite, KillFerriteSalvage));
             _normalKills++;
-            _ferriteCollected += NormalKillFerriteSalvage;
+            _ferriteCollected += KillFerriteSalvage;
         }
 
         FeedWorldFacts(facts, paused: false, hullDepleted: false, interact: false, inZone: false);
@@ -364,7 +371,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         if (!paused)
         {
             if (_threatEnabled)
-                Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
+                Combat.ConfigureThreatDirector(
+                    ThreatIntervalTicks,
+                    Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
             Combat.Queue(command);
             Combat.Step();
             TranslateCombatEvents();
@@ -454,7 +463,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                         Y = (int)MathF.Round(deathPos.Y)
                     },
                     WorldRun.RunTick,
-                    NormalKillFerriteSalvage);
+                    KillFerriteSalvage);
             }
         }
     }
@@ -732,7 +741,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             broken,
             WorldRun.RunTick,
             _appliedModifiers.FractureLens,
-            _ferriteYieldMultiplier);
+            _ferriteYieldMultiplier,
+            richEnvironmentYield: IsIonVeil);
     }
 
     private void SyncCollector()
@@ -890,6 +900,15 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         Status = ComposedRunStatus.Terminal;
         NoteCheckpoint("reward_mapped");
     }
+
+    private bool IsIonVeil =>
+        string.Equals(_environmentId, MetaContentIds.IonVeil, StringComparison.Ordinal);
+
+    private int ThreatIntervalTicks =>
+        IsIonVeil ? IonThreatIntervalTicks : CinderThreatIntervalTicks;
+
+    private int KillFerriteSalvage =>
+        IsIonVeil ? IonKillFerriteSalvage : NormalKillFerriteSalvage;
 
     private void SeedAsteroids()
     {

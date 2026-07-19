@@ -1,3 +1,4 @@
+using ShipGame.Domain;
 using XnaColor = Microsoft.Xna.Framework.Color;
 
 namespace ShipGame.Game;
@@ -14,12 +15,10 @@ internal sealed class MapMetaScreen : MetaScreenHandlerBase
         foreach (var env in session.Map)
         {
             var envId = env.EnvironmentId;
-            var label = MvpPresentation.ShortId(envId);
-            var prefix = env.Selected ? "> " : "  ";
             ui.Add(
                 $"env:{envId}",
                 new UiRect(24, y, 592, 48),
-                $"{prefix}{label}",
+                EnvironmentTitle(envId),
                 true,
                 () =>
                 {
@@ -49,27 +48,35 @@ internal sealed class MapMetaScreen : MetaScreenHandlerBase
             var control = canvas.FindControl(ui, id);
             if (control is null)
                 continue;
-            var state = ui.GetState(id);
-            canvas.DrawButton(control.Bounds, control.Label, state);
+
+            var accent = !env.Accessible
+                ? MetaRowAccent.Need
+                : env.Selected
+                    ? MetaRowAccent.Owned
+                    : MetaRowAccent.Ready;
+            var subtitle = !env.Accessible
+                ? env.Explanation
+                : env.Selected
+                    ? "SELECTED"
+                    : "AVAILABLE";
+            canvas.DrawMetaRow(
+                control.Bounds,
+                ui.GetState(id),
+                null,
+                EnvironmentTitle(env.EnvironmentId),
+                subtitle,
+                accent);
             if (!env.Accessible)
-            {
-                canvas.DrawRegion("ui/icons/lock", control.Bounds.X + control.Bounds.Width - 36, control.Bounds.Y + 10, 20, 20);
-                canvas.DrawText(
-                    control.Bounds.X + 12,
-                    control.Bounds.Y + 28,
-                    canvas.Truncate(env.Explanation, 64),
-                    new XnaColor(160, 160, 170));
-            }
-            else
-                canvas.DrawText(
-                    control.Bounds.X + 12,
-                    control.Bounds.Y + 28,
-                    env.Selected ? "Selected — Launch when ready" : "Select then Launch",
-                    new XnaColor(180, 190, 200));
+                canvas.DrawRegion(
+                    "ui/icons/lock",
+                    control.Bounds.X + control.Bounds.Width - 36,
+                    control.Bounds.Y + 10,
+                    20,
+                    20);
         }
 
         canvas.DrawShellButtons(ui, skipPrefix: "env:");
-        canvas.DrawText(24, 340, "Up/Down select  Enter/click Launch  Esc station", new XnaColor(140, 150, 160));
+        canvas.DrawText(24, 340, "Click select  Enter Launch  Esc station", new XnaColor(140, 150, 160));
     }
 
     public override void DriveWindowSmoke(MetaUiContext context, int ticks)
@@ -77,4 +84,11 @@ internal sealed class MapMetaScreen : MetaScreenHandlerBase
         if (ticks > 90 && context.Session.Launch().Accepted)
             context.StartRun();
     }
+
+    private static string EnvironmentTitle(string environmentId) => environmentId switch
+    {
+        MetaContentIds.CinderBelt => "Cinder Belt",
+        MetaContentIds.IonVeil => "Ion Veil",
+        _ => MvpPresentation.ShortId(environmentId)
+    };
 }

@@ -27,7 +27,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
     private bool _windowSmokeContentVisible;
     private string _title = "Mine Your Own Business";
     private int _windowSmokeTicks;
-    private string? _lastFocusedId;
 
     public ShipGameHost(bool windowSmoke = false, string? saveDirectory = null)
     {
@@ -187,7 +186,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         _ui.Begin(screen);
         EnsureScreenHandlers().BuildUi(screen, context);
         _ui.EndBuild();
-        SyncMapSelectionFromFocus();
     }
 
     private MetaScreenHandlerRegistry EnsureScreenHandlers() =>
@@ -229,31 +227,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         };
     }
 
-    private void SyncMapSelectionFromFocus()
-    {
-        if (_session?.Screen != MetaScreen.Map)
-        {
-            _lastFocusedId = _ui.FocusedId;
-            return;
-        }
-
-        var focused = _ui.FocusedId;
-        if (focused is null || string.Equals(focused, _lastFocusedId, StringComparison.Ordinal))
-        {
-            _lastFocusedId = focused;
-            return;
-        }
-
-        _lastFocusedId = focused;
-        if (!focused.StartsWith("env:", StringComparison.Ordinal))
-            return;
-        var envId = focused["env:".Length..];
-        var view = _session.Map.FirstOrDefault(env =>
-            string.Equals(env.EnvironmentId, envId, StringComparison.Ordinal));
-        if (view is { Accessible: true })
-            _session.SelectEnvironment(envId);
-    }
-
     private void HandleUiInput(KeyboardState keyboard, MouseState mouse)
     {
         if (_session is null)
@@ -270,16 +243,10 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         if (uiActive)
         {
             if (Pressed(keyboard, Keys.Up) || Pressed(keyboard, Keys.W))
-            {
                 _ui.MoveFocus(-1);
-                SyncMapSelectionFromFocus();
-            }
 
             if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
-            {
                 _ui.MoveFocus(1);
-                SyncMapSelectionFromFocus();
-            }
 
             if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
                 _ui.TryActivateFocused();
@@ -300,10 +267,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
                 var leftPressed = leftDown && _previousMouse.LeftButton != ButtonState.Pressed;
                 // During flight, do not steal LMB for UI.
                 if (_session.Screen != MetaScreen.Run)
-                {
                     _ui.UpdatePointer(vx, vy, leftDown, leftPressed);
-                    SyncMapSelectionFromFocus();
-                }
             }
         }
     }

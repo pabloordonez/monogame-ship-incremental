@@ -122,6 +122,16 @@ public sealed class FlightCombatWorld
         _context.ThreatCap = activeCap;
     }
 
+    public void ConfigureEnvironmentCombat(float hullMultiplier, float damageMultiplier)
+    {
+        if (!float.IsFinite(hullMultiplier) || hullMultiplier <= 0 || hullMultiplier > 10)
+            throw new ArgumentOutOfRangeException(nameof(hullMultiplier));
+        if (!float.IsFinite(damageMultiplier) || damageMultiplier <= 0 || damageMultiplier > 10)
+            throw new ArgumentOutOfRangeException(nameof(damageMultiplier));
+        _context.EnemyHullMultiplier = hullMultiplier;
+        _context.EnemyDamageMultiplier = damageMultiplier;
+    }
+
     public void GrantTemporaryModifiers(TemporaryCombatModifiers modifiers)
     {
         EnsurePlayer();

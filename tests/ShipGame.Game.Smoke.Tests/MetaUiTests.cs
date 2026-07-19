@@ -44,7 +44,7 @@ public sealed class MetaUiTests : IDisposable
         var map = ui.BuildMapView();
         var ion = Assert.Single(map, view => view.EnvironmentId == MetaContentIds.IonVeil);
         Assert.False(ion.Accessible);
-        Assert.Contains(MetaContentIds.TravelIonVeil, ion.Explanation, StringComparison.Ordinal);
+        Assert.Contains("Ion Sheathing", ion.Explanation, StringComparison.Ordinal);
     }
 
     [Fact]

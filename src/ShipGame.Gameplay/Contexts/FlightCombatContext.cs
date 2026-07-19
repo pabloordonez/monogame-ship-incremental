@@ -46,6 +46,8 @@ internal sealed class FlightCombatContext
     internal int ThreatIntervalTicks;
     internal int ThreatCap;
     internal bool EliteSpawned;
+    internal float EnemyHullMultiplier = 1f;
+    internal float EnemyDamageMultiplier = 1f;
     internal EntityId Player;
     internal long Tick;
     internal ulong LastStateHash;
@@ -137,7 +139,8 @@ internal sealed class FlightCombatContext
     }
 
     internal float EffectiveEnemyDamage(EntityId entity, float damage) =>
-        damage * (Has<Elite>(entity) ? World.Get<Elite>(entity).DamageMultiplier : 1);
+        damage * EnemyDamageMultiplier *
+        (Has<Elite>(entity) ? World.Get<Elite>(entity).DamageMultiplier : 1);
 
     internal int EffectiveEnemyCadence(EntityId entity, int cadence) =>
         Has<Elite>(entity) ? Math.Max(1, (int)MathF.Round(cadence * 0.8f)) : cadence;
@@ -148,7 +151,7 @@ internal sealed class FlightCombatContext
             throw new InvalidOperationException("MOD_ELITE_PROTOCOL allows only one elite per run.");
         var definition = Registry.Enemy(enemyId);
         var entity = CreateEntity();
-        _ = new Enemy(World, entity, enemyId, definition, position, Player, elite);
+        _ = new Enemy(World, entity, enemyId, definition, position, Player, elite, EnemyHullMultiplier);
         if (elite)
         {
             EliteSpawned = true;

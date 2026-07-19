@@ -69,6 +69,16 @@ From the repo root on Windows, `scripts/build.ps1` restores, builds content, and
 
 A practical first session after a successful build: create a new profile, visit Station, open Map, launch Cinder Belt, fly with WASD or stick, fire and mine, extract or fail, then buy research with banked materials and continue from disk.
 
+## Sharing a playtest build
+
+To package a standalone Windows build your friends can run without installing .NET:
+
+```powershell
+./scripts/publish.ps1
+```
+
+That writes a self-contained folder to `artifacts/publish/win-x64/` and a zip at `artifacts/ShipGame-win-x64.zip`. Share the zip; they unzip and double-click `ShipGame.exe`. Needs 64-bit Windows and a Vulkan-capable GPU.
+
 ## How we expect the code to grow
 
 Prefer closed registries, validated content IDs, and focused systems over plugin frameworks or speculative engines. Adding a weapon or enemy means a behavior enum, a strategy class, registry registration, and a deterministic test. Changing ship movement usually means flight statistics or mobility resolution in Gameplay, not host side hacks. The evolution strategy document spells out the longer deferred map. Keep permanent progress versioned and recoverable whenever save meaning changes.
