@@ -325,7 +325,7 @@ public class P3WorldRunTests
         ResolveOffers(run);
         run.Step(new(Facts: [new(91, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1)]));
         for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
-            events = run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+            events = run.Step(new(PlayerInExtractionZone: true));
 
         Assert.Equal(RunPhase.Succeeded, run.Phase);
         Assert.NotNull(run.Reward);
@@ -347,35 +347,47 @@ public class P3WorldRunTests
         run.Step(new(Paused: true));
         Assert.Equal(afterObjective, run.RunTick);
         run.Step(new(Facts: [new(500, RunFactKind.EliteDestroyed)]));
-        run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+        run.Step(new(PlayerInExtractionZone: true));
         Assert.Equal(1, run.ExtractionProgressTicks);
-        var events = run.Step(new(PlayerInExtractionZone: false, InteractHeld: true));
+        var events = run.Step(new(PlayerInExtractionZone: false));
         Assert.Equal(0, run.ExtractionProgressTicks);
         Assert.Contains(events, item => item.Kind == WorldRunEventKind.ExtractionReset);
     }
 
     [Fact]
-    public void ReleasingInteractInZoneResetsExtractionAndRejectsDiscontinuousHold()
+    public void LeavingZoneResetsExtractionAndRejectsDiscontinuousDwell()
     {
         var run = ReadyForExtraction(89);
         for (var tick = 0; tick < WorldRun.ExtractionHoldTicks / 2; tick++)
-            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+            run.Step(new(PlayerInExtractionZone: true));
         Assert.Equal(WorldRun.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
 
-        // Still in zone but interact released — must reset (continuous hold required).
-        var events = run.Step(new(PlayerInExtractionZone: true, InteractHeld: false));
+        // Leave the gate mid-dwell — must reset (continuous zone presence required).
+        var events = run.Step(new(PlayerInExtractionZone: false));
         Assert.Equal(0, run.ExtractionProgressTicks);
         Assert.Contains(events, item => item.Kind == WorldRunEventKind.ExtractionReset);
 
-        // Discontinuous 180+180 must NOT succeed: only continuous hold completes extraction.
+        // Discontinuous half+half must NOT succeed without a continuous full dwell.
         for (var tick = 0; tick < WorldRun.ExtractionHoldTicks / 2; tick++)
-            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+            run.Step(new(PlayerInExtractionZone: true));
         Assert.Equal(WorldRun.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
         Assert.Equal(RunPhase.Extraction, run.Phase);
         Assert.Null(run.Reward);
 
-        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks / 2; tick++)
-            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+        // Continuous full dwell (no Interact) completes extraction.
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
+            run.Step(new(PlayerInExtractionZone: true));
+        Assert.Equal(RunPhase.Succeeded, run.Phase);
+        Assert.Equal(RunOutcome.Success, run.Reward!.Outcome);
+    }
+
+    [Fact]
+    public void ExtractionSucceedsFromZonePresenceWithoutInteract()
+    {
+        var run = ReadyForExtraction(90);
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
+            run.Step(new(PlayerInExtractionZone: true, InteractHeld: false));
+
         Assert.Equal(RunPhase.Succeeded, run.Phase);
         Assert.Equal(RunOutcome.Success, run.Reward!.Outcome);
     }
@@ -385,15 +397,15 @@ public class P3WorldRunTests
     {
         var deathRace = ReadyForExtraction(101);
         for (var tick = 1; tick < WorldRun.ExtractionHoldTicks; tick++)
-            deathRace.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
-        deathRace.Step(new(PlayerHullDepleted: true, PlayerInExtractionZone: true, InteractHeld: true));
+            deathRace.Step(new(PlayerInExtractionZone: true));
+        deathRace.Step(new(PlayerHullDepleted: true, PlayerInExtractionZone: true));
         Assert.Equal(RunOutcome.HullFailure, deathRace.Reward!.Outcome);
 
         var deadlineRace = ReadyForExtraction(102);
         while (deadlineRace.RunTick < WorldRun.DeadlineTick - WorldRun.ExtractionHoldTicks)
             deadlineRace.Step(new());
         for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
-            deadlineRace.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+            deadlineRace.Step(new(PlayerInExtractionZone: true));
         Assert.Equal(WorldRun.DeadlineTick, deadlineRace.RunTick);
         Assert.Equal(RunOutcome.Success, deadlineRace.Reward!.Outcome);
 
@@ -446,7 +458,7 @@ public class P3WorldRunTests
             while (run.Upgrades.PendingOffer is not null)
                 all.AddRange(run.Step(new(UpgradeChoiceIndex: 0)));
             for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
-                all.AddRange(run.Step(new(PlayerInExtractionZone: true, InteractHeld: true)));
+                all.AddRange(run.Step(new(PlayerInExtractionZone: true)));
             return (
                 all.Select(item => $"{item.Sequence}:{item.RunTick}:{item.Kind}:{item.ContentId.Value}:{item.Amount}:{item.SecondaryAmount}").ToArray(),
                 run.Reward!);
@@ -496,7 +508,7 @@ public class P3WorldRunTests
             run.Step(new(UpgradeChoiceIndex: 0));
         run.Step(new(Facts: [new(101, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1)]));
         for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
-            run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
+            run.Step(new(PlayerInExtractionZone: true));
         Assert.Equal(RunPhase.Succeeded, run.Phase);
         return run.Reward!;
     }

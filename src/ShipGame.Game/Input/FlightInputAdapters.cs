@@ -66,10 +66,10 @@ public static class FlightInputAdapters
     }
 
     public static KeyboardFlightInput ReadKeyboard(KeyboardState keyboard, Vector2 worldAim) => new(
-        keyboard.IsKeyDown(Keys.W),
-        keyboard.IsKeyDown(Keys.S),
-        keyboard.IsKeyDown(Keys.A),
-        keyboard.IsKeyDown(Keys.D),
+        keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.Up),
+        keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.Down),
+        keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.Left),
+        keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Right),
         worldAim,
         Mouse.GetState().LeftButton == ButtonState.Pressed,
         Mouse.GetState().RightButton == ButtonState.Pressed,

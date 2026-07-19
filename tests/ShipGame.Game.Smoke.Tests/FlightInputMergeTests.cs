@@ -1,4 +1,5 @@
 using System.Numerics;
+using Microsoft.Xna.Framework.Input;
 using ShipGame.Game;
 using ShipGame.Gameplay;
 
@@ -6,6 +7,22 @@ namespace ShipGame.Game.Smoke.Tests;
 
 public sealed class FlightInputMergeTests
 {
+    [Fact]
+    public void ReadKeyboardAcceptsArrowKeysAsThrust()
+    {
+        var keyboard = new KeyboardState(Keys.Up, Keys.Right);
+        var input = FlightInputAdapters.ReadKeyboard(keyboard, Vector2.UnitX);
+
+        Assert.True(input.Up);
+        Assert.True(input.Right);
+        Assert.False(input.Down);
+        Assert.False(input.Left);
+
+        var command = FlightInputAdapters.Keyboard(0, input);
+        Assert.True(command.Move.X > 0);
+        Assert.True(command.Move.Y < 0);
+    }
+
     [Fact]
     public void MergeKeepsKeyboardInteractWhenGamepadSticksAreActive()
     {

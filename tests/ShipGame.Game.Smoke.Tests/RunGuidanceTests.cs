@@ -21,8 +21,9 @@ public sealed class RunGuidanceTests
 
         var extract = RunObjectiveBriefing.For(Hud(RunPhase.Extraction));
         Assert.Equal("Extract", extract.Title);
-        Assert.Contains("hold E", extract.Body, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("E extract", extract.Controls);
+        Assert.Contains("stay in the zone", extract.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("E extract", extract.Controls);
+        Assert.DoesNotContain("hold E", extract.Body, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -30,7 +31,7 @@ public sealed class RunGuidanceTests
     {
         Assert.Contains("elite", RunObjectiveBriefing.ToastFor(WorldRunEventKind.ObjectiveCompleted)!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("extraction", RunObjectiveBriefing.ToastFor(WorldRunEventKind.EliteActivationRequested)!, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("E", RunObjectiveBriefing.ToastFor(WorldRunEventKind.ExtractionActivated)!);
+        Assert.Contains("stay in the zone", RunObjectiveBriefing.ToastFor(WorldRunEventKind.ExtractionActivated)!, StringComparison.OrdinalIgnoreCase);
         Assert.Null(RunObjectiveBriefing.ToastFor(WorldRunEventKind.ResourceCredited));
     }
 

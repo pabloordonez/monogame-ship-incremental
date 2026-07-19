@@ -155,7 +155,7 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
             canvas.DrawText(
                 8,
                 76,
-                $"Hold E in extract zone: {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks}",
+                $"Extracting: {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks}",
                 new XnaColor(160, 220, 180));
 
         _ = context.Ui;

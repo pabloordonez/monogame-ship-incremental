@@ -12,15 +12,15 @@ public static class RunObjectiveBriefing
             RunPhase.Objective => new(
                 "Field objective",
                 $"Mine ferrite asteroids and destroy hostiles. Progress: ferrite {hud.ObjectiveFerrite}/30, kills {hud.ObjectiveKills}/8.",
-                "WASD thrust  mouse aim  LMB fire  RMB mine  Space dash"),
+                "Arrows/WASD thrust  mouse aim  LMB fire  RMB mine  Space dash"),
             RunPhase.Elite => new(
                 "Elite threat",
                 "A marked gunship has entered the field. Destroy it to open extraction.",
-                "WASD thrust  mouse aim  LMB fire  RMB mine  Space dash"),
+                "Arrows/WASD thrust  mouse aim  LMB fire  RMB mine  Space dash"),
             RunPhase.Extraction => new(
                 "Extract",
-                "Reach the extract gate and hold E for 6s to bank what you are carrying.",
-                "WASD thrust  mouse aim  LMB fire  RMB mine  Space dash  E extract"),
+                "Reach the extract gate and stay in the zone for 6s to bank what you are carrying.",
+                "Arrows/WASD thrust  mouse aim  LMB fire  RMB mine  Space dash"),
             RunPhase.Succeeded => new(
                 "Run complete",
                 "Extraction succeeded. Banking held resources.",
@@ -37,7 +37,7 @@ public static class RunObjectiveBriefing
         {
             WorldRunEventKind.ObjectiveCompleted => "Objective complete — elite gunship inbound",
             WorldRunEventKind.EliteActivationRequested => "Elite marked — destroy it to open extraction",
-            WorldRunEventKind.ExtractionActivated => "Extraction open — hold E at the gate",
+            WorldRunEventKind.ExtractionActivated => "Extraction open — reach the gate and stay in the zone",
             _ => null
         };
 }

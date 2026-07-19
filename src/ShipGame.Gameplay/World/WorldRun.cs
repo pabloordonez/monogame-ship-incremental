@@ -162,8 +162,8 @@ public sealed class WorldRun
     {
         if (Phase != RunPhase.Extraction)
             return;
-        // Continuous hold: zone + interact. Leaving the zone OR releasing interact resets.
-        if (input.PlayerInExtractionZone && input.InteractHeld)
+        // Continuous dwell in the extract gate zone. Leaving the zone resets.
+        if (input.PlayerInExtractionZone)
         {
             ExtractionProgressTicks = Math.Min(ExtractionHoldTicks, ExtractionProgressTicks + 1);
             Emit(events, WorldRunEventKind.ExtractionProgressed, amount: ExtractionProgressTicks);

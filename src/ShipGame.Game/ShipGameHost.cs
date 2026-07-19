@@ -324,8 +324,10 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         if (_session?.Screen == MetaScreen.Run && _run is not null)
         {
             move = new System.Numerics.Vector2(
-                (keyboard.IsKeyDown(Keys.D) ? 1 : 0) - (keyboard.IsKeyDown(Keys.A) ? 1 : 0),
-                (keyboard.IsKeyDown(Keys.S) ? 1 : 0) - (keyboard.IsKeyDown(Keys.W) ? 1 : 0));
+                ((keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Right)) ? 1 : 0) -
+                ((keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.Left)) ? 1 : 0),
+                ((keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.Down)) ? 1 : 0) -
+                ((keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.Up)) ? 1 : 0));
             if (move.LengthSquared() > 1f)
                 move = System.Numerics.Vector2.Normalize(move);
             aim = MouseAimWorld(mouse);
