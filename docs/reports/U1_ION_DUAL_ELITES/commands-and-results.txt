@@ -1,0 +1,8 @@
+Command:
+  dotnet test tests/ShipGame.Gameplay.Tests/ShipGame.Gameplay.Tests.csproj
+
+Result:
+  Passed!  - Failed: 0, Passed: 91, Skipped: 0, Total: 91
+
+Working directory:
+  C:/Repositories/github/ship-game-u1-elites

@@ -84,8 +84,12 @@ public sealed class FlightCombatWorld
         return entity;
     }
 
-    public EntityId SpawnEnemy(ContentId enemyId, Vector2 position, bool elite = false) =>
-        _context.SpawnEnemy(enemyId, position, elite);
+    public EntityId SpawnEnemy(
+        ContentId enemyId,
+        Vector2 position,
+        bool elite = false,
+        WeaponBehavior? weaponOverride = null) =>
+        _context.SpawnEnemy(enemyId, position, elite, weaponOverride);
 
     public EntityId SpawnObstacle(Vector2 position, float radius)
     {
@@ -112,6 +116,14 @@ public sealed class FlightCombatWorld
             throw new InvalidOperationException("Threat anchors are bounded to 64.");
         _context.Anchors.Add(new SpawnAnchor(position, outsideCamera));
     }
+
+    public void ConfigureEliteCap(int maxElites)
+    {
+        _context.MaxEliteSpawns = Math.Clamp(maxElites, 1, 4);
+    }
+
+    public void ConfigureRareAdvancedThreatWeapons(bool enabled) =>
+        _context.RareAdvancedThreatWeapons = enabled;
 
     public void ConfigureThreatDirector(int intervalTicks, int activeCap)
     {

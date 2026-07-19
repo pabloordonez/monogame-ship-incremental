@@ -8,8 +8,10 @@ internal sealed class EliteActivationWorldEventHandler : IWorldRunEventHandler
 
     public void Handle(in WorldRunEvent worldEvent, IWorldRunEventHost host)
     {
-        if (!host.TrySpawnEliteEnemy(new ContentId("ENM_GUNSHIP"), host.EliteArenaWorldCenter, out _))
-            return;
-        host.NoteCheckpoint("elite_spawned");
+        var spawned = 0;
+        while (host.TrySpawnEliteEnemy(new ContentId("ENM_GUNSHIP"), host.EliteArenaWorldCenter, out _))
+            spawned++;
+        if (spawned > 0)
+            host.NoteCheckpoint("elite_spawned");
     }
 }

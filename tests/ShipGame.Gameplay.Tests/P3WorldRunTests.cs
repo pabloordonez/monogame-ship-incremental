@@ -63,7 +63,8 @@ public class P3WorldRunTests
             Assert.Equal(0, reward.Lost.DataCores);
             Assert.True(reward.Banked.Ferrite >= 30, $"seed {seed}: banked Ferrite {reward.Banked.Ferrite}");
             Assert.InRange(reward.Banked.Ferrite, 30, maxFerriteYield);
-            Assert.Equal(1, reward.Banked.DataCores);
+            var expectedCores = environmentId == WorldRunIds.IonVeil ? 2 : 1;
+            Assert.Equal(expectedCores, reward.Banked.DataCores);
             Assert.InRange(reward.Banked.Lumen, 0, descriptor.AsteroidCells.Count(cell => cell.Kind == AsteroidCellKind.Lumen));
             Assert.NotEqual(0UL, reward.ProposalId);
 
@@ -317,6 +318,7 @@ public class P3WorldRunTests
     public void ObjectiveEliteExtractionAndRewardResolveInOrderExactlyOnce()
     {
         var run = CreateRun(77);
+        Assert.Equal(1, run.ElitesRequired);
         var events = CompleteObjective(run);
         Assert.Equal(RunPhase.Elite, run.Phase);
         Assert.True(run.Objective.Complete);
@@ -338,6 +340,48 @@ public class P3WorldRunTests
         Assert.Single(events, item => item.Kind == WorldRunEventKind.RewardProposed);
         Assert.Empty(run.Step(new(PlayerHullDepleted: true)));
         Assert.Same(run.Reward, run.Reward);
+    }
+
+    [Fact]
+    public void IonVeilRequiresTwoElitesAndTwoDataCoresBeforeExtraction()
+    {
+        var run = CreateRun(901, WorldRunIds.IonVeil);
+        Assert.Equal(2, run.ElitesRequired);
+        CompleteObjective(run);
+        ResolveOffers(run);
+        Assert.Equal(RunPhase.Elite, run.Phase);
+
+        var first = run.Step(new(Facts: [new(90, RunFactKind.EliteDestroyed)]));
+        Assert.Equal(RunPhase.Elite, run.Phase);
+        Assert.Contains(first, item => item.Kind == WorldRunEventKind.DataCoreDropRequested);
+        Assert.DoesNotContain(first, item => item.Kind == WorldRunEventKind.ExtractionActivated);
+
+        var second = run.Step(new(Facts: [new(91, RunFactKind.EliteDestroyed)]));
+        Assert.Equal(RunPhase.Extraction, run.Phase);
+        Assert.Contains(second, item => item.Kind == WorldRunEventKind.DataCoreDropRequested);
+        Assert.Contains(second, item => item.Kind == WorldRunEventKind.ExtractionActivated);
+
+        run.Step(new(Facts:
+        [
+            new(92, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1),
+            new(93, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1)
+        ]));
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
+            run.Step(new(PlayerInExtractionZone: true));
+
+        Assert.Equal(RunPhase.Succeeded, run.Phase);
+        Assert.Equal(2, run.Reward!.Banked.DataCores);
+    }
+
+    [Fact]
+    public void EliteDataCoreLimitAllowsConfiguredSecondCore()
+    {
+        var world = new ShipGame.Ecs.World();
+        var loot = new LootGenerationSystem(new RandomStreams(42));
+        loot.ConfigureEliteDataCoreLimit(2);
+        Assert.NotNull(loot.SpawnEliteDataCore(world, default, currentTick: 0));
+        Assert.NotNull(loot.SpawnEliteDataCore(world, default, currentTick: 0));
+        Assert.Null(loot.SpawnEliteDataCore(world, default, currentTick: 0));
     }
 
     [Fact]
@@ -508,20 +552,27 @@ public class P3WorldRunTests
         run.Step(new(Facts: facts));
         while (run.Upgrades.PendingOffer is not null)
             run.Step(new(UpgradeChoiceIndex: 0));
-        run.Step(new(Facts: [new(100, RunFactKind.EliteDestroyed)]));
+        ulong factId = 100;
+        for (var elite = 0; elite < run.ElitesRequired; elite++)
+            run.Step(new(Facts: [new(factId++, RunFactKind.EliteDestroyed)]));
         while (run.Upgrades.PendingOffer is not null)
             run.Step(new(UpgradeChoiceIndex: 0));
-        run.Step(new(Facts: [new(101, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1)]));
+        var coreFacts = new List<RunFact>();
+        for (var core = 0; core < run.ElitesRequired; core++)
+            coreFacts.Add(new(factId++, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1));
+        run.Step(new(Facts: coreFacts));
         for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
             run.Step(new(PlayerInExtractionZone: true));
         Assert.Equal(RunPhase.Succeeded, run.Phase);
+        Assert.Equal(run.ElitesRequired, run.Reward!.Banked.DataCores);
         return run.Reward!;
     }
 
-    private static WorldRun CreateRun(ulong seed)
+    private static WorldRun CreateRun(ulong seed, ContentId? environmentId = null)
     {
+        var environment = environmentId ?? WorldRunIds.CinderBelt;
         var descriptor = new EncounterGenerator()
-            .Generate(GenerationIdentity.Current(WorldRunIds.CinderBelt, seed)).Descriptor;
+            .Generate(GenerationIdentity.Current(environment, seed)).Descriptor;
         return new(descriptor, new RandomStreams(seed));
     }
 

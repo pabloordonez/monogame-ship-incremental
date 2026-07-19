@@ -16,7 +16,8 @@ public sealed class Enemy
         Vector2 position,
         EntityId playerTarget,
         bool elite = false,
-        float environmentHullMultiplier = 1f)
+        float environmentHullMultiplier = 1f,
+        WeaponBehavior weaponBehavior = WeaponBehavior.Pulse)
     {
         Entity = entity;
         var healthMultiplier = (elite ? 2.75f : 1f) * environmentHullMultiplier;
@@ -32,7 +33,7 @@ public sealed class Enemy
         world.Set(entity, new ThreatValue(definition.Behavior == EnemyBehavior.Gunship ? 2 : 1));
         world.Set(entity, new Target(playerTarget));
         world.Set(entity, new WeaponState(definition.CadenceTicks, 0, false, default));
-        world.Set(entity, new WeaponMount(enemyId, WeaponBehavior.Pulse));
+        world.Set(entity, new WeaponMount(enemyId, weaponBehavior));
         world.Set(entity, FlightCombatContext.DefaultModifiers());
         if (elite)
             world.Set(entity, new Elite(1.35f));

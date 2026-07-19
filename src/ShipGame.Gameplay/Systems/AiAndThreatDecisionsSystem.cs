@@ -69,12 +69,17 @@ internal sealed class AiAndThreatDecisionsSystem(FlightCombatContext context) : 
             return;
         var rng = context.Random.Get(RngStream.Encounter);
         var anchor = context.Anchors[valid[(int)(rng.NextUInt() % (uint)validCount)]];
-        var enemy = (rng.NextUInt() % 3) switch
+        var roll = rng.NextUInt() % 3;
+        var enemy = roll switch
         {
             0 => new ContentId("ENM_INTERCEPTOR"),
             1 => new ContentId("ENM_GUNSHIP"),
             _ => new ContentId("ENM_SAPPER")
         };
-        context.SpawnEnemy(enemy, anchor.Position);
+        WeaponBehavior? mountOverride = null;
+        // Ion Veil only: ~8% of interceptor/gunship threat spawns use beam or seeker.
+        if (context.RareAdvancedThreatWeapons && roll < 2 && rng.NextUInt() % 100 < 8)
+            mountOverride = rng.NextUInt() % 2 == 0 ? WeaponBehavior.Beam : WeaponBehavior.Seeker;
+        context.SpawnEnemy(enemy, anchor.Position, elite: false, weaponOverride: mountOverride);
     }
 }

@@ -45,7 +45,10 @@ internal sealed class FlightCombatContext
     internal bool ThreatEnabled;
     internal int ThreatIntervalTicks;
     internal int ThreatCap;
-    internal bool EliteSpawned;
+    internal int EliteSpawnCount;
+    internal int MaxEliteSpawns = 1;
+    /// <summary>When true, rare Ion threat spawns may receive beam/seeker mounts.</summary>
+    internal bool RareAdvancedThreatWeapons;
     internal float EnemyHullMultiplier = 1f;
     internal float EnemyDamageMultiplier = 1f;
     internal EntityId Player;
@@ -145,16 +148,22 @@ internal sealed class FlightCombatContext
     internal int EffectiveEnemyCadence(EntityId entity, int cadence) =>
         Has<Elite>(entity) ? Math.Max(1, (int)MathF.Round(cadence * 0.8f)) : cadence;
 
-    internal EntityId SpawnEnemy(ContentId enemyId, Vector2 position, bool elite = false)
+    internal EntityId SpawnEnemy(
+        ContentId enemyId,
+        Vector2 position,
+        bool elite = false,
+        WeaponBehavior? weaponOverride = null)
     {
-        if (elite && EliteSpawned)
-            throw new InvalidOperationException("MOD_ELITE_PROTOCOL allows only one elite per run.");
+        if (elite && EliteSpawnCount >= MaxEliteSpawns)
+            throw new InvalidOperationException(
+                $"MOD_ELITE_PROTOCOL allows at most {MaxEliteSpawns} elite(s) per run.");
         var definition = Registry.Enemy(enemyId);
         var entity = CreateEntity();
-        _ = new Enemy(World, entity, enemyId, definition, position, Player, elite, EnemyHullMultiplier);
+        var weapon = weaponOverride ?? WeaponBehavior.Pulse;
+        _ = new Enemy(World, entity, enemyId, definition, position, Player, elite, EnemyHullMultiplier, weapon);
         if (elite)
         {
-            EliteSpawned = true;
+            EliteSpawnCount++;
             AddEvent(CombatEvent.Create(
                 CombatEventKind.EliteActivated,
                 Tick,
@@ -210,8 +219,50 @@ internal sealed class FlightCombatContext
             amount: count));
     }
 
-    internal void SpawnHostileProjectile(EntityId source, Vector2 direction, float damage, float speed) =>
+    internal void SpawnHostileProjectile(EntityId source, Vector2 direction, float damage, float speed)
+    {
+        var behavior = Has<WeaponMount>(source)
+            ? World.Get<WeaponMount>(source).Behavior
+            : WeaponBehavior.Pulse;
+        if (behavior == WeaponBehavior.Beam)
+        {
+            if (Player != default && IsTargetable(Player))
+            {
+                var origin = World.Get<Transform2>(source).Position;
+                var toPlayer = World.Get<Transform2>(Player).Position - origin;
+                var range = 560f;
+                if (toPlayer.LengthSquared() <= range * range)
+                {
+                    var aim = NormalizeOr(direction, Vector2.UnitX);
+                    var toward = NormalizeOr(toPlayer, aim);
+                    if (Vector2.Dot(aim, toward) >= 0.85f)
+                        QueueDamage(Player, source, damage * 0.55f, projectile: false);
+                }
+            }
+
+            AddEvent(CombatEvent.Create(CombatEventKind.WeaponFired, Tick, source, Player));
+            return;
+        }
+
+        if (behavior == WeaponBehavior.Seeker)
+        {
+            var target = Player != default && IsTargetable(Player) ? Player : default;
+            SpawnProjectile(
+                source,
+                direction,
+                damage,
+                MathF.Min(speed, 480f),
+                700,
+                Faction.Hostile,
+                0,
+                missile: true,
+                target,
+                turnDegrees: 140);
+            return;
+        }
+
         SpawnProjectile(source, direction, damage, speed, 700, Faction.Hostile, 0, false, default, 0);
+    }
 
     internal EntityId SpawnProjectile(
         EntityId source,

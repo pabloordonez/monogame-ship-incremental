@@ -82,7 +82,12 @@ The environment, equipped modules, research modifiers, purchased station upgrade
 
 Progress can occur in any order. Collected objective Ferrite remains loot.
 
-When both are complete, the run enters the elite phase. One `ENM_GUNSHIP` spawns with `MOD_ELITE_PROTOCOL` applied. Its defeat drops one Data Core and activates extraction.
+When both are complete, the run enters the elite phase. Elite gunships spawn with `MOD_ELITE_PROTOCOL` applied:
+
+- **Cinder Belt:** one elite; its defeat drops one Data Core and activates extraction.
+- **Ion Veil:** two elites spawn simultaneously at offset arena anchors; each defeat drops one Data Core; extraction activates only after both are defeated (exactly two Data Cores per Ion run).
+
+On Ion Veil, a small fraction (~8%) of interceptor/gunship threat spawns may use beam or seeker mounts instead of pulse (Sapper stays mines; elites stay pulse).
 
 ### Extraction
 

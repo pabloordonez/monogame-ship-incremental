@@ -10,7 +10,11 @@ public sealed class LootGenerationSystem(RandomStreams random)
     public const int ScatterMax = 88;
 
     private readonly Pcg32 _loot = random?.Get(RngStream.Loot) ?? throw new ArgumentNullException(nameof(random));
-    private bool _eliteDataCoreSpawned;
+    private int _eliteDataCoresSpawned;
+    private int _eliteDataCoreLimit = 1;
+
+    public void ConfigureEliteDataCoreLimit(int limit) =>
+        _eliteDataCoreLimit = Math.Clamp(limit, 1, 4);
 
     public IReadOnlyList<LootSpawnedFact> Spawn(
         World world,
@@ -115,9 +119,9 @@ public sealed class LootGenerationSystem(RandomStreams random)
     public LootSpawnedFact? SpawnEliteDataCore(World world, WorldPosition position, long currentTick)
     {
         ArgumentNullException.ThrowIfNull(world);
-        if (_eliteDataCoreSpawned)
+        if (_eliteDataCoresSpawned >= _eliteDataCoreLimit)
             return null;
-        _eliteDataCoreSpawned = true;
+        _eliteDataCoresSpawned++;
         return SpawnOne(world, position, WorldRunIds.DataCore, 1, currentTick + PickupGraceTicks);
     }
 
