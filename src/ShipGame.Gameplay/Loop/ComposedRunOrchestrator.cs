@@ -43,6 +43,11 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     private string _environmentId = "";
     private bool _paused;
     private readonly bool _threatEnabled;
+    private readonly int _basePickupRadius;
+    private readonly int _basePullSpeedPerTick;
+    private readonly bool _hasScoutDrone;
+    private float _droneOrbitAngle;
+    private int _droneCooldownTicks;
 
     public ComposedRunOrchestrator(
         ContentId environmentId,
@@ -81,6 +86,12 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
 
         SeedAsteroids();
+        _basePickupRadius = Math.Max(BaseCollectionRadius, statistics.PickupRadius);
+        // Catalog pullSpeed is world-units/sec; /20 keeps tractor faster than the base collector.
+        _basePullSpeedPerTick = statistics.PullSpeed > 0
+            ? Math.Max(BasePullSpeed, (int)Math.Round(statistics.PullSpeed / 20.0))
+            : BasePullSpeed;
+        _hasScoutDrone = statistics.HasScoutDrone;
         var collectorEntity = _miningWorld.Create();
         _ = new Collector(
             _miningWorld,
@@ -90,9 +101,11 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 X = (int)MathF.Round(spawn.X),
                 Y = (int)MathF.Round(spawn.Y)
             },
-            Math.Max(BaseCollectionRadius, statistics.PickupRadius),
-            Math.Max(BasePullSpeed, statistics.PullSpeed / 60));
+            _basePickupRadius,
+            _basePullSpeedPerTick);
         _collector = collectorEntity;
+        ActiveCollectionRadius = _basePickupRadius;
+        ActivePullSpeedPerTick = _basePullSpeedPerTick;
 
         _miningDamagePerTick = Math.Max(1, (int)Math.Round((double)statistics.MiningDamagePerSecond / WorldRun.TickRate));
         WorldRun.Upgrades.SeedFromStationPurchases(purchasedUpgradeIds ?? Array.Empty<string>());
@@ -112,6 +125,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public IReadOnlyList<WorldRunEvent> LastWorldEvents { get; private set; } = Array.Empty<WorldRunEvent>();
     public IReadOnlyList<CombatEvent> LastCombatEvents => Combat.Events;
     public MiningPresentationState LastMiningPresentation { get; private set; }
+    public ScoutDronePresentation LastScoutDronePresentation { get; private set; }
+    public int ActiveCollectionRadius { get; private set; }
+    public int ActivePullSpeedPerTick { get; private set; }
     public IReadOnlyList<BrokenAsteroidPresentation> LastBrokenAsteroids => _brokenAsteroidView;
     public List<string> Checkpoints { get; } = [];
     public string RunId => _runId;
@@ -332,7 +348,10 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             ApplyMining(command);
             SyncCollector();
             CollectPickups();
+            UpdateScoutDrone();
         }
+        else
+            LastScoutDronePresentation = default;
 
         var player = SafePlayerSnapshot();
         var playerCell = WorldToCell(player.Position);
@@ -536,12 +555,64 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             X = (int)MathF.Round(player.Position.X),
             Y = (int)MathF.Round(player.Position.Y)
         });
-        var radius = BaseCollectionRadius + _appliedModifiers.PickupRadiusFlat;
+        var radius = _basePickupRadius + _appliedModifiers.PickupRadiusFlat;
         var pull = Math.Max(
             1,
-            (int)Math.Round(BasePullSpeed * (_appliedModifiers.PullSpeedBasisPoints / 10_000.0)));
+            (int)Math.Round(_basePullSpeedPerTick * (_appliedModifiers.PullSpeedBasisPoints / 10_000.0)));
+        ActiveCollectionRadius = radius;
+        ActivePullSpeedPerTick = pull;
         _miningWorld.Set(_collector, new CollectionRadius { Radius = radius, PullSpeedPerTick = pull });
     }
+
+    private void UpdateScoutDrone()
+    {
+        LastScoutDronePresentation = default;
+        if (!_hasScoutDrone)
+            return;
+
+        var player = SafePlayerSnapshot();
+        if (player.Destroyed || player.Hull <= 0)
+            return;
+
+        _droneOrbitAngle += 2.4f / WorldRun.TickRate;
+        const float orbitRadius = 48f;
+        var offset = new Vector2(MathF.Cos(_droneOrbitAngle), MathF.Sin(_droneOrbitAngle)) * orbitRadius;
+        var dronePos = player.Position + offset;
+
+        EntityId target = default;
+        var targetPos = dronePos;
+        var bestDistSq = ScoutDroneRange * ScoutDroneRange;
+        Combat.CollectSnapshots(_snapshotBuffer);
+        foreach (var snap in _snapshotBuffer)
+        {
+            if (snap.Faction != Faction.Hostile || snap.Destroyed || snap.Hull <= 0)
+                continue;
+            var distSq = Vector2.DistanceSquared(dronePos, snap.Position);
+            if (distSq >= bestDistSq)
+                continue;
+            bestDistSq = distSq;
+            target = snap.Entity;
+            targetPos = snap.Position;
+        }
+
+        var rotation = target != default
+            ? MathF.Atan2(targetPos.Y - dronePos.Y, targetPos.X - dronePos.X)
+            : _droneOrbitAngle + MathF.PI * 0.5f;
+
+        if (_droneCooldownTicks > 0)
+            _droneCooldownTicks--;
+        else if (target != default)
+        {
+            Combat.InflictDamage(target, Combat.Player, ScoutDroneDamage, projectile: true);
+            _droneCooldownTicks = ScoutDroneCooldownTicks;
+        }
+
+        LastScoutDronePresentation = new ScoutDronePresentation(true, dronePos, rotation);
+    }
+
+    private const float ScoutDroneRange = 450f;
+    private const float ScoutDroneDamage = 8f;
+    private const int ScoutDroneCooldownTicks = (int)(0.8f * WorldRun.TickRate);
 
     private void CollectPickups()
     {

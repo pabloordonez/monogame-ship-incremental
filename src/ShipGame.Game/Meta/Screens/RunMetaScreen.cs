@@ -122,6 +122,17 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
             }
         }
 
+        if (run.LastScoutDronePresentation.Active)
+        {
+            var droneScreen = canvas.WorldToScreen(run.LastScoutDronePresentation.WorldPosition, camera);
+            if (canvas.OnScreen(droneScreen, 24))
+                canvas.DrawRegionRotated(
+                    "ships/utility/firefly",
+                    droneScreen,
+                    run.LastScoutDronePresentation.Rotation,
+                    18);
+        }
+
         if (hud.Phase == RunPhase.Extraction)
         {
             var extractWorld = new System.Numerics.Vector2(

@@ -27,7 +27,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
     private bool _windowSmokeContentVisible;
     private string _title = "SHIP GAME";
     private int _windowSmokeTicks;
-    private int _transactionSerial;
     private string? _lastFocusedId;
 
     public ShipGameHost(bool windowSmoke = false, string? saveDirectory = null)
@@ -184,7 +183,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             StartRun = StartRun,
             ClearRun = () => _run = null,
             CommitRunReward = CommitRunReward,
-            NextTransactionId = NextTx,
+            NextTransactionId = prefix => _session!.NextTransactionId(prefix),
             ApplySettings = ApplySettings,
             EffectiveModule = EffectiveModule
         };
@@ -193,7 +192,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
 
     private void ApplySettings(GameSettings settings)
     {
-        _session?.ApplySettings(NextTx("settings"), settings);
+        _session?.ApplySettings(_session.NextTransactionId("settings"), settings);
     }
 
     private string EffectiveModule(ModuleSlot slot)
@@ -455,8 +454,6 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             ? System.Numerics.Vector2.UnitX
             : System.Numerics.Vector2.Normalize(delta);
     }
-
-    private string NextTx(string prefix) => $"TX_UI_{prefix}_{++_transactionSerial}";
 
     private bool Pressed(KeyboardState keyboard, Keys key) =>
         keyboard.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);

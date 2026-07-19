@@ -186,7 +186,7 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         {
             if (skipPrefix is not null && control.Id.StartsWith(skipPrefix, StringComparison.Ordinal))
                 continue;
-            if (control.Id.StartsWith("env:", StringComparison.Ordinal))
+            if (IsCustomDrawnMetaRow(control.Id))
                 continue;
             DrawButton(control.Bounds, control.Label, ui.GetState(control.Id));
         }
@@ -194,36 +194,183 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
 
     public void DrawButton(UiRect bounds, string label, UiControlState state)
     {
-        var fill = state switch
-        {
-            UiControlState.Disabled => new XnaColor(28, 32, 40, 220),
-            UiControlState.Pressed => new XnaColor(70, 110, 140, 240),
-            UiControlState.Focused => new XnaColor(40, 70, 96, 230),
-            UiControlState.Hovered => new XnaColor(36, 58, 78, 230),
-            _ => new XnaColor(20, 28, 40, 220)
-        };
-        var frame = state switch
-        {
-            UiControlState.Disabled => new XnaColor(80, 85, 95),
-            UiControlState.Pressed => new XnaColor(255, 240, 180),
-            UiControlState.Focused => new XnaColor(240, 250, 255),
-            UiControlState.Hovered => new XnaColor(200, 220, 240),
-            _ => new XnaColor(120, 140, 160)
-        };
+        var inset = DrawButtonChrome(bounds, state, MetaRowAccent.Default);
         var text = state switch
         {
             UiControlState.Disabled => new XnaColor(120, 125, 135),
             UiControlState.Pressed => new XnaColor(255, 255, 240),
             _ => XnaColor.White
         };
+        DrawText(bounds.X + 12 + inset, bounds.Y + Math.Max(6, (bounds.Height - 8) / 2) + inset, label, text);
+    }
 
+    public void DrawMetaRow(
+        UiRect bounds,
+        UiControlState state,
+        string? iconRegionId,
+        string title,
+        string subtitle,
+        MetaRowAccent accent)
+    {
+        var inset = DrawButtonChrome(bounds, state, accent);
+        var titleColor = (state, accent) switch
+        {
+            (UiControlState.Pressed, _) => new XnaColor(255, 255, 240),
+            (_, MetaRowAccent.Equipped or MetaRowAccent.Owned) => new XnaColor(255, 240, 180),
+            (_, MetaRowAccent.Need) => new XnaColor(255, 200, 190),
+            (_, MetaRowAccent.Ready) => new XnaColor(210, 245, 220),
+            (UiControlState.Disabled, _) => new XnaColor(140, 145, 155),
+            _ => XnaColor.White
+        };
+        var subtitleColor = accent switch
+        {
+            MetaRowAccent.Ready => new XnaColor(140, 220, 160),
+            MetaRowAccent.Owned or MetaRowAccent.Equipped => new XnaColor(230, 200, 120),
+            MetaRowAccent.Need => new XnaColor(230, 120, 110),
+            MetaRowAccent.Muted => new XnaColor(130, 135, 145),
+            _ => new XnaColor(170, 180, 195)
+        };
+
+        var textX = bounds.X + 8 + inset;
+        var iconPad = 0;
+        if (!string.IsNullOrEmpty(iconRegionId))
+        {
+            var iconSize = Math.Clamp(bounds.Height - 10, 14, 28);
+            var iconY = bounds.Y + (bounds.Height - iconSize) / 2 + inset;
+            DrawRegion(iconRegionId, bounds.X + 8 + inset, iconY, iconSize, iconSize);
+            iconPad = iconSize + 8;
+            textX = bounds.X + 8 + iconPad + inset;
+        }
+
+        var textWidth = Math.Max(24, bounds.Width - iconPad - 16 - inset * 2);
+        var maxChars = Math.Max(4, textWidth / PixelFont.CellWidth);
+
+        var compact = bounds.Height < 36 || string.IsNullOrEmpty(subtitle);
+        if (compact)
+        {
+            var line = string.IsNullOrEmpty(subtitle) ? title : $"{title}  {subtitle}";
+            DrawText(
+                textX,
+                bounds.Y + Math.Max(4, (bounds.Height - 8) / 2) + inset,
+                Truncate(line, maxChars),
+                titleColor);
+            return;
+        }
+
+        DrawText(textX, bounds.Y + 8 + inset, Truncate(title, maxChars), titleColor);
+        DrawText(textX, bounds.Y + bounds.Height - 16 + inset, Truncate(subtitle, maxChars), subtitleColor);
+    }
+
+    public bool TryResolveUiIcon(
+        string definitionId,
+        out string regionId,
+        MetaIconPreference preference = MetaIconPreference.UiIconFirst)
+    {
+        regionId = "";
+        CatalogDefinition definition;
+        try
+        {
+            definition = _catalog.GetDefinition(definitionId);
+        }
+        catch (KeyNotFoundException)
+        {
+            return false;
+        }
+
+        if (definition.References is null || definition.References.Count == 0)
+            return false;
+
+        IEnumerable<string> ordered = preference == MetaIconPreference.SpriteFirst
+            ? definition.References.Where(IsSpriteRegionRef)
+                .Concat(definition.References.Where(IsUiIconRef))
+            : definition.References.Where(IsUiIconRef)
+                .Concat(definition.References.Where(IsSpriteRegionRef));
+
+        foreach (var reference in ordered.Distinct(StringComparer.Ordinal))
+        {
+            if (!CanDrawRegion(reference))
+                continue;
+            regionId = reference;
+            return true;
+        }
+
+        return false;
+    }
+
+    private int DrawButtonChrome(UiRect bounds, UiControlState state, MetaRowAccent accent)
+    {
+        var fill = (state, accent) switch
+        {
+            (UiControlState.Pressed, _) => new XnaColor(70, 110, 140, 240),
+            (_, MetaRowAccent.Equipped) when state is UiControlState.Focused or UiControlState.Hovered =>
+                new XnaColor(72, 62, 28, 235),
+            (_, MetaRowAccent.Equipped) => new XnaColor(58, 48, 22, 230),
+            (_, MetaRowAccent.Owned) when state is UiControlState.Focused or UiControlState.Hovered =>
+                new XnaColor(64, 54, 28, 230),
+            (_, MetaRowAccent.Owned) => new XnaColor(48, 40, 22, 220),
+            (_, MetaRowAccent.Need) when state is UiControlState.Focused or UiControlState.Hovered =>
+                new XnaColor(72, 36, 34, 230),
+            (_, MetaRowAccent.Need) => new XnaColor(52, 28, 28, 220),
+            (_, MetaRowAccent.Ready) when state is UiControlState.Focused => new XnaColor(40, 78, 70, 230),
+            (_, MetaRowAccent.Ready) when state is UiControlState.Hovered => new XnaColor(34, 68, 62, 230),
+            (_, MetaRowAccent.Ready) => new XnaColor(24, 48, 40, 220),
+            (UiControlState.Disabled, _) => new XnaColor(28, 32, 40, 220),
+            (UiControlState.Focused, _) => new XnaColor(40, 70, 96, 230),
+            (UiControlState.Hovered, _) => new XnaColor(36, 58, 78, 230),
+            _ => new XnaColor(20, 28, 40, 220)
+        };
+        var frame = (state, accent) switch
+        {
+            (UiControlState.Pressed, _) => new XnaColor(255, 240, 180),
+            (_, MetaRowAccent.Equipped) => new XnaColor(240, 200, 90),
+            (_, MetaRowAccent.Owned) => new XnaColor(210, 180, 80),
+            (_, MetaRowAccent.Need) => new XnaColor(220, 90, 80),
+            (_, MetaRowAccent.Ready) when state is UiControlState.Focused or UiControlState.Hovered =>
+                new XnaColor(180, 240, 200),
+            (_, MetaRowAccent.Ready) => new XnaColor(100, 190, 130),
+            (UiControlState.Disabled, _) => new XnaColor(80, 85, 95),
+            (UiControlState.Focused, _) => new XnaColor(240, 250, 255),
+            (UiControlState.Hovered, _) => new XnaColor(200, 220, 240),
+            _ => new XnaColor(120, 140, 160)
+        };
+
+        var thick = state is UiControlState.Focused or UiControlState.Pressed ||
+                    accent is MetaRowAccent.Equipped or MetaRowAccent.Ready or MetaRowAccent.Owned or MetaRowAccent.Need;
         var inset = state == UiControlState.Pressed ? 2 : 0;
         Fill(bounds.X + inset, bounds.Y + inset, bounds.Width - inset * 2, bounds.Height - inset * 2, fill);
-        Frame(bounds.X, bounds.Y, bounds.Width, bounds.Height, frame, state is UiControlState.Focused or UiControlState.Pressed ? 2 : 1);
+        Frame(bounds.X, bounds.Y, bounds.Width, bounds.Height, frame, thick ? 2 : 1);
         if (state is UiControlState.Focused or UiControlState.Hovered)
             Frame(bounds.X - 2, bounds.Y - 2, bounds.Width + 4, bounds.Height + 4, frame * 0.65f, 1);
+        return inset;
+    }
 
-        DrawText(bounds.X + 12 + inset, bounds.Y + Math.Max(6, (bounds.Height - 8) / 2) + inset, label, text);
+    private static bool IsCustomDrawnMetaRow(string id) =>
+        id.StartsWith("env:", StringComparison.Ordinal) ||
+        (id.StartsWith("research:", StringComparison.Ordinal) &&
+         !string.Equals(id, "research:back", StringComparison.Ordinal)) ||
+        (id.StartsWith("loadout:", StringComparison.Ordinal) &&
+         !string.Equals(id, "loadout:back", StringComparison.Ordinal)) ||
+        (id.StartsWith("upg:", StringComparison.Ordinal));
+
+    private static bool IsUiIconRef(string reference) =>
+        reference.StartsWith("ui/icons/", StringComparison.Ordinal);
+
+    private static bool IsSpriteRegionRef(string reference) =>
+        reference.Contains('/', StringComparison.Ordinal) && !IsUiIconRef(reference);
+
+    private bool CanDrawRegion(string regionId)
+    {
+        try
+        {
+            _ = _catalog.GetRegion(regionId);
+        }
+        catch (KeyNotFoundException)
+        {
+            return false;
+        }
+
+        var textureId = FindAtlasTexture(regionId);
+        return textureId is not null && _textures.ContainsKey(textureId);
     }
 
     public void DrawBankedPurse(MetaSession session)
@@ -729,7 +876,9 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
     private static string? FindAtlasTexture(string regionId)
     {
         if (regionId.StartsWith("ships/", StringComparison.Ordinal) ||
-            regionId.StartsWith("modules/", StringComparison.Ordinal))
+            regionId.StartsWith("modules/", StringComparison.Ordinal) ||
+            regionId.StartsWith("weapons/", StringComparison.Ordinal) ||
+            string.Equals(regionId, "effects/tractor", StringComparison.Ordinal))
             return "atlases/player-modules";
         if (regionId.StartsWith("enemies/", StringComparison.Ordinal) ||
             regionId.StartsWith("telegraphs/", StringComparison.Ordinal) ||
@@ -758,7 +907,7 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
     public static string ShortId(string id)
     {
         var value = id;
-        foreach (var prefix in new[] { "MOD_", "RES_", "ENV_", "UPG_", "MAT_", "CAP_" })
+        foreach (var prefix in new[] { "MOD_", "RES_", "ENV_", "UPG_", "MAT_", "CAP_", "SLOT_" })
         {
             if (value.StartsWith(prefix, StringComparison.Ordinal))
             {
@@ -769,6 +918,16 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
 
         return value.Replace('_', ' ');
     }
+
+    public static string SlotCatalogId(ModuleSlot slot) => slot switch
+    {
+        ModuleSlot.Weapon => "SLOT_WEAPON",
+        ModuleSlot.Mining => "SLOT_MINING",
+        ModuleSlot.Shield => "SLOT_SHIELD",
+        ModuleSlot.Engine => "SLOT_ENGINE",
+        ModuleSlot.Utility => "SLOT_UTILITY",
+        _ => "SLOT_WEAPON"
+    };
 
     public void Dispose()
     {

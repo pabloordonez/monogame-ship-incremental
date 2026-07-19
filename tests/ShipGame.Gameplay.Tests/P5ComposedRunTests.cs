@@ -262,6 +262,82 @@ public sealed class P5ComposedRunTests
         }
     }
 
+    [Fact]
+    public void TractorLoadout_KeepsExpandedCollectionRadiusAcrossTicks()
+    {
+        var profile = ProfileAggregate.CreateNew(501);
+        // Tractor is the default utility; radius should stay above the base collector.
+        Assert.Equal(ModuleCatalog.UtilityTractor, profile.ResolveLoadout().Effective.Utility);
+        profile.BeginRun("TX_BEGIN_TRACTOR");
+        var stats = profile.DeriveStatistics();
+        Assert.True(stats.PickupRadius > ComposedRunOrchestrator.BaseCollectionRadius);
+
+        var run = new ComposedRunOrchestrator(
+            WorldRunIds.CinderBelt,
+            profile.Snapshot.ProfileSeed,
+            profile.Snapshot.RunIndex,
+            profile.ResolveLoadout(),
+            stats,
+            recoveryProtocols: false);
+        Assert.Equal(stats.PickupRadius, run.ActiveCollectionRadius);
+
+        for (var i = 0; i < 30; i++)
+            run.Step(FlightCommandFrame.Neutral(run.Combat.Tick));
+
+        Assert.Equal(stats.PickupRadius, run.ActiveCollectionRadius);
+        Assert.True(run.ActivePullSpeedPerTick > ComposedRunOrchestrator.BasePullSpeed);
+    }
+
+    [Fact]
+    public void ScoutDroneLoadout_OrbitsAndDamagesNearbyHostiles()
+    {
+        var profile = ProfileAggregate.CreateNew(502);
+        profile = UnlockAndEquipDrone(profile);
+        Assert.True(profile.DeriveStatistics().HasScoutDrone);
+        profile.BeginRun("TX_BEGIN_DRONE");
+
+        var run = new ComposedRunOrchestrator(
+            WorldRunIds.CinderBelt,
+            profile.Snapshot.ProfileSeed,
+            profile.Snapshot.RunIndex,
+            profile.ResolveLoadout(),
+            profile.DeriveStatistics(),
+            recoveryProtocols: false,
+            enableThreatDirector: false);
+
+        Assert.False(run.LastScoutDronePresentation.Active);
+        run.Step(FlightCommandFrame.Neutral(run.Combat.Tick));
+        Assert.True(run.LastScoutDronePresentation.Active);
+
+        var playerPos = run.Combat.Snapshot(run.Combat.Player).Position;
+        var enemy = run.Combat.SpawnEnemy(
+            new ContentId("ENM_INTERCEPTOR"),
+            playerPos + new Vector2(120, 0));
+        var start = run.Combat.Snapshot(enemy);
+        var startVitality = start.Hull + start.Shield;
+        for (var i = 0; i < 120; i++)
+            run.Step(FlightCommandFrame.Neutral(run.Combat.Tick));
+
+        Assert.True(run.LastScoutDronePresentation.Active);
+        var end = run.Combat.Snapshot(enemy);
+        Assert.True(end.Hull + end.Shield < startVitality || end.Destroyed);
+    }
+
+    private static ProfileAggregate UnlockAndEquipDrone(ProfileAggregate profile)
+    {
+        var snap = profile.Snapshot;
+        profile = new ProfileAggregate(snap with
+        {
+            PurchasedResearchIds = snap.PurchasedResearchIds
+                .Append(ResearchCatalog.HullReinforcement)
+                .Append(ResearchCatalog.UtilityDrone)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray(),
+            RequestedLoadout = snap.RequestedLoadout.With(ModuleSlot.Utility, ModuleCatalog.UtilityDrone)
+        });
+        return profile;
+    }
+
     private static ComposedRunOrchestrator CreateRun(ulong seed)
     {
         var profile = ProfileAggregate.CreateNew(seed);

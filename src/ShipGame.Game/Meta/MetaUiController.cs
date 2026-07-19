@@ -13,7 +13,10 @@ public sealed class MetaUiController
     public MetaUiController(ProfileAggregate profile, bool continuedProfile = false)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
-        Screen = continuedProfile ? MetaScreen.Station : MetaScreen.Title;
+        // Always land on Title so the player can choose New Game vs Continue.
+        // `continuedProfile` is retained for call-site clarity / future use.
+        _ = continuedProfile;
+        Screen = MetaScreen.Title;
     }
 
     public MetaScreen Screen { get; private set; }

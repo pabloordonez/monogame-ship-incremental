@@ -31,8 +31,8 @@
     { "id": "MOD_SHIELD_REFLECTIVE", "kind": "module", "references": ["SLOT_SHIELD", "ships/player/shield-mask", "RES_SHIELD_REFLECTIVE"], "values": { "capacity": 45, "recharge": 10, "delay": 2.5, "reflect": 0.2 } },
     { "id": "MOD_ENGINE_VECTOR", "kind": "module", "references": ["SLOT_ENGINE", "ships/player/dash"], "values": { "speed": 220, "distance": 180, "duration": 0.18, "cooldown": 4 } },
     { "id": "MOD_ENGINE_BLINK", "kind": "module", "references": ["SLOT_ENGINE", "ships/player/blink", "RES_ENGINE_BLINK"], "values": { "speed": 200, "distance": 260, "cooldown": 6 } },
-    { "id": "MOD_UTILITY_TRACTOR", "kind": "module", "references": ["SLOT_UTILITY", "effects/tractor"], "values": { "pickupRadius": 140, "pullSpeed": 260 } },
-    { "id": "MOD_UTILITY_DRONE", "kind": "module", "references": ["SLOT_UTILITY", "ships/utility/firefly", "RES_UTILITY_DRONE"], "values": { "range": 450, "damage": 8, "cooldown": 0.8 } },
+    { "id": "MOD_UTILITY_TRACTOR", "kind": "module", "references": ["SLOT_UTILITY", "ui/icons/research-tractor", "effects/tractor"], "values": { "pickupRadius": 140, "pullSpeed": 260 } },
+    { "id": "MOD_UTILITY_DRONE", "kind": "module", "references": ["SLOT_UTILITY", "ui/icons/research-drone", "ships/utility/firefly", "RES_UTILITY_DRONE"], "values": { "range": 450, "damage": 8, "cooldown": 0.8 } },
 
     { "id": "UPG_OVERCHARGED_MUNITIONS", "kind": "upgrade", "references": ["ui/icons/upgrade-damage"], "values": { "multiplier": 1.2 } },
     { "id": "UPG_RAPID_CYCLING", "kind": "upgrade", "references": ["ui/icons/upgrade-rate"], "values": { "multiplier": 1.18 } },

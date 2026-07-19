@@ -21,6 +21,7 @@ public sealed class MetaSession : IDisposable
     private MetaUiController _ui;
     private long _elapsedMilliseconds;
     private bool _allowOverwriteUnrecoverable;
+    private int _uiTransactionSerial;
 
     public MetaSession(
         string saveDirectory,
@@ -52,6 +53,7 @@ public sealed class MetaSession : IDisposable
         }
 
         _ui = new MetaUiController(_profile, continued);
+        _uiTransactionSerial = HighestUiTransactionSerial(_profile);
         _telemetry = new ConsentAwareTelemetry(
             _profile.Snapshot.Settings.TelemetryConsent,
             sinkFactory ?? (() => new DisabledTelemetrySink()));
@@ -61,6 +63,16 @@ public sealed class MetaSession : IDisposable
         if (loaded.RecoveredFromBackup)
             Record(MetaTelemetryFactKind.SaveRecovered);
         Record(MetaTelemetryFactKind.ScreenEntered, subjectCode: (int)_ui.Screen);
+    }
+
+    /// <summary>
+    /// Allocates a durable-unique UI transaction id. Serial is seeded from saved receipts so
+    /// relaunching the game cannot reuse <c>TX_UI_*</c> ids with a different fingerprint.
+    /// </summary>
+    public string NextTransactionId(string prefix)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
+        return $"TX_UI_{prefix}_{++_uiTransactionSerial}";
     }
 
     public ProfileAggregate Profile => _profile;
@@ -78,6 +90,10 @@ public sealed class MetaSession : IDisposable
     /// </summary>
     public bool RequiresExplicitNewProfile { get; private set; }
 
+    /// <summary>True when a supported save is loaded and Continue is a valid title choice.</summary>
+    public bool HasContinueSave =>
+        !RequiresExplicitNewProfile && LoadStatus == CompatibilityStatus.Supported;
+
     public StationView Station => _ui.BuildStationView();
     public IReadOnlyList<EnvironmentView> Map => _ui.BuildMapView();
     public IReadOnlyList<ResearchPreview> Research => _ui.BuildResearchView();
@@ -85,14 +101,11 @@ public sealed class MetaSession : IDisposable
 
     public UiActionResult CreateNewProfile(ulong? seed = null)
     {
-        if (!RequiresExplicitNewProfile && LoadStatus != CompatibilityStatus.Missing)
-            return Rejected(
-                "profile.new-not-required",
-                "An explicit new profile is only required when continue state is unrecoverable.");
-
+        // Title "New Game" may overwrite a healthy save; unrecoverable loads also use this path.
         _allowOverwriteUnrecoverable = true;
         _profile = ProfileAggregate.CreateNew(seed ?? DefaultNewProfileSeed);
         _ui = new MetaUiController(_profile, continuedProfile: false);
+        _uiTransactionSerial = HighestUiTransactionSerial(_profile);
         _telemetry.SetConsent(_profile.Snapshot.Settings.TelemetryConsent);
         if (!TryPersist("new-profile"))
         {
@@ -104,6 +117,8 @@ public sealed class MetaSession : IDisposable
         RequiresExplicitNewProfile = false;
         LoadStatus = CompatibilityStatus.Supported;
         LoadDiagnostics = [];
+        RecoveredFromBackup = false;
+        MigratedOnLoad = false;
         Record(MetaTelemetryFactKind.NewProfile);
         Record(MetaTelemetryFactKind.ScreenEntered, subjectCode: (int)_ui.Screen);
         return Accepted("profile.created", "Created a new profile after explicit confirmation.");
@@ -293,7 +308,8 @@ public sealed class MetaSession : IDisposable
         if (loaded.Status != CompatibilityStatus.Supported || loaded.Profile is null)
             return loaded;
         _profile = new ProfileAggregate(loaded.Profile);
-        _ui = new MetaUiController(_profile, continuedProfile: true);
+        _ui = new MetaUiController(_profile, continuedProfile: false);
+        _uiTransactionSerial = HighestUiTransactionSerial(_profile);
         _telemetry.SetConsent(_profile.Snapshot.Settings.TelemetryConsent);
         RequiresExplicitNewProfile = false;
         Record(MetaTelemetryFactKind.ContinueProfile);
@@ -374,4 +390,22 @@ public sealed class MetaSession : IDisposable
             },
             ModuleCatalog.All.Select(module => module.Id).ToHashSet(StringComparer.Ordinal),
             RunUpgradeCatalog.All.Select(upgrade => upgrade.Id.Value).ToHashSet(StringComparer.Ordinal));
+
+    private static int HighestUiTransactionSerial(ProfileAggregate profile)
+    {
+        var max = 0;
+        foreach (var receipt in profile.Snapshot.Transactions)
+        {
+            var id = receipt.TransactionId;
+            if (!id.StartsWith("TX_UI_", StringComparison.Ordinal))
+                continue;
+            var separator = id.LastIndexOf('_');
+            if (separator < 0 || separator + 1 >= id.Length)
+                continue;
+            if (int.TryParse(id.AsSpan(separator + 1), out var serial) && serial > max)
+                max = serial;
+        }
+
+        return max;
+    }
 }

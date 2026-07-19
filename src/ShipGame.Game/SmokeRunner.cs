@@ -43,7 +43,9 @@ public static class SmokeRunner
         session.Navigate(MetaScreen.Station);
 
         using var continued = new MetaSession(saveDirectory);
-        if (continued.Screen != MetaScreen.Station)
+        if (continued.Screen != MetaScreen.Title || !continued.HasContinueSave)
+            return 15;
+        if (!continued.Navigate(MetaScreen.Station).Accepted)
             return 15;
         continued.Navigate(MetaScreen.Map);
         if (!continued.Launch().Accepted)

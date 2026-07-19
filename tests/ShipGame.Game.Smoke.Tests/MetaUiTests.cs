@@ -87,13 +87,65 @@ public sealed class MetaUiTests : IDisposable
         }
 
         using var continued = new MetaSession(_root, () => new CountingSink(() => writes++));
-        Assert.Equal(MetaScreen.Station, continued.Screen);
+        Assert.Equal(MetaScreen.Title, continued.Screen);
+        Assert.True(continued.HasContinueSave);
+        Assert.True(continued.Navigate(MetaScreen.Station).Accepted);
         Assert.Contains(ResearchCatalog.HullReinforcement, continued.Profile.Snapshot.PurchasedResearchIds);
         Assert.Contains("UPG_THRUSTER_OVERCLOCK", continued.Profile.Snapshot.PurchasedUpgradeIds);
         Assert.Equal(ModuleCatalog.WeaponPulse, continued.Profile.Snapshot.RequestedLoadout.Weapon);
         Assert.Equal(new ResourceAmounts(15, 2, 1), continued.Profile.Snapshot.Balances);
         Assert.Equal(115, continued.Profile.DeriveStatistics().MaximumHull);
         Assert.True(writes > 0);
+    }
+
+    [Fact]
+    public void ContinuedSessionUiTransactionIdsDoNotConflictWithSavedEquipReceipts()
+    {
+        using (var session = new MetaSession(_root, newProfileSeed: 11))
+        {
+            Assert.True(session.Navigate(MetaScreen.Station).Accepted);
+            Assert.True(session.Navigate(MetaScreen.Loadout).Accepted);
+            // Mimic DesktopVK UI ids that are persisted into the profile receipt log.
+            Assert.True(session.EquipModule("TX_UI_equip_1", ModuleSlot.Mining, ModuleCatalog.MiningLaser).Accepted);
+            Assert.True(session.EquipModule("TX_UI_equip_2", ModuleSlot.Engine, ModuleCatalog.EngineVector).Accepted);
+        }
+
+        using var continued = new MetaSession(_root);
+        Assert.Equal(MetaScreen.Title, continued.Screen);
+        Assert.True(continued.HasContinueSave);
+        Assert.True(continued.Navigate(MetaScreen.Station).Accepted);
+        Assert.True(continued.Navigate(MetaScreen.Loadout).Accepted);
+        // Without seeding, relaunch would reuse TX_UI_equip_1 with a different fingerprint and conflict.
+        var tx = continued.NextTransactionId("equip");
+        Assert.Equal("TX_UI_equip_3", tx);
+        Assert.True(continued.EquipModule(tx, ModuleSlot.Weapon, ModuleCatalog.WeaponPulse).Accepted);
+        Assert.Equal(ModuleCatalog.WeaponPulse, continued.Profile.Snapshot.RequestedLoadout.Weapon);
+    }
+
+    [Fact]
+    public void TitleAllowsNewGameToOverwriteExistingContinueSave()
+    {
+        using (var session = new MetaSession(_root, newProfileSeed: 21))
+        {
+            Assert.True(session.CreateNewProfile(21).Accepted);
+            Assert.True(session.HasContinueSave);
+        }
+
+        using (var existing = new MetaSession(_root))
+        {
+            Assert.True(existing.HasContinueSave);
+            Assert.Equal(MetaScreen.Title, existing.Screen);
+            Assert.Equal(21UL, existing.Profile.Snapshot.ProfileSeed);
+            Assert.True(existing.CreateNewProfile(42).Accepted);
+            Assert.Equal(42UL, existing.Profile.Snapshot.ProfileSeed);
+            Assert.Empty(existing.Profile.Snapshot.PurchasedResearchIds);
+            Assert.True(existing.Navigate(MetaScreen.Station).Accepted);
+        }
+
+        using var reloaded = new MetaSession(_root);
+        Assert.True(reloaded.HasContinueSave);
+        Assert.Equal(42UL, reloaded.Profile.Snapshot.ProfileSeed);
+        Assert.Equal(MetaScreen.Title, reloaded.Screen);
     }
 
     [Fact]
@@ -125,7 +177,8 @@ public sealed class MetaUiTests : IDisposable
         Assert.Equal(CompatibilityStatus.Supported, session.LoadStatus);
         Assert.True(session.MigratedOnLoad);
         Assert.False(session.RequiresExplicitNewProfile);
-        Assert.Equal(MetaScreen.Station, session.Screen);
+        Assert.Equal(MetaScreen.Title, session.Screen);
+        Assert.True(session.HasContinueSave);
         Assert.Equal(0xC0FFEEUL, session.Profile.Snapshot.ProfileSeed);
         Assert.Equal(7, session.Profile.Snapshot.RunIndex);
         Assert.True(File.Exists(Path.Combine(_root, MetaSaveRepository.MetaFileName)));
@@ -162,7 +215,8 @@ public sealed class MetaUiTests : IDisposable
         using var continued = new MetaSession(_root);
         Assert.Equal(CompatibilityStatus.Supported, continued.LoadStatus);
         Assert.Equal(99UL, continued.Profile.Snapshot.ProfileSeed);
-        Assert.Equal(MetaScreen.Station, continued.Screen);
+        Assert.Equal(MetaScreen.Title, continued.Screen);
+        Assert.True(continued.HasContinueSave);
     }
 
     [Fact]

@@ -13,6 +13,14 @@ public interface IMetaScreenCanvas
     void DrawTexture(string assetId, int x, int y, int width, int height, XnaColor color);
     void DrawShellButtons(UiShell ui, string? skipPrefix = null);
     void DrawButton(UiRect bounds, string label, UiControlState state);
+    void DrawMetaRow(
+        UiRect bounds,
+        UiControlState state,
+        string? iconRegionId,
+        string title,
+        string subtitle,
+        MetaRowAccent accent);
+    bool TryResolveUiIcon(string definitionId, out string regionId, MetaIconPreference preference = MetaIconPreference.UiIconFirst);
     void DrawBankedPurse(MetaSession session);
     void DrawPanel(string title, params string[] lines);
     void DrawParallaxBackground(string bgId, System.Numerics.Vector2 camera);
