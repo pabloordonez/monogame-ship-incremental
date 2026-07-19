@@ -13,7 +13,11 @@ public sealed class Obstacle
             throw new ArgumentOutOfRangeException(nameof(radius));
         Entity = entity;
         world.Set(entity, new Transform2(position, 0));
-        world.Set(entity, new Collider(radius, FlightCombatContext.ObstacleLayer, FlightCombatContext.PlayerLayer | FlightCombatContext.HostileLayer | FlightCombatContext.ProjectileLayer));
+        world.Set(entity, new Velocity2(Vector2.Zero));
+        world.Set(entity, new Collider(
+            radius,
+            FlightCombatContext.ObstacleLayer,
+            FlightCombatContext.PlayerLayer | FlightCombatContext.HostileLayer | FlightCombatContext.ProjectileLayer | FlightCombatContext.ObstacleLayer));
         world.Set(entity, new Combatant(Faction.Neutral));
     }
 }

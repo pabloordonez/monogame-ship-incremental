@@ -339,7 +339,18 @@ internal sealed class FlightCombatContext
         if (target == source.Owner || targetFaction == source.Faction || targetFaction == Faction.Neutral)
         {
             if (Has<Collider>(target) && World.Get<Collider>(target).Layer == ObstacleLayer)
+            {
+                // Player/hostile fire knocks rocks; mining laser uses a separate path.
+                if (Has<Velocity2>(target) && Has<Velocity2>(projectileEntity))
+                {
+                    var impulse = World.Get<Velocity2>(projectileEntity).Value * 0.18f;
+                    ref var rockVelocity = ref World.Get<Velocity2>(target);
+                    rockVelocity = new Velocity2(rockVelocity.Value + impulse);
+                }
+
                 MarkDestroyed(projectileEntity, source.Owner);
+            }
+
             return;
         }
         ref var projectile = ref World.Get<Projectile>(projectileEntity);
@@ -366,8 +377,11 @@ internal sealed class FlightCombatContext
         var secondCollider = World.Get<Collider>(second);
         if (!firstCollider.BlocksMovement || !secondCollider.BlocksMovement)
             return;
-        var firstMovable = Has<Velocity2>(first);
-        var secondMovable = Has<Velocity2>(second);
+        var firstObstacle = firstCollider.Layer == ObstacleLayer;
+        var secondObstacle = secondCollider.Layer == ObstacleLayer;
+        // Ships treat rocks as solid (only the ship is pushed). Two rocks may both move/bounce.
+        var firstMovable = Has<Velocity2>(first) && (!firstObstacle || secondObstacle);
+        var secondMovable = Has<Velocity2>(second) && (!secondObstacle || firstObstacle);
         if (!firstMovable && !secondMovable)
             return;
         ref var firstTransform = ref World.Get<Transform2>(first);
@@ -382,6 +396,20 @@ internal sealed class FlightCombatContext
         {
             firstTransform = firstTransform with { Position = firstTransform.Position - normal * overlap * 0.5f };
             secondTransform = secondTransform with { Position = secondTransform.Position + normal * overlap * 0.5f };
+            // Simple elastic bounce for drifting asteroid pairs.
+            if (firstObstacle && secondObstacle)
+            {
+                ref var firstVelocity = ref World.Get<Velocity2>(first);
+                ref var secondVelocity = ref World.Get<Velocity2>(second);
+                var relative = secondVelocity.Value - firstVelocity.Value;
+                var closing = Vector2.Dot(relative, normal);
+                if (closing < 0f)
+                {
+                    var impulse = normal * closing;
+                    firstVelocity = new Velocity2(firstVelocity.Value + impulse);
+                    secondVelocity = new Velocity2(secondVelocity.Value - impulse);
+                }
+            }
         }
         else if (firstMovable)
             firstTransform = firstTransform with { Position = firstTransform.Position - normal * overlap };

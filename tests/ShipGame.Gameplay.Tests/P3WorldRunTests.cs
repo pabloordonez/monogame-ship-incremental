@@ -36,6 +36,9 @@ public class P3WorldRunTests
             Assert.Equal(EncounterGenerator.CurrentGenerationVersion, descriptor.Identity.GenerationVersion);
             Assert.Equal(3, descriptor.Sectors.Count(sector => sector.Kind == SectorKind.Objective));
             Assert.InRange(descriptor.AsteroidCells.Count, 15, FieldDescriptor.MaximumAsteroidCells);
+            Assert.Contains(descriptor.AsteroidCells, cell => cell.Size == AsteroidCellSize.Small);
+            Assert.Contains(descriptor.AsteroidCells, cell => cell.Size == AsteroidCellSize.Medium);
+            Assert.Contains(descriptor.AsteroidCells, cell => cell.Size == AsteroidCellSize.Large);
             Assert.InRange(descriptor.Hazards.Count, 1, FieldDescriptor.MaximumHazards);
 
             var ferriteCells = descriptor.AsteroidCells.Count(cell => cell.Kind == AsteroidCellKind.Ferrite);
@@ -609,6 +612,6 @@ public class P3WorldRunTests
             descriptor.Attempt,
             string.Join(",", descriptor.Sectors.Select(value => $"{value.Kind}:{value.Center.X}:{value.Center.Y}")),
             string.Join(",", descriptor.Corridors.Select(value => $"{value.From.X}:{value.From.Y}:{value.To.X}:{value.To.Y}")),
-            string.Join(",", descriptor.AsteroidCells.Select(value => $"{value.CellId}:{value.Position.X}:{value.Position.Y}:{value.Kind}:{value.Health}:{value.ProvidesCompleteCover}")),
+            string.Join(",", descriptor.AsteroidCells.Select(value => $"{value.CellId}:{value.Position.X}:{value.Position.Y}:{value.Kind}:{value.Health}:{value.ProvidesCompleteCover}:{value.Size}")),
             string.Join(",", descriptor.Hazards.Select(value => $"{value.WarningTick}:{value.ResolveTick}:{value.Damage}:{value.Center.X}:{value.Center.Y}:{value.Direction}")));
 }

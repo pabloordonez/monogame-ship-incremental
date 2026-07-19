@@ -27,6 +27,22 @@ public sealed class CollectionSystem
             if (item.Credited || item.Quantity <= 0)
                 continue;
             ref var position = ref world.Get<WorldPosition>(pickup);
+
+            // Loot explosion: move outward from the break center before/while tractor engages.
+            if (world.Store<PickupBurst>().Has(pickup))
+            {
+                ref var burst = ref world.Get<PickupBurst>(pickup);
+                if (burst.RemainingTicks > 0)
+                {
+                    position.X += burst.VelocityX;
+                    position.Y += burst.VelocityY;
+                    burst.RemainingTicks--;
+                    // Decay so gems settle instead of flying forever.
+                    burst.VelocityX = (int)MathF.Round(burst.VelocityX * 0.92f);
+                    burst.VelocityY = (int)MathF.Round(burst.VelocityY * 0.92f);
+                }
+            }
+
             var dx = collectorPosition.X - position.X;
             var dy = collectorPosition.Y - position.Y;
             var distanceSquared = (long)dx * dx + (long)dy * dy;

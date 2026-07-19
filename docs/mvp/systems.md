@@ -133,6 +133,12 @@ The composed host path (`ComposedRunOrchestrator`) co-steps flight combat, world
 
 **Invariants:** spawn is off-camera and at least 450 units away; active caps hold; AI uses encounter RNG; elite spawn cap is environment-aware (1 on Cinder Belt, 2 simultaneous on Ion Veil); Ion Veil may assign rare beam/seeker mounts to non-elite interceptor/gunship threat spawns.
 
+## Asteroid field (composed run)
+
+**Owns:** sized asteroid descriptors (S/M/L), drifting combat obstacles mirrored to mineable cells, loot burst on break, ore-readable presentation tiers.
+
+**Invariants:** each generated field includes all three sizes; obstacle radii match size; combat positions sync to mining `WorldPosition` each tick; projectile-obstacle contact applies knockback then destroys the projectile; loot pickups spawn at the break center with outward `PickupBurst` before tractor pull.
+
 **Dependencies:** session timer, spatial queries, content, objective.
 
 **Tests:** archetype decisions, caps, anchor validation, same-seed composition.

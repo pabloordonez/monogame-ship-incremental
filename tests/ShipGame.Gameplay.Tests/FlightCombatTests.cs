@@ -283,6 +283,39 @@ public sealed class FlightCombatTests
     }
 
     [Fact]
+    public void PlayerProjectilesImpartKnockbackToAsteroidObstacles()
+    {
+        var simulation = NewSimulation(Pulse);
+        var rock = simulation.SpawnObstacle(new Vector2(80, 0), 12f);
+        Assert.True(simulation.TryGetVelocity(rock, out var before));
+        Assert.Equal(0f, before.LengthSquared());
+
+        simulation.Queue(Command(0, aim: Vector2.UnitX, actions: FlightAction.Fire));
+        for (var i = 0; i < 20; i++)
+            simulation.Step();
+
+        Assert.True(simulation.TryGetVelocity(rock, out var after));
+        Assert.True(after.X > 0.5f, $"Expected +X knockback, got {after}");
+    }
+
+    [Fact]
+    public void OverlappingAsteroidsSeparateOnContact()
+    {
+        var simulation = NewSimulation(Pulse);
+        var left = simulation.SpawnObstacle(new Vector2(0, 0), 12f);
+        var right = simulation.SpawnObstacle(new Vector2(18, 0), 12f);
+        simulation.SetVelocity(left, new Vector2(10, 0));
+        simulation.SetVelocity(right, new Vector2(-10, 0));
+
+        simulation.Step();
+
+        Assert.True(simulation.TryGetPosition(left, out var leftPos));
+        Assert.True(simulation.TryGetPosition(right, out var rightPos));
+        var gap = rightPos.X - leftPos.X;
+        Assert.True(gap >= 23.5f, $"Expected overlapping rocks to separate; gap={gap}");
+    }
+
+    [Fact]
     public void SeekerFiresStraightWithoutLockAndHomesWithConeLock()
     {
         var simulation = NewSimulation(Seeker);

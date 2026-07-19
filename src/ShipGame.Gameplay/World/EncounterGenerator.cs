@@ -98,15 +98,23 @@ public sealed class EncounterGenerator
             }
             if (kind == AsteroidCellKind.Ferrite)
                 ferriteCells++;
+            var sizeRoll = NextInt(random, 0, 100);
+            var size = sizeRoll < 35
+                ? AsteroidCellSize.Small
+                : sizeRoll < 75
+                    ? AsteroidCellSize.Medium
+                    : AsteroidCellSize.Large;
             asteroids.Add(new(
                 cellId,
                 position,
                 kind,
-                kind == AsteroidCellKind.Ordinary ? 60 : 45,
-                identity.EnvironmentId == WorldRunIds.CinderBelt && NextInt(random, 0, 4) == 0));
+                AsteroidSizing.MaxHealth(kind, size),
+                identity.EnvironmentId == WorldRunIds.CinderBelt && NextInt(random, 0, 4) == 0,
+                size));
         }
 
         EnsureObjectiveFerrite(asteroids, ferriteCells);
+        EnsureAllAsteroidSizes(asteroids);
         return CreateDescriptor(identity, attempt, sectors, corridors, asteroids, BuildHazards(identity, random));
     }
 
@@ -129,12 +137,18 @@ public sealed class EncounterGenerator
         };
         // Validator requires Ferrite cells * 2 >= 30 (OBJ_FIELD_PROOF floor); keep ≥15 Ferrite cells.
         var asteroids = Enumerable.Range(0, 24)
-            .Select(index => new AsteroidCellDescriptor(
-                index,
-                new GridPoint(10 + index * 2, index % 2 == 0 ? 15 : 33),
-                index < 16 ? AsteroidCellKind.Ferrite : AsteroidCellKind.Ordinary,
-                45,
-                identity.EnvironmentId == WorldRunIds.CinderBelt && index % 4 == 0))
+            .Select(index =>
+            {
+                var kind = index < 16 ? AsteroidCellKind.Ferrite : AsteroidCellKind.Ordinary;
+                var size = (AsteroidCellSize)(index % 3);
+                return new AsteroidCellDescriptor(
+                    index,
+                    new GridPoint(10 + index * 2, index % 2 == 0 ? 15 : 33),
+                    kind,
+                    AsteroidSizing.MaxHealth(kind, size),
+                    identity.EnvironmentId == WorldRunIds.CinderBelt && index % 4 == 0,
+                    size);
+            })
             .ToArray();
         var random = CreateAttemptRandom(identity, MaximumAttempts);
         return CreateDescriptor(identity, MaximumAttempts, sectors, corridors, asteroids, BuildHazards(identity, random));
@@ -233,9 +247,37 @@ public sealed class EncounterGenerator
         {
             if (asteroids[index].Kind != AsteroidCellKind.Ordinary)
                 continue;
-            asteroids[index] = asteroids[index] with { Kind = AsteroidCellKind.Ferrite, Health = 45 };
+            var size = asteroids[index].Size;
+            asteroids[index] = asteroids[index] with
+            {
+                Kind = AsteroidCellKind.Ferrite,
+                Health = AsteroidSizing.MaxHealth(AsteroidCellKind.Ferrite, size)
+            };
             ferriteCells++;
         }
+    }
+
+    private static void EnsureAllAsteroidSizes(List<AsteroidCellDescriptor> asteroids)
+    {
+        if (asteroids.Count == 0)
+            return;
+        bool Has(AsteroidCellSize size) => asteroids.Any(cell => cell.Size == size);
+        void Force(int index, AsteroidCellSize size)
+        {
+            var cell = asteroids[index];
+            asteroids[index] = cell with
+            {
+                Size = size,
+                Health = AsteroidSizing.MaxHealth(cell.Kind, size)
+            };
+        }
+
+        if (!Has(AsteroidCellSize.Small))
+            Force(0, AsteroidCellSize.Small);
+        if (!Has(AsteroidCellSize.Medium))
+            Force(Math.Min(1, asteroids.Count - 1), AsteroidCellSize.Medium);
+        if (!Has(AsteroidCellSize.Large))
+            Force(Math.Min(2, asteroids.Count - 1), AsteroidCellSize.Large);
     }
 
     private static Pcg32 CreateAttemptRandom(GenerationIdentity identity, int attempt)

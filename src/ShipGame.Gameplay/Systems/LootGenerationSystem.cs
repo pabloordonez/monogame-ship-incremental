@@ -133,18 +133,16 @@ public sealed class LootGenerationSystem(RandomStreams random)
         long collectibleAfterTick)
     {
         var pickup = world.Create();
-        _ = new ResourcePickup(world, pickup, Scatter(origin), resourceId, quantity, collectibleAfterTick);
-        return new(pickup, resourceId, quantity);
-    }
-
-    private WorldPosition Scatter(WorldPosition origin)
-    {
+        // Spawn at the break center; CollectionSystem applies outward burst then tractor pull.
+        _ = new ResourcePickup(world, pickup, origin, resourceId, quantity, collectibleAfterTick);
         var angle = EncounterGenerator.NextInt(_loot, 0, 360) * (MathF.PI / 180f);
-        var distance = EncounterGenerator.NextInt(_loot, ScatterMin, ScatterMax + 1);
-        return new WorldPosition
+        var speed = EncounterGenerator.NextInt(_loot, ScatterMin / 4, ScatterMax / 3 + 1);
+        world.Set(pickup, new PickupBurst
         {
-            X = origin.X + (int)MathF.Round(MathF.Cos(angle) * distance),
-            Y = origin.Y + (int)MathF.Round(MathF.Sin(angle) * distance)
-        };
+            VelocityX = (int)MathF.Round(MathF.Cos(angle) * speed),
+            VelocityY = (int)MathF.Round(MathF.Sin(angle) * speed),
+            RemainingTicks = PickupGraceTicks + 12
+        });
+        return new(pickup, resourceId, quantity);
     }
 }

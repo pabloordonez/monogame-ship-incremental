@@ -127,7 +127,7 @@ Spawn anchors must be at least 450 units away and outside the camera. Compositio
 
 ## Mining and collection
 
-Asteroids contain ordinary and resource-bearing cells. Mining damage reduces cell health; breaking a cell releases pickups according to the environment and loot rules. The mining laser range in the composed run is 130 world units. The seismic charge is a cooldown AOE that deals mining and combat damage and cannot hurt the player.
+Asteroids contain ordinary and resource-bearing cells in small, medium, and large sizes (all three appear each run). Resource veins show visible ferrite/lumen ore chunks. Mining damage reduces cell health with cracked damage states before break; breaking a cell releases pickups that burst outward from the rock center, then tractor-collect. Asteroids drift, collide with each other, and take knockback from player fire. The mining laser range in the composed run is 130 world units. The seismic charge is a cooldown AOE that deals mining and combat damage and cannot hurt the player.
 
 Pickups within collection radius accelerate toward the ship and are credited exactly once. The utility module changes collection behavior (tractor pull versus scout drone). There is no cargo-capacity limit in the MVP.
 

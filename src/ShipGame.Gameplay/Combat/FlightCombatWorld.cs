@@ -267,6 +267,22 @@ public sealed class FlightCombatWorld
         return true;
     }
 
+    public bool TryGetVelocity(EntityId entity, out Vector2 velocity)
+    {
+        velocity = default;
+        if (entity == default || !_context.World.IsAlive(entity) || !_context.Has<Velocity2>(entity))
+            return false;
+        velocity = _context.World.Get<Velocity2>(entity).Value;
+        return true;
+    }
+
+    public void SetVelocity(EntityId entity, Vector2 velocity)
+    {
+        if (entity == default || !_context.World.IsAlive(entity) || !_context.Has<Velocity2>(entity))
+            return;
+        _context.World.Set(entity, new Velocity2(velocity));
+    }
+
     public bool TryGetPlayerAim(out Vector2 aim)
     {
         aim = Vector2.UnitX;

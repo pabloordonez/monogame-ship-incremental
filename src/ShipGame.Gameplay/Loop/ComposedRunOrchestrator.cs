@@ -17,7 +17,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public const int IonKillFerriteSalvage = 7;
     public const int CinderThreatIntervalTicks = 90;
     public const int IonThreatIntervalTicks = 70;
-    /// <summary>Matches drawn medium asteroid sprites (24×24).</summary>
+    /// <summary>Legacy medium radius; prefer <see cref="AsteroidSizing.Radius"/>.</summary>
     public const float AsteroidVisualRadius = 12f;
     /// <summary>Aim cone (half-angle) for near-miss mining assist when the ray barely misses.</summary>
     public const float MiningAssistConeDegrees = 18f;
@@ -31,6 +31,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     private readonly WorldRunEventHandlerRegistry _worldEventHandlers = WorldRunEventHandlerRegistry.Create();
     private readonly Dictionary<int, EntityId> _asteroidEntities = new();
     private readonly Dictionary<int, EntityId> _obstacleByCellId = new();
+    private readonly Dictionary<int, AsteroidCellDescriptor> _asteroidDescriptors = new();
     private readonly List<RunFact> _factBuffer = new(64);
     private readonly List<CombatSnapshot> _snapshotBuffer = new(256);
     private readonly List<CombatRenderItem> _renderBuffer = new(256);
@@ -214,12 +215,36 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         {
             foreach (var asteroid in Descriptor.AsteroidCells)
             {
-                var broken = _asteroidEntities.TryGetValue(asteroid.CellId, out var entity) &&
-                             _miningWorld.IsAlive(entity) &&
-                             _miningWorld.Store<MineableCell>().Has(entity) &&
-                             _miningWorld.Get<MineableCell>(entity).Broken;
-                var world = CellToWorld(asteroid.Position);
-                yield return new(asteroid.CellId, (int)world.X, (int)world.Y, asteroid.Kind, broken);
+                var health = (float)asteroid.Health;
+                var maxHealth = (float)asteroid.Health;
+                var broken = false;
+                var x = (int)CellToWorld(asteroid.Position).X;
+                var y = (int)CellToWorld(asteroid.Position).Y;
+                if (_asteroidEntities.TryGetValue(asteroid.CellId, out var entity) &&
+                    _miningWorld.IsAlive(entity) &&
+                    _miningWorld.Store<MineableCell>().Has(entity))
+                {
+                    var cell = _miningWorld.Get<MineableCell>(entity);
+                    broken = cell.Broken;
+                    health = cell.Health;
+                    maxHealth = asteroid.Health;
+                    if (_miningWorld.Store<WorldPosition>().Has(entity))
+                    {
+                        var pos = _miningWorld.Get<WorldPosition>(entity);
+                        x = pos.X;
+                        y = pos.Y;
+                    }
+                }
+
+                yield return new(
+                    asteroid.CellId,
+                    x,
+                    y,
+                    asteroid.Kind,
+                    broken,
+                    asteroid.Size,
+                    health,
+                    maxHealth);
             }
         }
     }
@@ -387,6 +412,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                     Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
             Combat.Queue(command);
             Combat.Step();
+            SyncAsteroidCombatPositions();
             TranslateCombatEvents();
             ApplyMining(command);
             SyncCollector();
@@ -558,14 +584,17 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             var cell = _miningWorld.Get<MineableCell>(entity);
             if (cell.Broken)
                 continue;
+            var radius = _asteroidDescriptors.TryGetValue(cell.CellId, out var descriptor)
+                ? AsteroidSizing.Radius(descriptor.Size)
+                : AsteroidVisualRadius;
             var position = _miningWorld.Get<WorldPosition>(entity);
             var world = new Vector2(position.X, position.Y);
             var toCenter = world - origin;
             var centerDistance = toCenter.Length();
-            if (centerDistance - AsteroidVisualRadius > MiningRangeWorldUnits)
+            if (centerDistance - radius > MiningRangeWorldUnits)
                 continue;
 
-            if (FlightCombatMath.TryRayCircleEntry(origin, aimDir, world, AsteroidVisualRadius, out var entry) &&
+            if (FlightCombatMath.TryRayCircleEntry(origin, aimDir, world, radius, out var entry) &&
                 entry <= MiningRangeWorldUnits &&
                 entry < bestRayDistance)
             {
@@ -588,7 +617,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                         assist = entity;
                         assistPosition = world;
                         assistKind = cell.Kind;
-                        assistTip = MathF.Max(0f, centerDistance - AsteroidVisualRadius);
+                        assistTip = MathF.Max(0f, centerDistance - radius);
                     }
                 }
             }
@@ -704,7 +733,10 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             var world = new Vector2(position.X, position.Y);
             if (Vector2.Distance(origin, world) > SeismicRangeWorldUnits)
                 continue;
-            if (!FlightCombatMath.TryRayCircleEntry(origin, aimDir, world, AsteroidVisualRadius, out var entry))
+            var radius = _asteroidDescriptors.TryGetValue(cell.CellId, out var descriptor)
+                ? AsteroidSizing.Radius(descriptor.Size)
+                : AsteroidVisualRadius;
+            if (!FlightCombatMath.TryRayCircleEntry(origin, aimDir, world, radius, out var entry))
                 continue;
             if (entry > SeismicRangeWorldUnits || entry >= bestEntry)
                 continue;
@@ -930,8 +962,10 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
 
     private void SeedAsteroids()
     {
+        var layout = Random.Get(RngStream.Layout);
         foreach (var asteroid in Descriptor.AsteroidCells)
         {
+            _asteroidDescriptors[asteroid.CellId] = asteroid;
             var entity = _miningWorld.Create();
             var world = CellToWorld(asteroid.Position);
             _ = new AsteroidCell(
@@ -946,8 +980,34 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                     Y = (int)MathF.Round(world.Y)
                 });
             _asteroidEntities[asteroid.CellId] = entity;
-            // One combat obstacle per rock so visuals match collision; torn down when mined.
-            _obstacleByCellId[asteroid.CellId] = Combat.SpawnObstacle(world, AsteroidVisualRadius);
+            var radius = AsteroidSizing.Radius(asteroid.Size);
+            var obstacle = Combat.SpawnObstacle(world, radius);
+            // Mild seeded drift so rocks move and can collide without chaotic speeds.
+            var angle = EncounterGenerator.NextInt(layout, 0, 360) * (MathF.PI / 180f);
+            var speed = 8f + EncounterGenerator.NextInt(layout, 0, 18);
+            Combat.SetVelocity(obstacle, new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * speed);
+            _obstacleByCellId[asteroid.CellId] = obstacle;
+        }
+    }
+
+    private void SyncAsteroidCombatPositions()
+    {
+        foreach (var pair in _obstacleByCellId)
+        {
+            if (!Combat.TryGetPosition(pair.Value, out var world))
+                continue;
+            if (!_asteroidEntities.TryGetValue(pair.Key, out var miningEntity) ||
+                !_miningWorld.IsAlive(miningEntity) ||
+                !_miningWorld.Store<WorldPosition>().Has(miningEntity))
+                continue;
+            ref var position = ref _miningWorld.Get<WorldPosition>(miningEntity);
+            position.X = (int)MathF.Round(world.X);
+            position.Y = (int)MathF.Round(world.Y);
+            if (Combat.TryGetVelocity(pair.Value, out var velocity))
+            {
+                // Light drag keeps fields from accelerating forever after collisions.
+                Combat.SetVelocity(pair.Value, velocity * 0.992f);
+            }
         }
     }
 
