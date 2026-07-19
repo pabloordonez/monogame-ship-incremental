@@ -79,7 +79,7 @@ public sealed class MetaSession : IDisposable
     public bool RequiresExplicitNewProfile { get; private set; }
 
     public StationView Station => _ui.BuildStationView();
-n    public IReadOnlyList<EnvironmentView> Map => _ui.BuildMapView();
+    public IReadOnlyList<EnvironmentView> Map => _ui.BuildMapView();
     public IReadOnlyList<ResearchPreview> Research => _ui.BuildResearchView();
     public IReadOnlyList<UpgradePreview> Upgrades => _ui.BuildUpgradeView();
 

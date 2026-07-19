@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 using ShipGame.Persistence;
-ousing ShipGame.Gameplay;
+using ShipGame.Gameplay;
 using ShipGame.Telemetry;
 
 namespace ShipGame.Game;
