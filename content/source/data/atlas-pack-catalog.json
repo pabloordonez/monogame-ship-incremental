@@ -149,9 +149,15 @@
           "animation": { "fps": 8, "frames": [0] }
         },
         {
-          "id": "enemies/elite-outline",
+          "id": "enemies/elite",
           "width": 64,
           "height": 64,
+          "collision": "collision/enemy-medium",
+          "hardpoints": {
+            "primaryWeapon": { "x": 32, "y": 6 },
+            "leftEngine": { "x": 17, "y": 54 },
+            "rightEngine": { "x": 46, "y": 54 }
+          },
           "animation": { "fps": 8, "frames": [0] }
         },
         {

@@ -12,4 +12,5 @@ public readonly record struct CombatRenderItem(
     CombatRenderKind Kind,
     bool Elite,
     float Hull,
-    float Shield);
+    float Shield,
+    ContentId ArchetypeId = default);

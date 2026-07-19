@@ -103,16 +103,20 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
 
                     break;
                 case CombatRenderKind.EnemyShip:
+                {
+                    var (region, size) = ResolveEnemySprite(item);
                     if (item.Elite)
-                        canvas.DrawRegion("telegraphs/elite-marker", (int)screen.X - 18, (int)screen.Y - 18, 36, 36);
-                    canvas.DrawRegionRotated(
-                        item.Elite ? "enemies/elite-outline" : "enemies/interceptor",
-                        screen,
-                        item.Rotation,
-                        item.Elite ? 28 : 22);
+                        canvas.DrawRegion(
+                            "telegraphs/elite-marker",
+                            (int)screen.X - size / 2 - 6,
+                            (int)screen.Y - size / 2 - 6,
+                            size + 12,
+                            size + 12);
+                    canvas.DrawRegionRotated(region, screen, item.Rotation, size);
                     if (item.Elite)
-                        canvas.DrawText((int)screen.X - 14, (int)screen.Y + 16, "ELITE", new XnaColor(240, 200, 120));
+                        canvas.DrawText((int)screen.X - 14, (int)screen.Y + size / 2 + 2, "ELITE", new XnaColor(240, 200, 120));
                     break;
+                }
                 case CombatRenderKind.Projectile:
                     canvas.DrawRegion("projectiles/hostile", (int)screen.X - 3, (int)screen.Y - 3, 6, 6);
                     break;
@@ -189,5 +193,19 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
         context.Session.CommitReward(reward);
         context.WindowSmokeVisitedSummary = true;
         context.ClearRun();
+    }
+
+    private static (string Region, int Size) ResolveEnemySprite(CombatRenderItem item)
+    {
+        if (item.Elite)
+            return ("enemies/elite", 48);
+
+        var archetype = item.ArchetypeId == default ? string.Empty : item.ArchetypeId.Value;
+        return archetype switch
+        {
+            "ENM_GUNSHIP" => ("enemies/gunship", 36),
+            "ENM_SAPPER" => ("enemies/sapper", 28),
+            _ => ("enemies/interceptor", 22)
+        };
     }
 }

@@ -65,6 +65,7 @@ internal sealed class UpgradesMetaScreen : MetaScreenHandlerBase
     {
         var ui = context.Ui;
         var canvas = context.Canvas;
+        canvas.DrawScreenBackdrop("backgrounds/upgrades-workshop", dimAlpha: 200);
         canvas.DrawText(24, 16, "UPGRADES", new XnaColor(230, 240, 255), 2);
         canvas.DrawText(24, 36, "Permanent perks from banked resources", new XnaColor(180, 200, 220));
         canvas.DrawBankedPurse(context.Session);

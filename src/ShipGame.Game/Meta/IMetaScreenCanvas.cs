@@ -13,6 +13,7 @@ public interface IMetaScreenCanvas
     void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size);
     void DrawRegionRotated(string regionId, XnaVector2 center, float rotationRadians, int size, XnaColor color);
     void DrawTexture(string assetId, int x, int y, int width, int height, XnaColor color);
+    void DrawScreenBackdrop(string assetId, byte dimAlpha = 120);
     void DrawShellButtons(UiShell ui, string? skipPrefix = null);
     void DrawButton(UiRect bounds, string label, UiControlState state);
     void DrawMetaRow(

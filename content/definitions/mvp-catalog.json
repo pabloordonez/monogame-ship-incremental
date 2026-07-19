@@ -13,7 +13,7 @@
     { "id": "ENM_INTERCEPTOR", "kind": "enemy", "references": ["enemies/interceptor", "telegraphs/muzzle-flash"], "values": { "hull": 28, "speed": 190, "range": 120, "damage": 6, "telegraph": 0.45 } },
     { "id": "ENM_GUNSHIP", "kind": "enemy", "references": ["enemies/gunship", "telegraphs/aim-line"], "values": { "hull": 55, "speed": 105, "range": 380, "damage": 18, "telegraph": 0.8 } },
     { "id": "ENM_SAPPER", "kind": "enemy", "references": ["enemies/sapper", "telegraphs/mine-radius"], "values": { "hull": 42, "speed": 130, "range": 260, "damage": 24, "telegraph": 1 } },
-    { "id": "MOD_ELITE_PROTOCOL", "kind": "enemy-modifier", "references": ["enemies/elite-outline", "telegraphs/elite-marker", "MAT_DATA_CORE"], "values": { "scale": 1.35, "hullMultiplier": 2.75, "damageMultiplier": 1.35, "speedMultiplier": 1.1, "cooldownMultiplier": 0.8 } },
+    { "id": "MOD_ELITE_PROTOCOL", "kind": "enemy-modifier", "references": ["enemies/elite", "telegraphs/elite-marker", "MAT_DATA_CORE"], "values": { "scale": 1.35, "hullMultiplier": 2.75, "damageMultiplier": 1.35, "speedMultiplier": 1.1, "cooldownMultiplier": 0.8 } },
 
     { "id": "SHIP_WAYFARER_MK1", "kind": "ship", "references": ["ships/player/wayfarer", "ships/player/engine", "ships/player/damage-flash", "ships/player/shield-mask"], "values": { "hull": 100, "collisionRadius": 18, "pickupRadius": 70 } },
     { "id": "SLOT_WEAPON", "kind": "slot", "references": ["ui/icons/module-weapon"], "values": {} },

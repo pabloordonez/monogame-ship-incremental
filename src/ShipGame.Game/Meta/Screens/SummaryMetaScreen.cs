@@ -20,6 +20,8 @@ internal sealed class SummaryMetaScreen : MetaScreenHandlerBase
     {
         var canvas = context.Canvas;
         var previous = context.Session.Profile.Snapshot.PreviousRun;
+        var extracted = previous?.Succeeded == true;
+        canvas.DrawScreenBackdrop(extracted ? "backgrounds/summary-extract" : "backgrounds/summary-failed");
         canvas.DrawText(24, 16, "RUN SUMMARY", new XnaColor(230, 240, 255), 2);
         if (previous is null)
         {
@@ -30,8 +32,8 @@ internal sealed class SummaryMetaScreen : MetaScreenHandlerBase
             canvas.DrawText(
                 24,
                 56,
-                previous.Succeeded ? "RESULT  EXTRACTED" : "RESULT  FAILED",
-                previous.Succeeded ? new XnaColor(140, 220, 160) : new XnaColor(220, 140, 140),
+                extracted ? "RESULT  EXTRACTED" : "RESULT  FAILED",
+                extracted ? new XnaColor(140, 220, 160) : new XnaColor(220, 140, 140),
                 2);
             canvas.DrawText(24, 88, $"Banked Ferrite {previous.Banked.Ferrite}", XnaColor.White);
             canvas.DrawText(24, 104, $"Banked Lumen   {previous.Banked.Lumen}", XnaColor.White);

@@ -111,15 +111,28 @@
       }
     },
     {
-      "id": "enemies/elite-outline",
+      "id": "enemies/elite",
       "x": 74,
       "y": 5,
       "width": 64,
       "height": 64,
       "pivotX": 0.5,
       "pivotY": 0.5,
-      "collision": null,
-      "hardpoints": null,
+      "collision": "collision/enemy-medium",
+      "hardpoints": {
+        "primaryWeapon": {
+          "x": 32,
+          "y": 6
+        },
+        "leftEngine": {
+          "x": 17,
+          "y": 54
+        },
+        "rightEngine": {
+          "x": 46,
+          "y": 54
+        }
+      },
       "animation": {
         "fps": 8,
         "frames": [

@@ -186,6 +186,13 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         _drewSprites = true;
     }
 
+    public void DrawScreenBackdrop(string assetId, byte dimAlpha = 120)
+    {
+        DrawTexture(assetId, 0, 0, VirtualWidth, VirtualHeight, XnaColor.White);
+        if (dimAlpha > 0)
+            Fill(0, 0, VirtualWidth, VirtualHeight, new XnaColor((byte)0, (byte)0, (byte)0, dimAlpha));
+    }
+
     public void DrawShellButtons(UiShell ui, string? skipPrefix = null)
     {
         foreach (var control in ui.Controls)

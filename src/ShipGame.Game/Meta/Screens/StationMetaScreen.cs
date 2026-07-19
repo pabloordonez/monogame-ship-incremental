@@ -23,6 +23,7 @@ internal sealed class StationMetaScreen : MetaScreenHandlerBase
         var session = context.Session;
         var canvas = context.Canvas;
         var station = session.Station;
+        canvas.DrawScreenBackdrop("backgrounds/station", dimAlpha: 200);
         canvas.DrawText(24, 16, "STATION", new XnaColor(230, 240, 255), 2);
         canvas.DrawText(24, 36, "Banked materials from the field", new XnaColor(160, 180, 200));
         canvas.DrawRegion("ships/player/wayfarer", 520, 40, 72, 72);

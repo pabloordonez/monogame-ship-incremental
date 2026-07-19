@@ -91,6 +91,7 @@ internal sealed class LoadoutMetaScreen : MetaScreenHandlerBase
     {
         var ui = context.Ui;
         var canvas = context.Canvas;
+        canvas.DrawScreenBackdrop("backgrounds/loadout-hangar", dimAlpha: 200);
         canvas.DrawText(24, 16, "LOADOUT", new XnaColor(230, 240, 255), 2);
         canvas.DrawText(24, 36, "Equip unlocked modules", new XnaColor(180, 200, 220));
         canvas.DrawBankedPurse(context.Session);

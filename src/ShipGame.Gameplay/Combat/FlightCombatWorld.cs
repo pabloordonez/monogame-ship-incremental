@@ -194,6 +194,10 @@ public sealed class FlightCombatWorld
             else
                 continue;
 
+            var archetype = default(ContentId);
+            if (kind == CombatRenderKind.EnemyShip && _context.Has<WeaponMount>(entity))
+                archetype = _context.World.Get<WeaponMount>(entity).BehaviorId;
+
             into.Add(new(
                 entity,
                 transform.Position,
@@ -202,7 +206,8 @@ public sealed class FlightCombatWorld
                 kind,
                 _context.Has<Elite>(entity),
                 _context.Has<Health>(entity) ? _context.World.Get<Health>(entity).Current : 0,
-                _context.Has<Shield>(entity) ? _context.World.Get<Shield>(entity).Current : 0));
+                _context.Has<Shield>(entity) ? _context.World.Get<Shield>(entity).Current : 0,
+                archetype));
         }
     }
 

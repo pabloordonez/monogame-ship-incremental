@@ -68,6 +68,7 @@ internal sealed class ResearchMetaScreen : MetaScreenHandlerBase
         var session = context.Session;
         var ui = context.Ui;
         var canvas = context.Canvas;
+        canvas.DrawScreenBackdrop("backgrounds/research-lab", dimAlpha: 200);
         canvas.DrawText(24, 16, "RESEARCH", new XnaColor(230, 240, 255), 2);
         canvas.DrawText(24, 36, "Unlock modules for your loadout", new XnaColor(180, 200, 220));
         canvas.DrawBankedPurse(session);

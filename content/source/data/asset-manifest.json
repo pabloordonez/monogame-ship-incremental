@@ -15,7 +15,7 @@
       "id": "atlases/player-modules", "kind": "atlas", "source": "textures/atlases/player-modules.png",
       "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
       "attribution": "Original pixel-grid art authored programmatically for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
-      "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, external image, sample, or copied identity.",
+      "provenance": "Original outlined arcade ship sprites authored programmatically (white outline, cyan cockpit, limited palette); no copied identity.",
       "replacementCriterion": "Replace after art review with a silhouette-compatible sheet preserving region IDs, frame tiers, pivots, and hardpoints.",
       "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
       "width": 512, "height": 512, "metadata": "data/atlas-player-modules.json", "sourceHash": null
@@ -24,7 +24,7 @@
       "id": "atlases/enemies-telegraphs", "kind": "atlas", "source": "textures/atlases/enemies-telegraphs.png",
       "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
       "attribution": "Original pixel-grid art authored programmatically for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
-      "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, external image, sample, or copied identity.",
+      "provenance": "Original outlined arcade enemy sprites authored programmatically; no copied identity.",
       "replacementCriterion": "Replace after native-resolution threat-readability review while preserving IDs and telegraph timing semantics.",
       "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
       "width": 512, "height": 512, "metadata": "data/atlas-enemies-telegraphs.json", "sourceHash": null
@@ -60,7 +60,7 @@
       "id": "backgrounds/cinder-belt", "kind": "texture", "source": "textures/backgrounds/cinder-belt.png",
       "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
       "attribution": "Original procedural star field authored for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
-      "provenance": "Deterministic hand-selected pixel positions and palette in SourceAssetGenerator.cs.",
+      "provenance": "Seamless wrap-aware dithered cosmic tile authored programmatically; no copied identity.",
       "replacementCriterion": "Replace after effects-off contrast review while preserving the stable asset ID and 640x360 canvas.",
       "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
       "width": 640, "height": 360, "metadata": null, "sourceHash": null
@@ -69,8 +69,62 @@
       "id": "backgrounds/ion-veil", "kind": "texture", "source": "textures/backgrounds/ion-veil.png",
       "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
       "attribution": "Original procedural star field authored for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
-      "provenance": "Deterministic hand-selected pixel positions and palette in SourceAssetGenerator.cs.",
+      "provenance": "Seamless wrap-aware dithered cosmic tile authored programmatically; no copied identity.",
       "replacementCriterion": "Replace after grayscale access-gate contrast review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "backgrounds/station", "kind": "texture", "source": "textures/backgrounds/station.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel station bay background authored for Mine Your Own Business.", "sourceUrl": null,
+      "provenance": "Original procedural neon station interior authored programmatically; no copied identity.",
+      "replacementCriterion": "Replace after meta-screen readability review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "backgrounds/research-lab", "kind": "texture", "source": "textures/backgrounds/research-lab.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel research lab background authored for Mine Your Own Business.", "sourceUrl": null,
+      "provenance": "Original procedural neon lab interior authored programmatically; no copied identity.",
+      "replacementCriterion": "Replace after meta-screen readability review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "backgrounds/loadout-hangar", "kind": "texture", "source": "textures/backgrounds/loadout-hangar.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel hangar background authored for Mine Your Own Business.", "sourceUrl": null,
+      "provenance": "Original procedural neon hangar authored programmatically; no copied identity.",
+      "replacementCriterion": "Replace after meta-screen readability review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "backgrounds/upgrades-workshop", "kind": "texture", "source": "textures/backgrounds/upgrades-workshop.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel workshop background authored for Mine Your Own Business.", "sourceUrl": null,
+      "provenance": "Original procedural neon workshop authored programmatically; no copied identity.",
+      "replacementCriterion": "Replace after meta-screen readability review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "backgrounds/summary-extract", "kind": "texture", "source": "textures/backgrounds/summary-extract.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel extract summary background authored for Mine Your Own Business.", "sourceUrl": null,
+      "provenance": "Original procedural extract beacon scene authored programmatically; no copied identity.",
+      "replacementCriterion": "Replace after meta-screen readability review while preserving the stable asset ID and 640x360 canvas.",
+      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
+      "width": 640, "height": 360, "metadata": null, "sourceHash": null
+    },
+    {
+      "id": "backgrounds/summary-failed", "kind": "texture", "source": "textures/backgrounds/summary-failed.png",
+      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
+      "attribution": "Original pixel failed summary background authored for Mine Your Own Business.", "sourceUrl": null,
+      "provenance": "Original procedural failed-run debris scene authored programmatically; no copied identity.",
+      "replacementCriterion": "Replace after meta-screen readability review while preserving the stable asset ID and 640x360 canvas.",
       "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
       "width": 640, "height": 360, "metadata": null, "sourceHash": null
     },
