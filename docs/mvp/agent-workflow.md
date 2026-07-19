@@ -1,5 +1,15 @@
 # MVP Agent Workflow
 
+## Ongoing feature delivery
+
+Post-P5 work uses the same discipline. Cursor agents also load [`.cursor/rules/feature-delivery.mdc`](../../.cursor/rules/feature-delivery.mdc) (always apply).
+
+- Document non-trivial changes in living `docs/mvp/` docs and `docs/reports/<PACKAGE_ID>/`.
+- Non-minor work: **implementer → adversary reviewer (no edits) → remediation** on a **feature branch**.
+- Merge to `main` only after reviewer `ACCEPT` plus proof (commands/results; manual smoke for presentation).
+- Parallelize independent packages on up to **four** isolated branches/worktrees; rebase when owned paths collide.
+- Minor one-liners may skip the full triad but still get a short docs/report note.
+
 ## Objective
 
 Deliver a maintainable vertical slice. The shipped loop is:

@@ -1,0 +1,35 @@
+---
+description: Feature delivery — docs, feature branches, implementer/adversary/remediation triad, merge gates
+alwaysApply: true
+---
+
+# Feature delivery (Ship Game)
+
+## Documentation
+
+- Keep living MVP docs in `docs/mvp/` aligned with behavior when code changes.
+- For each non-trivial package, write evidence under `docs/reports/<PACKAGE_ID>/` per `docs/mvp/agent-workflow.md` (`package-spec.md`, implementer/reviewer/remediation reports, `commands-and-results.txt`, candidate commit, extension note as needed).
+
+## Branching and merge
+
+- Non-minor work lands on an isolated **feature branch** (or worktree), not directly on `main`.
+- Merge to `main` only after reviewer **ACCEPT** and proof of completeness (exact test commands + results; manual smoke for presentation).
+- Independent packages may run in parallel on **up to 4** branches; coordinate owned paths; rebase before merge when paths collide.
+
+## Three-agent protocol (non-minor)
+
+1. **Implementer** — implement scope only, tests, living docs, implementer report.
+2. **Adversary reviewer** — read-only; falsify gates; verdict `ACCEPT` / `REMEDIATE` / `BLOCK`.
+3. **Remediation** — fix findings on the same feature branch; recheck until `ACCEPT`.
+
+Prompts and severity rules: `docs/mvp/agent-workflow.md` (Mandatory three-agent protocol).
+
+## Minor changes
+
+- Typos and trivial one-liners may skip the full triad but still get a short note in living docs or `docs/reports/`.
+
+## Invariants
+
+- Preserve deterministic fixed-step simulation and MonoGame-free Gameplay/domain logic.
+- Do not weaken gates or change requirements only to pass tests.
+- Contract changes need a short proposal naming affected packages and migration impact.
