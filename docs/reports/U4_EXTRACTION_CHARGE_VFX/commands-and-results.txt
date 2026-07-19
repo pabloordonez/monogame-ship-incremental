@@ -1,0 +1,35 @@
+# U4_EXTRACTION_CHARGE_VFX — commands and results
+
+## Build
+
+Command:
+  dotnet build src/ShipGame.Game/ShipGame.Game.csproj
+
+Result:
+  Build succeeded. 0 Warning(s), 0 Error(s)
+
+## Targeted smoke / presentation tests
+
+Command:
+  dotnet test tests/ShipGame.Game.Smoke.Tests/ShipGame.Game.Smoke.Tests.csproj \
+    --filter "FullyQualifiedName~ExtractionCharge|FullyQualifiedName~RunGuidance|FullyQualifiedName~P3WorldRunPresentation"
+
+Result:
+  Passed! — Failed: 0, Passed: 9, Skipped: 0, Total: 9
+
+Includes:
+  - ExtractionChargePresentationTests.ProgressRatioClampsToZeroOne (5 cases)
+  - RunGuidanceTests (3 tests)
+  - P3WorldRunPresentationTests.WorldRunEventsBindToStablePresentationCues
+
+## Full Game smoke suite (informational)
+
+Command:
+  dotnet test tests/ShipGame.Game.Smoke.Tests/ShipGame.Game.Smoke.Tests.csproj
+
+Result:
+  Passed: 33, Failed: 2 (P5IntegrationSmokeTests — content manifest path; pre-existing worktree env, unrelated to this package)
+
+## Manual smoke
+
+Not run in this session. See manual-evidence/README.md for suggested verification steps.

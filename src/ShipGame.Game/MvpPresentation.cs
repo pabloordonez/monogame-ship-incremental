@@ -623,6 +623,26 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
             0f);
     }
 
+    private void DrawExtractionProgressArc(XnaVector2 center, float radius, float ratio, long tick)
+    {
+        const int totalSegments = 32;
+        var segments = Math.Max(1, (int)MathF.Ceiling(totalSegments * ratio));
+        var startAngle = -MathF.PI / 2f + tick * 0.025f;
+        var sweep = MathF.Tau * ratio;
+        for (var i = 0; i < segments; i++)
+        {
+            var t = i / (float)totalSegments;
+            var angle = startAngle + sweep * t;
+            var px = (int)(center.X + MathF.Cos(angle) * radius);
+            var py = (int)(center.Y + MathF.Sin(angle) * radius);
+            var brightness = (byte)Math.Clamp(180 + t * 60f, 180, 240);
+            Fill(px - 1, py - 1, 3, 3, new XnaColor((byte)160, (byte)255, (byte)210, brightness));
+        }
+    }
+
+    public static float ExtractionProgressRatio(int progressTicks, int holdTicks) =>
+        holdTicks <= 0 ? 0f : Math.Clamp(progressTicks / (float)holdTicks, 0f, 1f);
+
     public void DrawAimReticle(System.Numerics.Vector2 mouseVirtual)
     {
         var x = (int)mouseVirtual.X;
@@ -671,6 +691,44 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         DrawRegionRotated(regionId, ping.ScreenPosition, ping.RotationRadians, size);
         if (label is not null)
             DrawText((int)ping.ScreenPosition.X - 16, (int)ping.ScreenPosition.Y + size / 2 + 2, label, new XnaColor(220, 220, 160));
+    }
+
+    public void DrawExtractionCharge(XnaVector2 center, float progressRatio, long tick)
+    {
+        progressRatio = Math.Clamp(progressRatio, 0f, 1f);
+        var pulse = (tick / 4) % 2 == 0;
+        var idleRingSize = pulse ? 44 : 40;
+        var idleAlpha = (byte)(progressRatio <= 0f ? (pulse ? 45 : 28) : 55);
+        DrawRegion(
+            "telegraphs/mine-radius",
+            (int)center.X - idleRingSize / 2,
+            (int)center.Y - idleRingSize / 2,
+            idleRingSize,
+            idleRingSize,
+            new XnaColor((byte)100, (byte)220, (byte)160, idleAlpha));
+
+        if (progressRatio <= 0f)
+            return;
+
+        var chargeSize = (int)MathF.Round(38f + 20f * progressRatio);
+        var chargeAlpha = (byte)Math.Clamp(90 + progressRatio * 130f, 90, 220);
+        DrawRegion(
+            "telegraphs/mine-radius",
+            (int)center.X - chargeSize / 2,
+            (int)center.Y - chargeSize / 2,
+            chargeSize,
+            chargeSize,
+            new XnaColor((byte)140, (byte)255, (byte)200, chargeAlpha));
+
+        DrawExtractionProgressArc(center, radius: 28f, progressRatio, tick);
+
+        if (progressRatio > 0.85f)
+        {
+            var flash = (byte)Math.Clamp((progressRatio - 0.85f) / 0.15f * 180f, 0, 180);
+            Fill((int)center.X - 4, (int)center.Y - 4, 8, 8, new XnaColor((byte)255, (byte)255, (byte)240, flash));
+        }
+
+        _drewSprites = true;
     }
 
     public void DrawPhaseToast()
