@@ -12,8 +12,8 @@ Thresholds are project decisions, not industry benchmarks. Preserve sample size,
 
 - ECS entity reuse, sparse stores, structural buffers, and queries.
 - Fixed-step movement, collision pairs, shield/hull boundaries, fire cadence, heat, targeting, and abilities.
-- Mining yield, collect-once, drop determinism, upgrade thresholds/offers/effects.
-- Profile transactions, research dependencies/gates, capabilities, loadout, and derived statistics.
+- Mining yield, collect-once, drop determinism, station upgrade purchase/fold effects.
+- Profile transactions, research dependencies/gates, capabilities, loadout, upgrades, and derived statistics.
 - RNG golden sequences and stream isolation.
 - Generation reachability/resources/objective/extraction invariants.
 - Save serialization, compatibility, migration, validation, and interrupted writes.
@@ -26,9 +26,9 @@ Maintain at least these versioned traces:
 
 1. Basic flight, dash, pause, and return.
 2. Each weapon against shields/hull and all enemy archetypes.
-3. Mine, collect, trigger upgrades, complete objective, defeat elite, and extract.
+3. Mine, collect, complete objective, defeat elite, and extract (with station upgrades already purchased on the profile).
 4. Fail by hull and by timer.
-5. Resolve rewards, purchase research, equip a module, save, and continue.
+5. Resolve rewards, purchase research or a station upgrade, equip a module, save, and continue.
 
 Run traces under different render-frame schedules and component insertion orders. Compare ordered events and stable domain state at checkpoints, not rendered pixels.
 
@@ -49,7 +49,7 @@ Run traces under different render-frame schedules and component insertion orders
 - Keyboard/mouse and gamepad golden paths.
 - Options persistence and controller reconnect.
 - Corrupt-save quarantine, backup recovery, unknown ID, and newer-version rejection.
-- Clean shutdown from lobby, pause, upgrade offer, and summary.
+- Clean shutdown from Station, pause, Upgrades screen, and summary.
 - Credits/attribution match the manifest.
 - Game remains playable with music absent and effects disabled.
 
@@ -100,13 +100,13 @@ Common fields:
 
 Required events:
 
-- Session/title/lobby/run/summary entry and exit.
+- Session/title/Station/run/summary entry and exit.
 - New/continue, environment selected, lock inspected, run started/resolved.
 - First use of move/aim/fire/mine/mobility/interact.
 - Aggregated damage, shield depletion, player/normal/elite destruction.
-- Mining, resource collection, upgrade offer/selection.
+- Mining, resource collection, station upgrade purchase.
 - Objective completion, extraction start/reset/completion.
-- Research view/purchase/rejection and loadout change.
+- Research view/purchase/rejection, upgrade purchase, and loadout change.
 - Save start/success/failure/recovery.
 - Option change, performance sample, and unhandled error.
 
@@ -126,7 +126,7 @@ Do not collect names, email, OS usernames, IP addresses, hardware fingerprints, 
 - No tutorial beyond: “Play until you feel you have completed a useful trip.”
 - Observe the first run silently.
 - Ask them to inspect research, change something if desired, and continue until they naturally stop.
-- Record 1–7 ratings for control clarity, pressure, progress, upgrade meaning, and desire for another run.
+- Record 1–7 ratings for control clarity, pressure, progress, station-upgrade meaning, and desire for another run.
 - Interview for memorable moments, confusion, failure cause, strategy, and session-end reason.
 
 ### Round C — evidence-backed iteration
@@ -151,9 +151,9 @@ Pass when median control rating is at least 5/7, fewer than 10% of failures are 
 
 If failed, tune control curves, feedback, telegraphs, and pacing before progression.
 
-### H3 — Meaningful temporary and permanent growth
+### H3 — Meaningful station upgrades and permanent growth
 
-Pass when at least 60% name a meaningful run-upgrade choice, at least 70% correctly describe their first research effect, at least 50% change loadout after an unlock, and effects produce measured differences.
+Pass when at least 60% name a meaningful station upgrade purchase, at least 70% correctly describe their first research effect, at least 50% change loadout after an unlock, and effects produce measured differences.
 
 If failed, revise effects, costs, previews, or run yield before expanding catalogs.
 

@@ -1,10 +1,14 @@
 # MVP Game Design
 
+Player-facing rules for the current MVP as implemented. When this document and code disagree, update this document.
+
 ## State flow
 
-`Boot -> Title -> Lobby -> Loadout/Research/Map -> Run -> Summary -> Lobby`
+`Boot -> Title -> Station -> (Map | Loadout | Research | Upgrades | Settings) -> Run <-> Pause -> Summary -> Station`
 
-Continue loads the latest valid profile. New Game creates a seeded profile and equips all default modules. Options and pause expose volume, vibration, screen shake, flashes, and input remapping where supported.
+Continue loads the latest valid profile. New Game creates a seeded profile and equips all default modules. Settings and pause expose flashes, particles, telemetry consent, and related options where supported.
+
+The player-facing product title is **Mine Your Own Business**. The repository and solution remain named Ship Game.
 
 ## Wayfarer Mk I
 
@@ -15,20 +19,19 @@ Base statistics before equipment and research:
 - Pickup radius: 70 units.
 - Five slots: weapon, mining, shield, engine, and utility.
 
-Shield absorbs damage before hull; excess spills into hull. Zero hull fails the run. After hull damage, the ship receives 0.35 seconds of projectile/collision invulnerability.
+Shield absorbs damage before hull; excess spills into hull. Zero hull fails the run. After hull damage, the ship receives a short projectile/collision invulnerability window.
 
 ## Controls
 
 Keyboard and mouse:
 
-- `W/A/S/D`: screen-relative thrust.
+- `W/A/S/D`: thrust.
 - Mouse: aim.
 - Left mouse: weapon.
 - Right mouse: mining tool.
 - `Space`: dash or blink.
-- `E`: interact or hold to extract.
-- `1/2/3`: select an upgrade.
-- `Tab`: objective and held resources.
+- `E`: interact (reserved; extraction progresses by presence in the zone).
+- `Tab`: objective and held resources (where bound).
 - `Esc`: pause.
 
 Gamepad:
@@ -37,11 +40,10 @@ Gamepad:
 - Right stick: aim; retain the last non-zero direction.
 - Right/left trigger: weapon/mining.
 - Left bumper: dash or blink.
-- `X`: interact or hold to extract.
-- D-pad and `A`: select an upgrade.
+- `X`: interact.
 - View/Menu: objective/pause.
 
-Weapon and mining tools cannot operate simultaneously; weapon input wins. Controller aim may snap within 12 degrees toward a target no farther than 500 units. Menus and upgrade choices pause the single-player simulation.
+Weapon and mining tools cannot operate simultaneously; weapon input wins. Controller aim may snap within 12 degrees toward a target no farther than 500 units. Pause does not advance the simulation clock.
 
 ## Movement and feedback
 
@@ -69,7 +71,7 @@ A validator flood-fills player-clearance space and verifies objective, elite, an
 
 ### Launch
 
-The environment, equipped modules, research modifiers, content version, generation version, and run seed are locked. The run index is persisted before field entry.
+The environment, equipped modules, research modifiers, purchased station upgrades, content version, generation version, and run seed are locked. The run index is persisted before field entry.
 
 ### Objective
 
@@ -80,16 +82,16 @@ The environment, equipped modules, research modifiers, content version, generati
 
 Progress can occur in any order. Collected objective Ferrite remains loot.
 
-When both are complete, normal spawning pauses briefly, the elite arena is marked, and one normal archetype receives `MOD_ELITE_PROTOCOL`. Its defeat drops one Data Core and activates extraction.
+When both are complete, the run enters the elite phase. One `ENM_GUNSHIP` spawns with `MOD_ELITE_PROTOCOL` applied. Its defeat drops one Data Core and activates extraction.
 
 ### Extraction
 
 `EXT_STANDARD_GATE` becomes visible on the HUD and field-edge indicator.
 
-- Enter the zone and hold interact for six continuous seconds.
-- Damage does not interrupt progress.
-- Leaving resets progress.
-- Enemies spawn at maximum environment threat during the hold.
+- Enter the extraction zone and remain inside for six continuous seconds.
+- Leaving the zone resets progress.
+- Damage does not interrupt progress while the ship remains in the zone.
+- Enemies spawn at maximum threat during extraction.
 - Completion immediately resolves a successful run.
 
 ### Timer and failure
@@ -98,69 +100,58 @@ When both are complete, normal spawning pauses briefly, the elite arena is marke
 - At 10:00, a two-minute collapse warning begins.
 - At 12:00, the run fails unless extraction is complete.
 - Zero hull also fails the run.
-- Pause and upgrade selection do not advance time.
+- Pause does not advance time.
 
 ## Threat progression
 
 - Before `3:00`: at most four normal enemies.
-- From `3:00` until objective completion: at most six; mixed archetypes enabled.
-- At `6:00`, the pre-objective cap rises to eight if the objective is still incomplete.
-- From objective completion through elite defeat: at most eight normal enemies plus the elite.
+- From `3:00` until later caps: at most six; mixed archetypes enabled.
+- At `6:00`, and through the elite phase: at most eight normal enemies (plus the elite while active).
 - From extraction activation through run end: at most ten normal enemies.
 
 Spawn anchors must be at least 450 units away and outside the camera. Composition and timing use the encounter RNG stream.
 
 ## Combat
 
-- Pulse Cannon fires discrete projectiles.
-- Beam Emitter applies continuous precision damage and heat.
-- Seeker Rack launches slower homing missiles with a target lock.
+- Pulse Cannon fires discrete projectiles (10 damage, 5 shots/second, range 650).
+- Beam Emitter applies continuous hitscan damage at 100 DPS, range 600, with heat lockout after sustained fire.
+- Seeker Rack launches two missiles (16 damage each) every 0.6 seconds; they home inside a 35° aim cone, otherwise fly straight.
 - Shields recharge only after their no-damage delay.
 - Simultaneous damage resolves in stable source/entity order.
-- Player weapons apply 20% listed damage to asteroid cells unless a module says otherwise.
+- Player weapons apply a reduced share of listed damage to asteroid cells unless a module says otherwise.
 
 ## Mining and collection
 
-Asteroids contain ordinary and resource-bearing cells. Mining damage reduces cell health; breaking a cell releases pickups according to the environment table. The mining tool applies full mining damage and cannot hurt the player.
+Asteroids contain ordinary and resource-bearing cells. Mining damage reduces cell health; breaking a cell releases pickups according to the environment and loot rules. The mining laser range in the composed run is 130 world units. The seismic charge is a cooldown AOE that deals mining and combat damage and cannot hurt the player.
 
-Pickups within collection radius accelerate toward the ship and are credited exactly once. The utility module changes collection behavior. There is no cargo-capacity limit in the MVP; collection should encourage continued play, not inventory management.
+Pickups within collection radius accelerate toward the ship and are credited exactly once. The utility module changes collection behavior (tractor pull versus scout drone). There is no cargo-capacity limit in the MVP.
 
-## Temporary upgrades
+## Station upgrades
 
-Upgrade charge is not a persistent resource:
+Twelve run modifiers are purchased at Station with banked resources. Purchases are permanent on the profile (`PurchasedUpgradeIds`) and apply at the start of every subsequent run until the profile changes. They are not mid-run charge offers; mid-run upgrade pause/selection is not shipped.
 
-- Break a resource-bearing cell: 3 charge.
-- Destroy a normal enemy: 8 charge.
-- Destroy the elite: 20 charge.
-
-At cumulative charge 30, 75, 135, and 210:
-
-1. Pause simulation.
-2. Offer three distinct, unowned upgrades from the catalog.
-3. Let the player choose one.
-4. Resume after applying it.
-
-Upgrades cannot repeat, rank, or reroll in the MVP. Multiple crossed thresholds resolve consecutively. All are removed at run end.
+Effects include weapon damage and fire rate, forked/pierce shots, shield and hull bonuses, speed and mobility cooldown, mining and tractor bonuses, and shock transit on mobility. Exact costs and modifiers live in [content-catalog.md](content-catalog.md) and `RunUpgradeCatalog`.
 
 ## Resources and run resolution
 
 - `MAT_FERRITE`: common construction material.
-- `MAT_LUMEN`: uncommon crystal from resource cells.
+- `MAT_LUMEN`: uncommon crystal from resource cells and salvage.
 - `MAT_DATA_CORE`: elite research artifact.
 
-Success banks all held resources. Failure retains 25% of held Ferrite, rounded down, and loses held Lumen/Data Cores. `RES_RECOVERY_PROTOCOLS` raises Ferrite retention to 50%. Banked resources and purchased research are never lost.
+Success banks all held resources. Failure retains 25% of held Ferrite, rounded down, and loses held Lumen/Data Cores. `RES_RECOVERY_PROTOCOLS` raises Ferrite retention to 50%. Banked resources, purchased research, and purchased station upgrades are never lost to failure.
 
-The summary separates earned, banked, retained, and lost amounts and shows progress toward affordable research.
+The summary separates earned, banked, retained, and lost amounts and shows progress toward affordable research and upgrades.
 
-## Lobby rules
+## Station rules
 
-The lobby exposes:
+Station exposes:
 
-- Both environments and their access requirements.
+- Banked resource balances and previous-run result.
+- Map: both environments and their access requirements; launch.
 - Five-slot loadout editor with measured stat changes.
-- Resource balances.
 - Research graph, costs, prerequisites, and capability rewards.
-- Previous-run result and launch action.
+- Upgrades catalog with banked costs and purchase state.
+- Settings.
 
 Only unlocked modules can be equipped. Unknown or incompatible saved module IDs fall back to the slot default with a visible diagnostic; the original save is preserved for recovery.
 
@@ -172,8 +163,9 @@ Persist at least:
 - Profile seed and run index.
 - Three banked resource balances.
 - Purchased research IDs and unlocked environment IDs.
+- Purchased station upgrade IDs.
 - Equipped module ID by slot.
 - Lifetime counters used by research gates.
 - Settings and telemetry consent.
 
-Purchased research is never silently removed. Renamed IDs require explicit migrations.
+Purchased research and upgrades are never silently removed. Renamed IDs require explicit migrations.

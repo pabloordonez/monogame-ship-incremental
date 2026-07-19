@@ -20,7 +20,7 @@ flowchart TB
 
 ## Adding or changing a meta screen
 
-Each `MetaScreen` value maps to one `IMetaScreenHandler` registered in `MetaScreenHandlerRegistry`. The handler owns UI construction, drawing, hotkeys, and window-smoke navigation for that screen. Prefer putting new lobby or station behavior in a screen class rather than growing `ShipGameHost`.
+Each `MetaScreen` value maps to one `IMetaScreenHandler` registered in `MetaScreenHandlerRegistry`. The handler owns UI construction, drawing, hotkeys, and window-smoke navigation for that screen. Prefer putting new Station, Map, Loadout, Research, or Upgrades behavior in a screen class rather than growing `ShipGameHost`.
 
 When you add a screen, introduce the enum value, create a handler under `Meta/Screens/`, register it in the registry so every screen remains covered, and keep session mutations on `MetaSession` or `MetaUiController` so save and telemetry stay centralized.
 

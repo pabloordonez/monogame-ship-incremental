@@ -130,7 +130,7 @@ CI rejects duplicate IDs/paths, missing files, wrong dimensions, unresolved atla
 - Pulse, beam, seeker missile, mining beam, and seismic charge.
 - Interceptor, Gunship, Sapper, elite outline/marker, and telegraphs.
 - Three asteroid sizes with ordinary/Ferrite/Lumen cell variants and break frames.
-- Ferrite, Lumen, Data Core, upgrade charge, and extraction marker.
+- Ferrite, Lumen, Data Core, station upgrade icons, and extraction marker.
 - Cinder Belt and Ion Veil backgrounds, hazards, star glow, and cover cues.
 - Hull/shield/resource/module/research/lock/objective/pause/input UI icons.
 - Essential impacts, explosions, collection, warnings, UI confirmation, shield, and mining SFX placeholders.
@@ -180,7 +180,7 @@ No music file is produced for the MVP. A later commission should create original
 
 Requested cues:
 
-- Lobby: seamless 90–150 second loop; calm, safe, anticipatory.
+- Station: seamless 90–150 second loop; calm, safe, anticipatory.
 - Flight: seamless 150–240 second loop; spacious, gently propulsive.
 - Optional later combat layer compatible with the flight cue.
 
@@ -190,7 +190,7 @@ Delivery requirements:
 - Click-free loops, consistent loudness, no clipping, vocals, recognizable samples, or uncleared material.
 - Provenance, ownership, license, composer credit, and usage rights recorded in the manifest.
 - Separate master/music volume, mute, and persisted settings.
-- Transition between lobby and flight within two seconds.
+- Transition between Station and flight within two seconds.
 - Music must tolerate pause and 20-minute low-attention sessions without obvious fatigue.
 
 Until commissioned music exists, the game must work with music disabled. Do not commit an unlicensed placeholder.

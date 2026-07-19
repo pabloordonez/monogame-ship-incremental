@@ -4,7 +4,7 @@
 
 Support rapid mechanics experiments without coupling gameplay to MonoGame or building a general engine. The authoritative simulation is deterministic, headless-testable, and driven by validated versioned data. MonoGame 3.8.5 DesktopVK supplies the Windows host, rendering, audio, content loading, and device input.
 
-## Proposed layout
+## Solution layout
 
 ```text
 ShipGame.sln

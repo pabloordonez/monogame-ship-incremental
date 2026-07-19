@@ -2,15 +2,17 @@
 
 Stable IDs are serialization keys. Display names may change; IDs may not change without migration. Distances are world units and times are seconds.
 
+**Authority note:** Combat weapon and enemy combat stats are owned by `FlightCombatBehaviorRegistry` and related Gameplay code. Module presentation values in `mvp-catalog.json` may lag runtime where noted. Station upgrade costs and apply rules are owned by `RunUpgradeCatalog`. Research graph is owned by `ResearchCatalog`.
+
 ## Resources
 
 | ID | Name | Use | Expected successful-run yield |
 |---|---|---|---|
-| `MAT_FERRITE` | Ferrite | Common research and fabrication material | 35–65 |
+| `MAT_FERRITE` | Ferrite | Common research, upgrades, and fabrication material | 35–65 |
 | `MAT_LUMEN` | Lumen Crystal | Advanced technology and access research | 1–4 |
 | `MAT_DATA_CORE` | Data Core | Elite research artifact | Exactly 1 |
 
-Standard Ferrite cells yield 2–4. Lumen cells yield 1.
+Content definition yields for standard Ferrite cells are 2–4 and Lumen cells 1; composed-run loot rolls may differ (ordinary scrap, kill salvage, Fracture Lens, assay). Prefer Gameplay loot rules when documenting runtime economy.
 
 ## Environments
 
@@ -29,7 +31,7 @@ Standard Ferrite cells yield 2–4. Lumen cells yield 1.
 - Requires capability `CAP_TRAVEL_ION_VEIL`, granted by `RES_NAV_ION_VEIL`.
 - Cool A-type star; sparse asteroids and ion clouds.
 - Resource-cell weights: 70% Ferrite, 30% Lumen.
-- Shield recharge delay increases by 1.5 seconds.
+- Shield recharge delay increases by 1.5 seconds (90 ticks).
 - Every 45 seconds, three circles warn for 2.5 seconds then deal 30 shield-first damage.
 - Enemy health/damage multipliers: `1.20/1.15`.
 
@@ -38,27 +40,26 @@ Standard Ferrite cells yield 2–4. Lumen cells yield 1.
 ### `ENM_INTERCEPTOR`
 
 - Fast flanker: hull 28, speed 190, preferred range 120.
-- Three-shot burst, 6 damage each, 0.15-second spacing, 2.2-second cooldown.
-- Telegraph: 0.45-second muzzle flash.
-- Retreats for one second after firing.
+- Burst fire, 6 damage, cadence 132 ticks.
+- Telegraph: muzzle flash.
+- Strafes and retreats after firing.
 
 ### `ENM_GUNSHIP`
 
 - Ranged pressure: hull 55, speed 105, preferred range 380.
-- Plasma bolt: 18 damage, 2.8-second cooldown.
-- Telegraph: 0.8-second aim line.
-- Maintains range and avoids asteroid cells.
+- Plasma bolt: 18 damage, cadence 168 ticks.
+- Telegraph: aim line.
+- Maintains range; also the elite base archetype.
 
 ### `ENM_SAPPER`
 
 - Area denial: hull 42, speed 130, preferred range 260.
-- Deploys a mine every 3.5 seconds; maximum two active.
-- Mine arms in one second, lasts eight, and deals 24 damage in radius 75.
+- Deploys mines; mine damage 24, cadence 210 ticks.
 - Telegraph: flashing mine and radius ring.
 
 ### `MOD_ELITE_PROTOCOL`
 
-Applied to one seeded archetype:
+Applied to the elite spawn (always `ENM_GUNSHIP` in the composed run):
 
 - Scale `1.35`; hull `2.75x`; damage `1.35x`; speed `1.10x`; cooldown `0.80x`.
 - Adds elite outline, arena marker, and exactly one Data Core drop.
@@ -70,20 +71,20 @@ Applied to one seeded archetype:
 
 **`MOD_WEAPON_PULSE` — Kestrel Pulse Cannon** (default)
 
-- 10 damage; 5 shots/second; projectile speed 700; range 650.
+- 10 damage; 5 shots/second (cadence 12 ticks); projectile speed 700; range 650.
 - Reliable discrete projectile behavior with no ammunition.
 
 **`MOD_WEAPON_BEAM` — Helios Beam Emitter**
 
 - Requires `RES_WEAPON_BEAM`.
-- Continuous 30 damage/second; range 520.
-- Overheats after three firing seconds; cools after two idle seconds.
-- Applies 20% combat damage as mining damage.
+- Continuous hitscan **100 DPS**; range **600**; lock cone 24°.
+- Builds heat while firing (0.5/tick); locks at heat 180 and vents while overheated; cools at 3/tick when idle or locked.
+- `mvp-catalog.json` still lists older 30 DPS / 520 range presentation values; runtime combat uses the registry above.
 
 **`MOD_WEAPON_SEEKER` — Warden Seeker Rack**
 
 - Requires `RES_WEAPON_SEEKER`.
-- Launches two missiles, 16 damage each, every 0.6 seconds.
+- Launches two missiles, 16 damage each, every 0.6 seconds (cadence 36 ticks).
 - Projectile speed 480; lock range 600; turn rate 150 degrees/second.
 - Homes when a target is inside a 35-degree aim cone; otherwise flies straight along aim.
 
@@ -91,7 +92,9 @@ Applied to one seeded archetype:
 
 **`MOD_MINING_LASER` — Mole Mining Laser** (default)
 
-- Continuous 25 mining damage/second; range 260.
+- Continuous 25 mining damage/second.
+- Composed-run mining range: **130** world units (`ComposedRunOrchestrator.MiningRangeWorldUnits`).
+- `mvp-catalog.json` may still list presentation range 260; runtime uses 130.
 
 **`MOD_MINING_CHARGE` — Seismic Charge**
 
@@ -137,25 +140,28 @@ Applied to one seeded archetype:
 - Requires `RES_UTILITY_DRONE`.
 - One invulnerable orbiting drone; attacks nearest enemy within 450.
 - Deals 8 damage every 0.8 seconds; does not mine or collect.
+- Replaces tractor behavior when equipped.
 
-## In-run upgrades
+## Station upgrades
 
-All twelve are unique per run. Percentage modifiers stack multiplicatively; flat additions apply first.
+Twelve unique upgrades purchased at Station with banked resources. Purchases persist on the profile and apply at run start via folded modifiers. Mid-run charge/offer selection is not shipped.
 
-| ID | Name | Effect |
-|---|---|---|
-| `UPG_OVERCHARGED_MUNITIONS` | Overcharged Munitions | Weapon damage `+20%`. |
-| `UPG_RAPID_CYCLING` | Rapid Cycling | Fire rate or beam tick output `+18%`. |
-| `UPG_FORKED_OUTPUT` | Forked Output | Pulse adds an 85%-damage angled projectile; beam forks for 45%; seeker adds one 60%-damage missile. |
-| `UPG_PENETRATING_FIELD` | Penetrating Field | Pulse pierces one enemy; beam passes through one target; seeker explosion radius 55. |
-| `UPG_SHIELD_RESERVOIR` | Shield Reservoir | Maximum/current shield `+30`. |
-| `UPG_FAST_REBOOT` | Fast Reboot | Recharge delay `-1.0`; recharge rate `+20%`. |
-| `UPG_REINFORCED_FRAME` | Reinforced Frame | Maximum/current hull `+25`. |
-| `UPG_THRUSTER_OVERCLOCK` | Thruster Overclock | Maximum speed `+15%`. |
-| `UPG_MOBILITY_LOOP` | Mobility Loop | Dash/blink cooldown `-30%`. |
-| `UPG_FRACTURE_LENS` | Fracture Lens | Mining damage `+30%`; Ferrite cell yield `+20%`, rounded up. |
-| `UPG_MAGNETIC_SWEEP` | Magnetic Sweep | Pickup radius `+90`; pull speed `+50%`. |
-| `UPG_SHOCK_TRANSIT` | Shock Transit | Mobility endpoint emits a radius-90, 20-damage shockwave. |
+Percentage modifiers stack multiplicatively through basis-point folding; flat additions apply as coded. Forked Output secondary damage is per weapon: pulse ×0.85, seeker ×0.6, beam fork tick damage ×0.45.
+
+| ID | Name | Cost F/L/D | Effect |
+|---|---|---|---|
+| `UPG_OVERCHARGED_MUNITIONS` | Overcharged Munitions | 30/0/0 | Weapon damage `+20%`. |
+| `UPG_RAPID_CYCLING` | Rapid Cycling | 30/0/0 | Fire rate `+18%`. |
+| `UPG_FORKED_OUTPUT` | Forked Output | 40/1/0 | Adds one forked shot or beam fork; secondary damage pulse ×0.85 / seeker ×0.6 / beam ×0.45. |
+| `UPG_PENETRATING_FIELD` | Penetrating Field | 40/1/0 | Pierce one additional target. |
+| `UPG_SHIELD_RESERVOIR` | Shield Reservoir | 35/0/1 | Maximum/current shield `+30`. |
+| `UPG_FAST_REBOOT` | Fast Reboot | 45/1/1 | Recharge delay `-1.0s`; recharge rate `+20%`. |
+| `UPG_REINFORCED_FRAME` | Reinforced Frame | 35/0/0 | Maximum/current hull `+25`. |
+| `UPG_THRUSTER_OVERCLOCK` | Thruster Overclock | 30/0/0 | Maximum speed `+15%`. |
+| `UPG_MOBILITY_LOOP` | Mobility Loop | 40/1/0 | Dash/blink cooldown `-30%`. |
+| `UPG_FRACTURE_LENS` | Fracture Lens | 45/1/1 | Mining damage `+30%`; Ferrite yield bump when loot applies Fracture Lens. |
+| `UPG_MAGNETIC_SWEEP` | Magnetic Sweep | 40/0/1 | Pickup radius `+90`; pull speed `+50%`. |
+| `UPG_SHOCK_TRANSIT` | Shock Transit | 50/2/1 | Mobility endpoint emits a radius-90, 20-damage shockwave. |
 
 ## Research tree
 
@@ -166,7 +172,7 @@ Costs are Ferrite/Lumen/Data Core. Gates use profile counters and are checked in
 | `RES_HULL_REINFORCEMENT` | Layered Bulkheads | 25/0/0 | — | — | Base hull `+15`. |
 | `RES_SHIELD_REFLECTIVE` | Reflective Harmonics | 45/1/1 | `RES_HULL_REINFORCEMENT` | 1 extraction | Unlock Reflective Screen. |
 | `RES_WEAPON_BEAM` | Coherent Emitters | 35/0/1 | — | 1 extraction | Unlock Beam Emitter. |
-| `RES_WEAPON_SEEKER` | Seeker Telemetry | 60/2/2 | `RES_WEAPON_BEAM` | 20 lifetime kills | Unlock Seeker Rack. |
+| `RES_WEAPON_SEEKER` | Seeker Telemetry | 60/2/2 | `RES_WEAPON_BEAM` | 20 lifetime kills (normal + elite) | Unlock Seeker Rack. |
 | `RES_MINING_SEISMIC` | Resonance Charges | 30/0/1 | — | 60 lifetime Ferrite | Unlock Seismic Charge. |
 | `RES_MINING_ASSAY` | Spectral Assay | 50/2/1 | `RES_MINING_SEISMIC` | 40 resource cells | Ferrite yield `+15%`, rounded up. |
 | `RES_ENGINE_TUNING` | Vector Calibration | 25/0/0 | — | — | Maximum speed `+8%`. |
@@ -181,8 +187,8 @@ Purchasing all nodes costs 565 Ferrite, 14 Lumen, and 15 Data Cores. The graph i
 ## Objective and extraction IDs
 
 - `OBJ_FIELD_PROOF`: collect 30 run Ferrite and destroy eight normal enemies.
-- `EXT_STANDARD_GATE`: hold interact for six seconds after elite defeat.
+- `EXT_STANDARD_GATE`: remain in the extraction zone for six seconds after elite defeat.
 
 ## Validation rules
 
-Build fails on duplicate IDs, missing references, invalid slot compatibility, negative costs, research cycles, unreachable capability gates, impossible upgrade pools, invalid ranges, or a catalog where an MVP content item cannot be exercised.
+Build fails on duplicate IDs, missing references, invalid slot compatibility, negative costs, research cycles, unreachable capability gates, invalid ranges, or a catalog where an MVP content item cannot be exercised.

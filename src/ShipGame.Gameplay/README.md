@@ -73,11 +73,11 @@ Ordinary flight feel lives on `FlightStatistics` (acceleration, braking, max spe
 
 Burst mobility is separate. `MobilityBehavior` today is dash versus blink, resolved in `ResolveMobilitySystem`. That is still a small if-chain on purpose. Introduce an `IMobilityStrategy` registry only when a third distinct mobility personality shows up and the branching starts to hurt readability. Until then, prefer editing the existing mobility resolution and the `MobilityAbility` component values granted by engine modules.
 
-## Adding research, modules, or run upgrades
+## Adding research, modules, or station upgrades
 
-Meta content lives under `Meta/` as C# catalogs for the MVP. Research nodes grant modules or semantic capabilities. Modules feed loadout resolution and derived ship statistics. Run upgrades are temporary offers applied during a run and cleared when the expedition ends.
+Meta content lives under `Meta/` as C# catalogs for the MVP. Research nodes grant modules or semantic capabilities. Modules feed loadout resolution and derived ship statistics. Station upgrades (`RunUpgradeCatalog`) are permanent profile purchases with banked costs; they fold into run modifiers at launch via `PurchasedUpgradeIds`. Mid-run upgrade offer UI is not shipped.
 
-When you add a node or upgrade, define it in the matching catalog file and grant something systems already understand: a module ID, a stat modifier, or a capability such as travel access. Gameplay code should query capabilities and resolved statistics, never a specific research ID. If a grant needs new combat behavior, add that behavior through the weapon or AI registries first, then point the catalog at it.
+When you add a node or upgrade, define it in the matching catalog file and grant something systems already understand: a module ID, a stat modifier, a capability such as travel access, or a folded temporary/combat modifier. Gameplay code should query capabilities and resolved statistics, never a specific research ID. If a grant needs new combat behavior, add that behavior through the weapon or AI registries first, then point the catalog at it.
 
 ## Adding a world-run fact or event side effect
 

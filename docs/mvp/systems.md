@@ -21,21 +21,21 @@
 7. Detect collisions and weapon/mining contacts.
 8. Resolve weapons, hazard activations, damage, mining, and hull death.
 9. Resolve destruction, drops, and collection.
-10. Resolve upgrade charge/offers, objective counters, elite-phase transitions, and extraction progress.
+10. Resolve objective counters, elite-phase transitions, and extraction progress. Station upgrade modifiers are applied at run start, not via mid-run offers.
 11. Resolve the terminal state in priority order: hull death, completed extraction, then reached deadline. Produce at most one exactly-once reward proposal.
 12. Queue structural changes, publish the ordered event batch, and optionally calculate a deterministic state hash.
 
-Changing order requires an architecture decision and replay-test update.
+The composed host path (`ComposedRunOrchestrator`) co-steps flight combat, world-run, and mining/loot ECS each tick. Changing order requires an architecture decision and replay-test update.
 
 ## Application state
 
-**Owns:** boot/title/lobby/run/summary state, screen transitions, pause, run start/end orchestration.
+**Owns:** boot/title/Station/run/summary state, screen transitions, pause, run start/end orchestration.
 
-**State/components:** `AppState`, `SessionState`, `EncounterIdentity`, `EncounterMember`, `PendingDespawn`.
+**State/components:** `MetaSession`, `MetaScreen`, `EncounterIdentity`, run orchestrator handles, `PendingDespawn`.
 
-**Commands/events:** `StartProfile`, `LaunchRun`, `Pause`, `EncounterStarted`, `RunResolved`, `ReturnToLobby`.
+**Commands/events:** `StartProfile`, `LaunchRun`, `Pause`, `EncounterStarted`, `RunResolved`, `ReturnToStation` (`EnterLobby` is a compatibility alias for Station entry).
 
-**Invariants:** one active run; one player during a run; rewards commit once; lobby mutation occurs only through profile transactions.
+**Invariants:** one active run; one player during a run; rewards commit once; Station mutation occurs only through profile transactions.
 
 **Dependencies:** generation, progression, and persistence. Presentation observes application state/events but is not an inward dependency.
 
@@ -159,9 +159,9 @@ Changing order requires an architecture decision and replay-test update.
 
 **Owns:** asteroid-cell mining health, mining contacts, deterministic drops, collectibles, pickup attraction and credit.
 
-**Components:** `MineableCell`, `MiningTool`, `ResourceDropTable`, `Collectible`, `CollectionRadius`.
+**Components / orchestrator state:** `MineableCell` and related mining/loot ECS components; mining contacts and tool range live on `ComposedRunOrchestrator` (laser range 130 wu); loot tables resolve in `LootGenerationSystem`.
 
-**Systems/events:** `MiningSystem`, `LootGenerationSystem`, `CollectionSystem`; `CellBroken`, `LootSpawned`, `ResourceCollected`.
+**Systems/events:** `MiningSystem`, `LootGenerationSystem`, `CollectionSystem`; cell-break, loot-spawn, and resource-collected facts/events as published by the composed path.
 
 **Invariants:** no over-extraction; positive quantities; one credit/despawn; tables resolve valid IDs; drops use the loot stream.
 
@@ -171,51 +171,51 @@ Changing order requires an architecture decision and replay-test update.
 
 **Does not own:** free-form terrain, cargo logistics, planet extraction, or trade.
 
-## Run upgrades
+## Station upgrades (run modifiers)
 
-**Owns:** charge, threshold queue, eligible offers, selection, temporary modifier grants, run-end cleanup.
+**Owns:** station purchase of the twelve upgrade IDs, profile `PurchasedUpgradeIds`, folding into `TemporaryModifiers` / combat modifiers at run start, and clearing in-run modifier state when a run ends (profile purchases persist).
 
-**Components/resources:** `UpgradeCharge`, `OwnedRunUpgrades`, `PendingUpgradeOffer`, `TemporaryModifiers`.
+**Components/resources:** `TemporaryModifiers`, `TemporaryCombatModifiers`; catalog `RunUpgradeCatalog`.
 
-**Commands/events:** `ChooseUpgrade`; `UpgradeThresholdReached`, `UpgradeOffered`, `UpgradeSelected`.
+**Commands/events:** `PurchaseUpgrade` (Station/Upgrades screen). Legacy mid-run kinds `UpgradeThresholdReached`, `UpgradeOffered`, and `UpgradeSelected` exist as event enum values but are handled as NoOp in the composed path; there is no mid-run offer UI.
 
-**Invariants:** catalog has twelve; offers contain three distinct eligible IDs; no repeats/ranks; threshold resolves once; temporary effects clear.
+**Invariants:** catalog has twelve unique IDs; each ID may be purchased once per profile; costs debit banked resources atomically; folded modifiers apply for subsequent runs; purchases survive failure.
 
-**Dependencies:** combat/mining events, upgrade RNG, content, derived stats, application pause.
+**Dependencies:** profile transactions, persistence, combat/mining derived stats.
 
-**Tests:** threshold crossings, consecutive offers, pool exhaustion validation, cleanup.
+**Tests:** purchase cost/duplicate rejection; fold order determinism; modifiers granted at run start; mid-run offer path remains disabled.
 
-**Does not own:** research purchases or UI layout.
+**Does not own:** research purchases or screen layout pixels.
 
 ## Environment, objective, and run resolution
 
-**Owns:** environment hazard schedules/effects, run clock, objective counters, elite-phase transition, extraction activation/hold, success/failure decision, and exactly-once reward proposal.
+**Owns:** environment hazard schedules/effects, run clock, objective counters, elite-phase transition, extraction dwell progress, success/failure decision, and exactly-once reward proposal.
 
-**Components/resources:** `RunClock`, `EnvironmentHazard`, `ObjectiveProgress`, `RunPhase`, `ExtractionZone`, `ExtractionProgress`, `RunResult`.
+**Facade/state (not all ECS components):** `WorldRun` owns `RunTick`, `ObjectiveProgress`, `RunPhase`, `ExtractionProgressTicks`, and reward proposal; hazards resolve through `EnvironmentHazardSystem` / schedule descriptors on the run.
 
-**Commands/events:** `Interact`; `HazardWarned`, `HazardResolved`, `ObjectiveCompleted`, `ElitePhaseStarted`, `ExtractionActivated`, `ExtractionProgressed`, `RunSucceeded`, `RunFailed`, `RewardProposed`.
+**Commands/events (`WorldRunEventKind`):** `HazardWarned`, `HazardDamageRequested`, `ObjectiveCompleted`, `EliteActivationRequested`, `EliteDefeated`, `DataCoreDropped`, `ExtractionActivated`, `ExtractionProgressed`, `ExtractionReset`, `CollapseWarning`, `RunSucceeded`, `RunFailed`, `RewardProposed` (plus legacy upgrade kinds handled as NoOp). Flight `Interact` is reserved and does not drive extraction; progress is continuous in-zone dwell.
 
-**Invariants:** pause/upgrade screens do not advance the run clock; environment schedules derive only from the run descriptor; objective counters consume ordered facts once; extraction cannot activate before elite defeat; at most one terminal result/reward proposal exists during a run and exactly one exists after terminal resolution; hull death takes precedence over same-tick extraction, while completed extraction takes precedence over the same-tick deadline.
+**Invariants:** pause and meta screens do not advance the run clock; environment schedules derive only from the run descriptor; objective counters consume ordered facts once; extraction cannot activate before elite defeat; extraction progress advances while the player remains in the zone and resets on leave; at most one terminal result/reward proposal exists during a run and exactly one exists after terminal resolution; hull death takes precedence over same-tick extraction, while completed extraction takes precedence over the same-tick deadline.
 
 **Dependencies:** session, generation descriptor, combat/mining events, spatial queries, application pause, profile transaction boundary.
 
-**Tests:** early/late objective completion; each hazard schedule/cover rule; elite transition; extraction enter/leave/damage; 10:00 warning and 12:00 boundary; simultaneous death/extraction ordering; duplicate-event/reward rejection.
+**Tests:** early/late objective completion; each hazard schedule/cover rule; elite transition; extraction enter/leave; 10:00 warning and 12:00 boundary; simultaneous death/extraction ordering; duplicate-event/reward rejection.
 
 **Does not own:** environment visuals/audio, profile banking, research, or arbitrary quest scripting.
 
-## Profile, research, loadout, and access
+## Profile, research, loadout, upgrades, and access
 
-**Owns:** banked resources, lifetime counters, research graph/purchase, capabilities, unlocked destinations, equipped modules, derived statistics.
+**Owns:** banked resources, lifetime counters, research graph/purchase, station upgrade purchases, capabilities, unlocked destinations, equipped modules, derived statistics.
 
-**Profile records:** `ResourceBalances`, `ResearchState`, `CapabilitySet`, `ShipLoadout`, `LifetimeCounters`.
+**Profile records:** `ResourceBalances`, `ResearchState`, `PurchasedUpgradeIds`, `CapabilitySet`, `ShipLoadout`, `LifetimeCounters`.
 
-**Commands/events:** `PurchaseResearch`, `EquipModule`, `SelectDestination`; `ResearchPurchased`, `LoadoutChanged`, `TravelRejected`.
+**Commands/events:** `PurchaseResearch`, `PurchaseUpgrade`, `EquipModule`, `SelectDestination`; `ResearchPurchased`, `LoadoutChanged`, `TravelRejected`.
 
 **Invariants:** balances nonnegative; transactions atomic/idempotent; prerequisites and gates pass; slots are compatible; gates query capabilities; derived stats rebuild deterministically.
 
 **Dependencies:** content, run resolution, persistence, application.
 
-**Tests:** cost/prerequisite rejection; graph cycles; duplicate transaction; default fallback; Ion Veil gate.
+**Tests:** cost/prerequisite rejection; graph cycles; duplicate transaction; default fallback; Ion Veil gate; upgrade purchase persistence.
 
 **Does not own:** screen layout, shops, crafting, factions, or economy.
 
