@@ -164,6 +164,18 @@ internal static class ParticlePresets
         BiasDirection: aftDirection,
         BiasStrength: 2.4f);
 
+    public static ParticleBurst SeismicBlast { get; } = new(
+        Count: 28,
+        MinSpeed: 40f,
+        MaxSpeed: 160f,
+        MinLife: 0.18f,
+        MaxLife: 0.45f,
+        ColorA: new XnaColor(255, 140, 40),
+        ColorB: new XnaColor(255, 230, 140),
+        MinSize: 1,
+        MaxSize: 3,
+        Drag: 0.90f);
+
     public static ParticleBurst ThrustEmber(System.Numerics.Vector2 aftDirection) => new(
         Count: 2,
         MinSpeed: 20f,

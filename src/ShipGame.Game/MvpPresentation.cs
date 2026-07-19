@@ -525,6 +525,63 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         _drewSprites = true;
     }
 
+    public void DrawSeismicCharge(
+        XnaVector2 shipScreen,
+        System.Numerics.Vector2 aimPointWorld,
+        System.Numerics.Vector2 camera,
+        float blastRadiusWorld,
+        bool ready,
+        bool lockedOnRock,
+        bool firedThisTick,
+        long tick)
+    {
+        var aimScreen = WorldToScreen(aimPointWorld, camera);
+        var ship = new System.Numerics.Vector2(shipScreen.X, shipScreen.Y);
+        var aim = new System.Numerics.Vector2(aimScreen.X, aimScreen.Y);
+        var delta = aim - ship;
+        var distance = delta.Length();
+        if (distance > 1f)
+        {
+            var dir = delta / distance;
+            var rotation = MathF.Atan2(dir.Y, dir.X);
+            // Dim throw guide (not the mining laser).
+            DrawRotatedBeamLayer(
+                new XnaVector2(ship.X + dir.X * 12f, ship.Y + dir.Y * 12f),
+                MathF.Max(8f, distance - 12f),
+                rotation,
+                thickness: 2f,
+                new XnaColor(255, 160, 60, ready ? 90 : 40));
+        }
+
+        var pulse = (tick / 3) % 2 == 0;
+        var chargeSize = firedThisTick ? 18 : pulse ? 14 : 12;
+        var tint = ready
+            ? (lockedOnRock ? new XnaColor(255, 230, 140) : new XnaColor(255, 190, 90))
+            : new XnaColor(140, 120, 100, 160);
+        DrawRegionRotated("weapons/seismic-charge", aimScreen, tick * 0.08f, chargeSize, tint);
+
+        var radiusScreen = Math.Clamp((int)MathF.Round(blastRadiusWorld), 24, 160);
+        var ringAlpha = firedThisTick ? 180 : ready ? 70 : 35;
+        var ringColor = firedThisTick
+            ? new XnaColor(255, 180, 60, ringAlpha)
+            : new XnaColor(255, 140, 40, ringAlpha);
+        DrawRegion(
+            "telegraphs/mine-radius",
+            (int)aimScreen.X - radiusScreen / 2,
+            (int)aimScreen.Y - radiusScreen / 2,
+            radiusScreen,
+            radiusScreen,
+            ringColor);
+
+        if (firedThisTick)
+        {
+            Fill((int)aimScreen.X - 6, (int)aimScreen.Y - 6, 12, 12, new XnaColor(255, 240, 180, 200));
+            Fill((int)aimScreen.X - 3, (int)aimScreen.Y - 3, 6, 6, new XnaColor(255, 255, 255));
+        }
+
+        _drewSprites = true;
+    }
+
     public void DrawBeamRay(
         XnaVector2 shipCenter,
         System.Numerics.Vector2 aim,
@@ -741,6 +798,9 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
 
             foreach (var broken in run.LastBrokenAsteroids)
                 _particles.Burst(broken.Position, ParticlePresets.AsteroidBreak(broken.Kind));
+
+            if (run.LastMiningPresentation is { Mode: MiningToolMode.Seismic, FiredThisTick: true } seismic)
+                _particles.Burst(seismic.HitPosition, ParticlePresets.SeismicBlast);
 
             if (combatTick % 2 == 0)
             {

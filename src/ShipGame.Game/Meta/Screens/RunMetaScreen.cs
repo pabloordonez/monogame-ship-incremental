@@ -110,9 +110,29 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                         else
                             canvas.DrawMuzzleFlash(screen, hints.AimDirection, hud.RunTick);
                     }
-                    if (hints.MineHeld)
+                    var mining = run.LastMiningPresentation;
+                    var showSeismic = run.HasSeismicCharge &&
+                                      (hints.MineHeld || mining is { Active: true, FiredThisTick: true });
+                    if (showSeismic)
                     {
-                        var mining = run.LastMiningPresentation;
+                        var aimWorld = mining.Active
+                            ? mining.HitPosition
+                            : item.Position +
+                              (hints.AimDirection.LengthSquared() > 0.01f
+                                  ? System.Numerics.Vector2.Normalize(hints.AimDirection)
+                                  : System.Numerics.Vector2.UnitX) * 220f;
+                        canvas.DrawSeismicCharge(
+                            screen,
+                            aimWorld,
+                            camera,
+                            mining.BlastRadius > 0 ? mining.BlastRadius : ComposedRunOrchestrator.SeismicBlastRadius,
+                            mining.Active ? mining.Ready : run.SeismicCooldownTicksRemaining <= 0,
+                            mining.Hit,
+                            mining.FiredThisTick,
+                            hud.RunTick);
+                    }
+                    else if (hints.MineHeld && !run.HasSeismicCharge)
+                    {
                         float? mineHit = mining is { Active: true, Hit: true }
                             ? mining.HitDistance
                             : null;

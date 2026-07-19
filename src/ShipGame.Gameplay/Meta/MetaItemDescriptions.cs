@@ -9,7 +9,7 @@ public static class MetaItemDescriptions
         ModuleCatalog.WeaponBeam => "Continuous hitscan beam. Overheats if held too long.",
         ModuleCatalog.WeaponSeeker => "Dual missiles: home in-cone, or fly straight when no lock.",
         ModuleCatalog.MiningLaser => "Continuous mining beam for asteroid cells.",
-        ModuleCatalog.MiningCharge => "Aimed seismic blast: mining AoE plus light combat damage.",
+        ModuleCatalog.MiningCharge => "Throws a seismic charge (3s CD): 110 radius, 65 mining / 12 combat.",
         ModuleCatalog.ShieldCapacitor => "Balanced shield capacity and recharge.",
         ModuleCatalog.ShieldReflective => "Lower capacity; reflects 20% of projectile damage.",
         ModuleCatalog.EngineVector => "Dash mobility with brief invulnerability.",

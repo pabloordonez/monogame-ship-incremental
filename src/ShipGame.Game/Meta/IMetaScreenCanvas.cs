@@ -31,6 +31,15 @@ public interface IMetaScreenCanvas
     void DrawThrustTrail(XnaVector2 shipCenter, System.Numerics.Vector2 move, long tick);
     void DrawMuzzleFlash(XnaVector2 shipCenter, System.Numerics.Vector2 aim, long tick);
     void DrawMineRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim, float? hitDistanceWorld = null);
+    void DrawSeismicCharge(
+        XnaVector2 shipScreen,
+        System.Numerics.Vector2 aimPointWorld,
+        System.Numerics.Vector2 camera,
+        float blastRadiusWorld,
+        bool ready,
+        bool lockedOnRock,
+        bool firedThisTick,
+        long tick);
     void DrawBeamRay(XnaVector2 shipCenter, System.Numerics.Vector2 aim, float rangeWorld, float? hitDistanceWorld = null);
     void DrawAimReticle(System.Numerics.Vector2 mouseVirtual);
     void DrawRunHud(ComposedRunHud hud, RunPresentationHints hints, XnaVector2 playerScreen);

@@ -18,6 +18,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public const float AsteroidVisualRadius = 12f;
     /// <summary>Aim cone (half-angle) for near-miss mining assist when the ray barely misses.</summary>
     public const float MiningAssistConeDegrees = 18f;
+    public const float SeismicRangeWorldUnits = 300f;
+    public const float SeismicBlastRadius = 110f;
 
     private readonly World _miningWorld = new();
     private readonly MiningSystem _mining = new();
@@ -482,7 +484,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 Origin: origin,
                 HitPosition: origin + aimDir * MiningRangeWorldUnits,
                 HitDistance: MiningRangeWorldUnits,
-                Kind: default);
+                Kind: default,
+                Mode: MiningToolMode.Laser);
             return;
         }
 
@@ -493,7 +496,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             Origin: origin,
             HitPosition: tipPosition,
             HitDistance: tipDistance,
-            Kind: bestKind);
+            Kind: bestKind,
+            Mode: MiningToolMode.Laser);
 
         var damage = Math.Max(
             1,
@@ -583,27 +587,35 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
 
     private void ApplySeismicCharge(Vector2 origin, Vector2 aimDir)
     {
-        const float seismicRange = 300f;
-        const float seismicRadius = 110f;
         const int seismicMiningDamage = 65;
         const float seismicCombatDamage = 12f;
-        var aimPoint = origin + aimDir * Math.Min(seismicRange, 180f);
-        LastMiningPresentation = new MiningPresentationState(
-            Active: true,
-            Hit: _seismicCooldownTicks <= 0,
-            Origin: origin,
-            HitPosition: aimPoint,
-            HitDistance: Vector2.Distance(origin, aimPoint),
-            Kind: AsteroidCellKind.Ordinary);
+        var ready = _seismicCooldownTicks <= 0;
+        var aimPoint = ResolveSeismicAimPoint(origin, aimDir, out var aimedKind, out var lockedOnRock);
+        var hitDistance = Vector2.Distance(origin, aimPoint);
 
-        if (_seismicCooldownTicks > 0)
+        if (!ready)
+        {
+            LastMiningPresentation = new MiningPresentationState(
+                Active: true,
+                Hit: lockedOnRock,
+                Origin: origin,
+                HitPosition: aimPoint,
+                HitDistance: hitDistance,
+                Kind: aimedKind,
+                Mode: MiningToolMode.Seismic,
+                BlastRadius: SeismicBlastRadius,
+                FiredThisTick: false,
+                Ready: false);
             return;
+        }
 
+        // Fire once when ready (hold-to-repeat after cooldown).
         _seismicCooldownTicks = 3 * WorldRun.TickRate;
         var contacts = new List<MiningContact>();
         var miningDamage = Math.Max(
             1,
             (int)Math.Round(seismicMiningDamage * (_appliedModifiers.MiningDamageBasisPoints / 10_000.0)));
+        var blastRadiusSq = SeismicBlastRadius * SeismicBlastRadius;
         foreach (var pair in _asteroidEntities)
         {
             var entity = pair.Value;
@@ -614,24 +626,79 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 continue;
             var position = _miningWorld.Get<WorldPosition>(entity);
             var world = new Vector2(position.X, position.Y);
-            if (Vector2.Distance(origin, world) > seismicRange)
+            // Must be within throw range of the ship and inside the blast around the aim point.
+            if (Vector2.Distance(origin, world) > SeismicRangeWorldUnits + SeismicBlastRadius)
                 continue;
-            if (Vector2.Distance(aimPoint, world) > seismicRadius)
+            if (Vector2.DistanceSquared(aimPoint, world) > blastRadiusSq)
                 continue;
             contacts.Add(new MiningContact(Combat.Player, entity, miningDamage));
         }
 
         CommitBrokenCells(_mining.Resolve(_miningWorld, contacts));
         Combat.CollectSnapshots(_snapshotBuffer);
-        var radiusSq = seismicRadius * seismicRadius;
         foreach (var snap in _snapshotBuffer)
         {
             if (snap.Faction != Faction.Hostile || snap.Destroyed || snap.Hull <= 0)
                 continue;
-            if (Vector2.DistanceSquared(aimPoint, snap.Position) > radiusSq)
+            if (Vector2.DistanceSquared(aimPoint, snap.Position) > blastRadiusSq)
                 continue;
             Combat.InflictDamage(snap.Entity, Combat.Player, seismicCombatDamage, projectile: false);
         }
+
+        LastMiningPresentation = new MiningPresentationState(
+            Active: true,
+            Hit: true,
+            Origin: origin,
+            HitPosition: aimPoint,
+            HitDistance: hitDistance,
+            Kind: aimedKind,
+            Mode: MiningToolMode.Seismic,
+            BlastRadius: SeismicBlastRadius,
+            FiredThisTick: true,
+            Ready: false);
+    }
+
+    /// <summary>
+    /// Place the charge on the nearest asteroid along aim within throw range; otherwise throw to mid/max range.
+    /// </summary>
+    private Vector2 ResolveSeismicAimPoint(
+        Vector2 origin,
+        Vector2 aimDir,
+        out AsteroidCellKind aimedKind,
+        out bool lockedOnRock)
+    {
+        aimedKind = AsteroidCellKind.Ordinary;
+        lockedOnRock = false;
+        var bestEntry = float.MaxValue;
+        var bestCenter = origin + aimDir * MathF.Min(220f, SeismicRangeWorldUnits);
+
+        foreach (var pair in _asteroidEntities)
+        {
+            var entity = pair.Value;
+            if (!_miningWorld.IsAlive(entity) || !_miningWorld.Store<MineableCell>().Has(entity))
+                continue;
+            var cell = _miningWorld.Get<MineableCell>(entity);
+            if (cell.Broken)
+                continue;
+            var position = _miningWorld.Get<WorldPosition>(entity);
+            var world = new Vector2(position.X, position.Y);
+            if (Vector2.Distance(origin, world) > SeismicRangeWorldUnits)
+                continue;
+            if (!FlightCombatMath.TryRayCircleEntry(origin, aimDir, world, AsteroidVisualRadius, out var entry))
+                continue;
+            if (entry > SeismicRangeWorldUnits || entry >= bestEntry)
+                continue;
+            bestEntry = entry;
+            bestCenter = world;
+            aimedKind = cell.Kind;
+            lockedOnRock = true;
+        }
+
+        if (lockedOnRock)
+            return bestCenter;
+
+        // Empty space: throw forward so the blast still covers rocks near the aim line.
+        return origin + aimDir * MathF.Min(220f, SeismicRangeWorldUnits);
     }
 
     private void CommitBrokenCells(IReadOnlyList<CellBrokenFact> broken)
@@ -765,6 +832,10 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     Vector2 IWorldRunEventHost.LastEliteDeathWorldPosition => _lastEliteDeathWorldPosition;
 
     public bool HasTractorUtility => _hasTractor;
+
+    public bool HasSeismicCharge => _hasSeismicCharge;
+
+    public int SeismicCooldownTicksRemaining => Math.Max(0, _seismicCooldownTicks);
 
     void IWorldRunEventHost.InflictDamage(EntityId target, EntityId source, float amount, bool projectile) =>
         Combat.InflictDamage(target, source, amount, projectile);
