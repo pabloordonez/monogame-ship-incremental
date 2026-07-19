@@ -1,28 +1,25 @@
 using ShipGame.Domain;
 using ShipGame.Ecs;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
-public sealed class FoundationSimulation
+public sealed class FoundationSession
 {
     public const int TickRate = 60;
     public const int EmptyRunTicks = 180;
 
     private readonly SortedDictionary<long, CommandFrame> _commands = [];
     private readonly RandomStreams _random;
-    private readonly World _world = new();
-    private readonly CommandBuffer _structuralChanges = new();
     private readonly SystemScheduler _scheduler = new();
     private uint _runSignature;
 
-    public FoundationSimulation(ulong seed, long runIndex = 0)
+    public FoundationSession(ulong seed, long runIndex = 0)
     {
         if (runIndex < 0)
             throw new ArgumentOutOfRangeException(nameof(runIndex));
         Seed = seed;
         RunIndex = runIndex;
         _random = new RandomStreams(DeriveRunSeed(seed, runIndex));
-        _scheduler.Add(new DelegateSystem("ApplyStructuralChanges", (_, _) => _structuralChanges.Apply(_world)));
         _scheduler.Add(new DelegateSystem("ConsumeCommands", (_, tick) => Consume(_commands.Remove(tick, out var command) ? command : CommandFrame.Neutral(tick))));
         _scheduler.Add(new DelegateSystem("SessionTransitions", (_, _) => AdvanceSession()));
         _scheduler.Add(new DelegateSystem("RunClock", (_, _) => AdvanceClock()));
@@ -48,7 +45,7 @@ public sealed class FoundationSimulation
 
     public ulong Step()
     {
-        _scheduler.Tick(_world, Tick);
+        _scheduler.Tick(null!, Tick);
         Tick++;
         return LastStateHash;
     }
@@ -117,7 +114,7 @@ public sealed class FoundationSimulation
         return StableHash.Add(hash, ContractVersions.Generation);
     }
 
-    private sealed class DelegateSystem(string name, Action<World, long> update) : ISimulationSystem
+    private sealed class DelegateSystem(string name, Action<World, long> update) : ISystem
     {
         public string Name => name;
         public void Update(World world, long tick) => update(world, tick);

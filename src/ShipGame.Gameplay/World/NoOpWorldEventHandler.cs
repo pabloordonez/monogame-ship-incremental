@@ -1,4 +1,4 @@
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 /// <summary>Presentation-only world events with no orchestrator side effects.</summary>
 internal sealed class NoOpWorldEventHandler(WorldRunEventKind kind) : IWorldRunEventHandler

@@ -1,11 +1,11 @@
 using ShipGame.Domain;
 using ShipGame.Ecs;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
-public sealed class FixedStepDriver(FoundationSimulation simulation)
+public sealed class FixedStepDriver(FoundationSession session)
 {
-    public const double TickSeconds = 1d / FoundationSimulation.TickRate;
+    public const double TickSeconds = 1d / FoundationSession.TickRate;
     public const int MaxCatchUpTicks = 8;
     private double _accumulator;
 
@@ -18,7 +18,7 @@ public sealed class FixedStepDriver(FoundationSimulation simulation)
         var count = 0;
         while (_accumulator >= TickSeconds && count < MaxCatchUpTicks)
         {
-            simulation.Step();
+            session.Step();
             _accumulator -= TickSeconds;
             count++;
         }

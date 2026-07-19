@@ -12,11 +12,11 @@ internal static class ProjectArchitecturePolicy
             ["ShipGame.Domain"] = [],
             ["ShipGame.Ecs"] = ["ShipGame.Domain"],
             ["ShipGame.Content"] = ["ShipGame.Domain"],
-            ["ShipGame.Simulation"] = ["ShipGame.Domain", "ShipGame.Ecs", "ShipGame.Content"],
+            ["ShipGame.Gameplay"] = ["ShipGame.Domain", "ShipGame.Ecs", "ShipGame.Content"],
             ["ShipGame.Persistence"] = ["ShipGame.Domain", "ShipGame.Content"],
             ["ShipGame.Telemetry"] = ["ShipGame.Domain"],
             ["ShipGame.Game"] =
-                ["ShipGame.Domain", "ShipGame.Simulation", "ShipGame.Content", "ShipGame.Persistence", "ShipGame.Telemetry"],
+                ["ShipGame.Domain", "ShipGame.Gameplay", "ShipGame.Content", "ShipGame.Persistence", "ShipGame.Telemetry"],
             ["ShipGame.ContentBuilder"] = ["ShipGame.Content"]
         };
 
@@ -26,7 +26,7 @@ internal static class ProjectArchitecturePolicy
             ["ShipGame.Domain"] = Packages(),
             ["ShipGame.Ecs"] = Packages(),
             ["ShipGame.Content"] = Packages(),
-            ["ShipGame.Simulation"] = Packages(),
+            ["ShipGame.Gameplay"] = Packages(),
             ["ShipGame.Persistence"] = Packages(),
             ["ShipGame.Telemetry"] = Packages(),
             ["ShipGame.Game"] = Packages(

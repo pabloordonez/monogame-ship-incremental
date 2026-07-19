@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ShipGame.Content;
 using ShipGame.Domain;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 using XnaColor = Microsoft.Xna.Framework.Color;
 using XnaRectangle = Microsoft.Xna.Framework.Rectangle;
 using XnaVector2 = Microsoft.Xna.Framework.Vector2;

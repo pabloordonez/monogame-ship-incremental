@@ -5,7 +5,7 @@ using ShipGame.Domain;
 using ShipGame.Ecs;
 using ShipGame.Game;
 using ShipGame.Persistence;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 using ShipGame.Telemetry;
 
 namespace ShipGame.Architecture.Tests;
@@ -17,7 +17,7 @@ public class ArchitectureTests
         typeof(ContractVersions).Assembly,
         typeof(EntityId).Assembly,
         typeof(ContentDefinition).Assembly,
-        typeof(FoundationSimulation).Assembly,
+        typeof(FoundationSession).Assembly,
         typeof(SaveRepository).Assembly,
         typeof(TelemetryRecord).Assembly,
         typeof(ShipGameHost).Assembly
@@ -49,7 +49,7 @@ public class ArchitectureTests
         {
             Path.Combine(root, "src", "ShipGame.Domain"),
             Path.Combine(root, "src", "ShipGame.Ecs"),
-            Path.Combine(root, "src", "ShipGame.Simulation")
+            Path.Combine(root, "src", "ShipGame.Gameplay")
         };
         var forbidden = new[]
         {
@@ -63,18 +63,18 @@ public class ArchitectureTests
     }
 
     [Fact]
-    public void SimulationScheduleIsExplicitAndStable()
+    public void GameplayScheduleIsExplicitAndStable()
     {
-        var simulation = new FoundationSimulation(1);
+        var simulation = new FoundationSession(1);
         Assert.Equal(
-            ["ApplyStructuralChanges", "ConsumeCommands", "SessionTransitions", "RunClock", "PublishAndHash"],
+            ["ConsumeCommands", "SessionTransitions", "RunClock", "PublishAndHash"],
             simulation.Schedule);
     }
 
     [Fact]
     public void ComponentsCannotContainFrameworkObjectsOrDelegates()
     {
-        var forbidden = new[] { typeof(EntityId).Assembly, typeof(FoundationSimulation).Assembly }
+        var forbidden = new[] { typeof(EntityId).Assembly, typeof(FoundationSession).Assembly }
             .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type.IsValueType)
             .SelectMany(type => type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
@@ -130,7 +130,7 @@ public class ArchitectureTests
     [Fact]
     public void HeadlessAuthorityInitializesAndTicksWithoutGraphics()
     {
-        var simulation = new FoundationSimulation(1, 2);
+        var simulation = new FoundationSession(1, 2);
         simulation.Queue(new CommandFrame(0, Confirm: true));
 
         var exception = Record.Exception(() => simulation.Step());

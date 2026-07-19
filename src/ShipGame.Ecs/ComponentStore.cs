@@ -9,6 +9,18 @@ internal sealed class ComponentStore<T> : IComponentStore, IComponentView<T> whe
     public int Count => _entities.Count;
     public IReadOnlyList<EntityId> Entities => new EntitySnapshot(_entities.ToArray());
 
+    public void CopyEntitiesTo(List<EntityId> destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        destination.Clear();
+        if (_entities.Count == 0)
+            return;
+        if (destination.Capacity < _entities.Count)
+            destination.Capacity = _entities.Count;
+        for (var i = 0; i < _entities.Count; i++)
+            destination.Add(_entities[i]);
+    }
+
     public void Set(EntityId entity, T component)
     {
         EnsureSparse(entity.Index);

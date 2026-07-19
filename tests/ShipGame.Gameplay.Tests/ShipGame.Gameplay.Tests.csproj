@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ShipGame.Simulation\ShipGame.Simulation.csproj" />
+    <ProjectReference Include="..\..\src\ShipGame.Gameplay\ShipGame.Gameplay.csproj" />
   </ItemGroup>
 
 </Project>

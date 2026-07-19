@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 internal static class FlightCombatMath
 {

@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 using ShipGame.Persistence;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 using ShipGame.Telemetry;
 
 namespace ShipGame.Game;
@@ -79,8 +79,7 @@ public sealed class MetaSession : IDisposable
     public bool RequiresExplicitNewProfile { get; private set; }
 
     public StationView Station => _ui.BuildStationView();
-    public LobbyView Lobby => _ui.BuildLobbyView();
-    public IReadOnlyList<EnvironmentView> Map => _ui.BuildMapView();
+n    public IReadOnlyList<EnvironmentView> Map => _ui.BuildMapView();
     public IReadOnlyList<ResearchPreview> Research => _ui.BuildResearchView();
     public IReadOnlyList<UpgradePreview> Upgrades => _ui.BuildUpgradeView();
 

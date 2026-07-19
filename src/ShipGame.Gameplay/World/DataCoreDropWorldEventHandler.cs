@@ -1,4 +1,4 @@
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 internal sealed class DataCoreDropWorldEventHandler : IWorldRunEventHandler
 {

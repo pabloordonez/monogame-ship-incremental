@@ -1,4 +1,4 @@
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 using XnaColor = Microsoft.Xna.Framework.Color;
 using XnaVector2 = Microsoft.Xna.Framework.Vector2;
 

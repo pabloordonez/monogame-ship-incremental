@@ -1,6 +1,6 @@
 # ShipGame.Game
 
-This project is the MonoGame composition root. It opens the window, loads content, reads device input, drives the fixed simulation step, and paints the virtual 640 by 360 frame. Simulation stays the authority. Game translates player intent into commands and simulation events into pictures and cues.
+This project is the MonoGame composition root. It opens the window, loads content, reads device input, drives the fixed gameplay step, and paints the virtual 640 by 360 frame. Gameplay stays the authority. Game translates player intent into commands and gameplay events into pictures and cues.
 
 Namespaces stay flat (`ShipGame.Game`). Folders are only for finding things.
 
@@ -8,7 +8,7 @@ Namespaces stay flat (`ShipGame.Game`). Folders are only for finding things.
 flowchart TB
   Host[ShipGameHost] --> MetaHandlers[Meta screen handlers]
   Host --> InputAdapters[Input adapters]
-  Host --> Sim[Simulation Loop and Combat]
+  Host --> Sim[Gameplay Loop and Combat]
   Host --> Presentation[MvpPresentation]
   MetaHandlers --> UiShell[Ui shell]
   Presentation --> Cues[Combat and world cues]
@@ -26,11 +26,11 @@ When you add a screen, introduce the enum value, create a handler under `Meta/Sc
 
 ## Connecting input to the ship
 
-Keyboard and gamepad adapters produce quantized `FlightCommandFrame` values. Those frames are the only player influence on combat. If control feel feels wrong, start in `Input/` and confirm the quantization and action flags, then follow the frame into `FlightCombatSimulation.Queue`. Do not apply thrust or aiming directly in the host update loop.
+Keyboard and gamepad adapters produce quantized `FlightCommandFrame` values. Those frames are the only player influence on combat. If control feel feels wrong, start in `Input/` and confirm the quantization and action flags, then follow the frame into `FlightCombatWorld.Queue`. Do not apply thrust or aiming directly in the host update loop.
 
 ## Presentation without owning truth
 
-Combat and world systems publish events and snapshots. Presentation bindings turn those into cues and sprites. When you change art, update atlas regions and cue maps here. When you change whether something happened, change Simulation. That split keeps replays and headless tests honest.
+Combat and world systems publish events and snapshots. Presentation bindings turn those into cues and sprites. When you change art, update atlas regions and cue maps here. When you change whether something happened, change Gameplay. That split keeps replays and headless tests honest.
 
 ## Smoke and harnesses
 

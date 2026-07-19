@@ -19,7 +19,7 @@ Create a readable, inexpensive visual identity for the mechanics test while ensu
 - At 1080p, each authored pixel becomes a crisp `3x3` display block: visibly pixelated without forcing extremely low-detail source art.
 - Letterbox non-matching aspect ratios; never stretch.
 - Use `SamplerState.PointClamp`; disable mipmaps and automatic texture resizing.
-- Simulation may use sub-pixel coordinates; round sprite draw positions to virtual pixels.
+- Gameplay may use sub-pixel coordinates; round sprite draw positions to virtual pixels.
 - Keep gameplay camera zoom discrete when practical. If smooth zoom is introduced later, render through the virtual target and preserve point sampling.
 - Optional additive/emissive pass for engines, shields, beams, stars, and pickups.
 - Gameplay remains readable with bloom, particles, shake, and flashes disabled.

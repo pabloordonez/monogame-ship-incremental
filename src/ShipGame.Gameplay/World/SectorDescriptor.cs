@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 public readonly record struct SectorDescriptor(SectorKind Kind, GridPoint Center);

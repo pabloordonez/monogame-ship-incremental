@@ -186,7 +186,7 @@ public class EcsTests
         Assert.Throws<InvalidOperationException>(() => scheduler.Add(new NamedSystem("first")));
     }
 
-    private sealed class NamedSystem(string name) : ISimulationSystem
+    private sealed class NamedSystem(string name) : ISystem
     {
         public string Name => name;
         public void Update(World world, long tick) { }

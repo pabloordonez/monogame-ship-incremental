@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation.Tests;
+namespace ShipGame.Gameplay.Tests;
 
 public sealed class FlightCombatTests
 {
@@ -443,20 +443,19 @@ public sealed class FlightCombatTests
                 "ResolveWeapons",
                 "ResolveMines",
                 "ResolveOrderedDamage",
-                "ResolveCombatDestruction",
                 "PublishCombatEventsAndHash"
             ],
             simulation.Schedule);
         Assert.Equal(
-            ["ApplyStructuralChanges", "ConsumeCommands", "SessionTransitions", "RunClock", "PublishAndHash"],
-            new FoundationSimulation(1).Schedule);
+            ["ConsumeCommands", "SessionTransitions", "RunClock", "PublishAndHash"],
+            new FoundationSession(1).Schedule);
     }
 
-    private static FlightCombatSimulation NewSimulation(
+    private static FlightCombatWorld NewSimulation(
         ContentId weapon,
         MobilityBehavior mobility = MobilityBehavior.Dash)
     {
-        var simulation = new FlightCombatSimulation(42);
+        var simulation = new FlightCombatWorld(42);
         simulation.SpawnPlayer(Vector2.Zero, weapon, mobility);
         return simulation;
     }

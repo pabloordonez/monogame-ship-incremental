@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ShipGame.Domain\ShipGame.Domain.csproj" />
-    <ProjectReference Include="..\ShipGame.Simulation\ShipGame.Simulation.csproj" />
+    <ProjectReference Include="..\ShipGame.Gameplay\ShipGame.Gameplay.csproj" />
     <ProjectReference Include="..\ShipGame.Content\ShipGame.Content.csproj" />
     <ProjectReference Include="..\ShipGame.Persistence\ShipGame.Persistence.csproj" />
     <ProjectReference Include="..\ShipGame.Telemetry\ShipGame.Telemetry.csproj" />

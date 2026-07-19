@@ -8,7 +8,7 @@ Domain is the innermost ring. It holds stable IDs, version constants, profile re
 flowchart TB
   Domain[ShipGame.Domain] --> Ecs
   Domain --> Content
-  Domain --> Simulation
+  Domain --> Gameplay
   Domain --> Persistence
   Domain --> Telemetry
   Domain --> Game
@@ -24,4 +24,4 @@ Authoritative randomness goes through `RandomStreams` and named `RngStream` valu
 
 ## Profile shapes
 
-Resource amounts, lifetime counters, loadout selection, reward proposals, and mutation results live here so Simulation, Persistence, and Game share one vocabulary. Prefer extending these records carefully and versioning saves when meaning changes.
+Resource amounts, lifetime counters, loadout selection, reward proposals, and mutation results live here so Gameplay, Persistence, and Game share one vocabulary. Prefer extending these records carefully and versioning saves when meaning changes.

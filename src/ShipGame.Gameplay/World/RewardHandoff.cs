@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 /// <summary>
 /// Maps P3 world-run reward proposals into the P4-owned Domain <see cref="RewardProposal"/>

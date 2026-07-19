@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 public readonly record struct WorldRunEvent(
     long Sequence,

@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 using ShipGame.Persistence;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 using ShipGame.Telemetry;
 
 namespace ShipGame.Game.Smoke.Tests;

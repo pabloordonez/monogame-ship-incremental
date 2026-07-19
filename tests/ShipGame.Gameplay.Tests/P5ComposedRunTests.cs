@@ -1,8 +1,8 @@
 using System.Numerics;
 using ShipGame.Domain;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 
-namespace ShipGame.Simulation.Tests;
+namespace ShipGame.Gameplay.Tests;
 
 public sealed class P5ComposedRunTests
 {

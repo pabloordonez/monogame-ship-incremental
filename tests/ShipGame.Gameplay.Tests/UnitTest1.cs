@@ -1,6 +1,6 @@
 ﻿using ShipGame.Domain;
 
-namespace ShipGame.Simulation.Tests;
+namespace ShipGame.Gameplay.Tests;
 
 public class SimulationTests
 {
@@ -9,7 +9,7 @@ public class SimulationTests
     {
         static (ulong Hash, AppState State, long Tick) Run(double[] cadence)
         {
-            var simulation = new FoundationSimulation(42);
+            var simulation = new FoundationSession(42);
             var driver = new FixedStepDriver(simulation);
             simulation.Queue(new CommandFrame(0, Confirm: true));
             simulation.Queue(new CommandFrame(1, Confirm: true));
@@ -27,7 +27,7 @@ public class SimulationTests
     [Fact]
     public void CommandsRejectStaleAndExcessivelyFutureTicks()
     {
-        var simulation = new FoundationSimulation(7);
+        var simulation = new FoundationSession(7);
         simulation.Step();
 
         Assert.False(simulation.Queue(new CommandFrame(0, Confirm: true)));
@@ -60,9 +60,9 @@ public class SimulationTests
     [Fact]
     public void PendingFutureCommandsAffectHashInDeterministicOrder()
     {
-        var empty = new FoundationSimulation(44);
-        var firstOrder = new FoundationSimulation(44);
-        var reverseOrder = new FoundationSimulation(44);
+        var empty = new FoundationSession(44);
+        var firstOrder = new FoundationSession(44);
+        var reverseOrder = new FoundationSession(44);
         firstOrder.Queue(new CommandFrame(5, MoveX: 1));
         firstOrder.Queue(new CommandFrame(4, Confirm: true));
         reverseOrder.Queue(new CommandFrame(4, Confirm: true));
@@ -80,8 +80,8 @@ public class SimulationTests
     [MemberData(nameof(DistinctCommandFields))]
     public void EveryPendingCommandFieldIsHashSensitive(CommandFrame changed)
     {
-        var baseline = new FoundationSimulation(12);
-        var modified = new FoundationSimulation(12);
+        var baseline = new FoundationSession(12);
+        var modified = new FoundationSession(12);
         baseline.Queue(new CommandFrame(5));
         modified.Queue(changed);
 

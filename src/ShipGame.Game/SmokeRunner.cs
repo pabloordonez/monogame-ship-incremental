@@ -1,6 +1,6 @@
 using ShipGame.Content;
 using ShipGame.Domain;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 
 namespace ShipGame.Game;
 

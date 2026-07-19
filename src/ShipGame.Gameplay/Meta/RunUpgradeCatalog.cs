@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 /// <summary>
 /// Station-purchasable run modifiers (former mid-run UPG catalog) with banked resource costs.

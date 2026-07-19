@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 using ShipGame.Persistence;
-using ShipGame.Simulation;
+ousing ShipGame.Gameplay;
 using ShipGame.Telemetry;
 
 namespace ShipGame.Game;
@@ -30,8 +30,6 @@ public sealed class MetaUiController
             snapshot.PreviousRun,
             loadout.Diagnostics);
     }
-
-    public LobbyView BuildLobbyView() => LobbyView.From(BuildStationView());
 
     public IReadOnlyList<EnvironmentView> BuildMapView() =>
     [

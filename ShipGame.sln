@@ -15,7 +15,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Game", "src\ShipGa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Persistence", "src\ShipGame.Persistence\ShipGame.Persistence.csproj", "{7B6C705C-3EF7-48B0-AB36-00A018257F4D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Simulation", "src\ShipGame.Simulation\ShipGame.Simulation.csproj", "{7188E99B-74FD-4AA1-8054-0B4A1384E711}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Gameplay", "src\ShipGame.Gameplay\ShipGame.Gameplay.csproj", "{7188E99B-74FD-4AA1-8054-0B4A1384E711}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Telemetry", "src\ShipGame.Telemetry\ShipGame.Telemetry.csproj", "{8C307C7A-580C-4554-944E-AB179F89EBA4}"
 EndProject
@@ -31,7 +31,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Game.Smoke.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Persistence.Tests", "tests\ShipGame.Persistence.Tests\ShipGame.Persistence.Tests.csproj", "{7224DBD6-C37E-4963-851F-B1E8A69323F2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Simulation.Tests", "tests\ShipGame.Simulation.Tests\ShipGame.Simulation.Tests.csproj", "{8F9D8E5E-E5EE-414D-867B-87B4665CD937}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShipGame.Gameplay.Tests", "tests\ShipGame.Gameplay.Tests\ShipGame.Gameplay.Tests.csproj", "{8F9D8E5E-E5EE-414D-867B-87B4665CD937}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject

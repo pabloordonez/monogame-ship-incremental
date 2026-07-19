@@ -2,7 +2,7 @@
 
 Ship Game is a Windows desktop MVP about short space expeditions. You fly the Wayfarer Mk I, fight and mine in a seeded field, take temporary upgrades, extract what you can, then spend permanent research between runs. The goal of this slice is to learn whether that loop stays fun under low attention, not to ship a universe simulator.
 
-The stack is .NET 9 with MonoGame 3.8.5 DesktopVK. Authoritative gameplay lives in headless Simulation code. The Game project only hosts input, rendering, audio, and composition. Content is validated and built through a C# content pipeline rather than a hand maintained MGCB source of truth.
+The stack is .NET 9 with MonoGame 3.8.5 DesktopVK. Authoritative gameplay lives in headless Gameplay code. The Game project only hosts input, rendering, audio, and composition. Content is validated and built through a C# content pipeline rather than a hand maintained MGCB source of truth.
 
 ```mermaid
 flowchart LR
@@ -17,7 +17,7 @@ flowchart LR
 
 ## Current status
 
-The vertical slice through P5 integration is playable end to end: new or continue profile, station and loadout, environment select, composed flight combat and mining, elite and extraction, rewards, research, and local save. Automated tests across architecture, simulation, content, persistence, telemetry, and smoke paths are green on a normal full suite run.
+The vertical slice through P5 integration is playable end to end: new or continue profile, station and loadout, environment select, composed flight combat and mining, elite and extraction, rewards, research, and local save. Automated tests across architecture, gameplay, content, persistence, telemetry, and smoke paths are green on a normal full suite run.
 
 What remains for Round A confidence is mostly evidence and polish rather than missing core systems. A full 1080p performance capture and the longer multi run reliability marathon are still outstanding. Art and the procedural pixel font are provisional. Music is intentionally a brief only. Known gaps and waivers live under the P5 integration reports.
 
@@ -27,7 +27,7 @@ In other words, the durable base is in place and ready for playtesting and itera
 
 Product intent and MVP boundaries start in [docs/mvp/README.md](docs/mvp/README.md). That map points to the charter, game design, content catalog, systems, technical architecture, evolution strategy, art direction, agent workflow, and validation backlog. Long term product ambition beyond the MVP sits in [docs/requirement.md](docs/requirement.md).
 
-Phase delivery evidence lives under [docs/reports/](docs/reports/), with P0 through P5 packages and the integration gates. For day to day code changes, use the project guides next to the source: [Simulation](src/ShipGame.Simulation/README.md) for weapons, enemies, movement, research, and world run side effects; [Game](src/ShipGame.Game/README.md) for screens, input, and presentation; then [Domain](src/ShipGame.Domain/README.md), [Ecs](src/ShipGame.Ecs/README.md), [Content](src/ShipGame.Content/README.md), [Persistence](src/ShipGame.Persistence/README.md), and [Telemetry](src/ShipGame.Telemetry/README.md).
+Phase delivery evidence lives under [docs/reports/](docs/reports/), with P0 through P5 packages and the integration gates. For day to day code changes, use the project guides next to the source: [Gameplay](src/ShipGame.Gameplay/README.md) for weapons, enemies, movement, research, and world run side effects; [Game](src/ShipGame.Game/README.md) for screens, input, and presentation; then [Domain](src/ShipGame.Domain/README.md), [Ecs](src/ShipGame.Ecs/README.md), [Content](src/ShipGame.Content/README.md), [Persistence](src/ShipGame.Persistence/README.md), and [Telemetry](src/ShipGame.Telemetry/README.md).
 
 ```mermaid
 flowchart TB
@@ -36,7 +36,7 @@ flowchart TB
   RootReadme --> ProjectGuides[src project READMEs]
   MvpDocs --> Charter[Charter and game design]
   MvpDocs --> Arch[Technical architecture]
-  ProjectGuides --> SimGuide[Simulation extension recipes]
+  ProjectGuides --> SimGuide[Gameplay extension recipes]
   ProjectGuides --> GameGuide[Host and presentation]
 ```
 
@@ -48,20 +48,20 @@ When documents disagree, prefer the source of truth order in the MVP docs README
 
 ```mermaid
 flowchart TB
-  Game[ShipGame.Game] --> Simulation
+  Game[ShipGame.Game] --> Gameplay
   Game --> Content
   Game --> Persistence
   Game --> Telemetry
-  Simulation --> Domain
-  Simulation --> Ecs
-  Simulation --> Content
+  Gameplay --> Domain
+  Gameplay --> Ecs
+  Gameplay --> Content
   Content --> Domain
   Persistence --> Domain
   Telemetry --> Domain
   Ecs --> Domain
 ```
 
-MonoGame stays inside Game. Simulation must remain deterministic and testable without a window.
+MonoGame stays inside Game. Gameplay must remain deterministic and testable without a window.
 
 ## Building and running
 
@@ -71,4 +71,4 @@ A practical first session after a successful build: create a new profile, visit 
 
 ## How we expect the code to grow
 
-Prefer closed registries, validated content IDs, and focused systems over plugin frameworks or speculative engines. Adding a weapon or enemy means a behavior enum, a strategy class, registry registration, and a deterministic test. Changing ship movement usually means flight statistics or mobility resolution in Simulation, not host side hacks. The evolution strategy document spells out the longer deferred map. Keep permanent progress versioned and recoverable whenever save meaning changes.
+Prefer closed registries, validated content IDs, and focused systems over plugin frameworks or speculative engines. Adding a weapon or enemy means a behavior enum, a strategy class, registry registration, and a deterministic test. Changing ship movement usually means flight statistics or mobility resolution in Gameplay, not host side hacks. The evolution strategy document spells out the longer deferred map. Keep permanent progress versioned and recoverable whenever save meaning changes.

@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation.Tests;
+namespace ShipGame.Gameplay.Tests;
 
 public class MetaProgressionTests
 {

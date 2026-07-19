@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 public sealed class EncounterGenerator
 {
@@ -163,7 +163,7 @@ public sealed class EncounterGenerator
         if (identity.EnvironmentId == WorldRunIds.CinderBelt)
         {
             var resolve = 60 * 60L + NextInt(random, -5 * 60, 5 * 60 + 1);
-            while (hazards.Count < FieldDescriptor.MaximumHazards && resolve < WorldRunSimulation.DeadlineTick)
+            while (hazards.Count < FieldDescriptor.MaximumHazards && resolve < WorldRun.DeadlineTick)
             {
                 hazards.Add(new(resolve - 4 * 60, resolve, 25, default, 0, NextInt(random, 0, 8)));
                 resolve += 75 * 60L + NextInt(random, -10 * 60, 10 * 60 + 1);
@@ -173,7 +173,7 @@ public sealed class EncounterGenerator
         {
             for (var wave = 1;
                  hazards.Count < FieldDescriptor.MaximumHazards &&
-                 wave * 45 * 60L < WorldRunSimulation.DeadlineTick;
+                 wave * 45 * 60L < WorldRun.DeadlineTick;
                  wave++)
             for (var circle = 0; circle < 3 && hazards.Count < FieldDescriptor.MaximumHazards; circle++)
             {

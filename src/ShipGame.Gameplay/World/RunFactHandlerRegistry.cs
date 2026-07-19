@@ -1,4 +1,4 @@
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 internal sealed class RunFactHandlerRegistry
 {
@@ -22,7 +22,7 @@ internal sealed class RunFactHandlerRegistry
         }
     }
 
-    public void Dispatch(in RunFact fact, WorldRunSimulation simulation, List<WorldRunEvent> events) =>
+    public void Dispatch(in RunFact fact, WorldRun simulation, List<WorldRunEvent> events) =>
         _handlers[fact.Kind].Handle(in fact, simulation, events);
 
     public static RunFactHandlerRegistry Create() => new(

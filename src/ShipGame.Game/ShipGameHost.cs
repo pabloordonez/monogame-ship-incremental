@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using ShipGame.Content;
 using ShipGame.Domain;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 using ShipGame.Telemetry;
 
 namespace ShipGame.Game;
@@ -88,7 +88,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             DriveWindowSmoke();
 
         _accumulator += Math.Clamp(gameTime.ElapsedGameTime.TotalSeconds, 0, 0.25);
-        const double tickSeconds = 1d / WorldRunSimulation.TickRate;
+        const double tickSeconds = 1d / WorldRun.TickRate;
         var steps = 0;
         while (_accumulator >= tickSeconds && steps < 8)
         {

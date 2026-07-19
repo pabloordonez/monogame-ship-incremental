@@ -15,7 +15,7 @@ flowchart LR
 
 ## Emitting facts
 
-Game and meta session code create `MetaTelemetryFact` values for screen changes, saves, research purchases, and similar moments. The translator turns those into sink records. Prefer adding a fact kind and translation path over logging free-form strings from deep simulation code.
+Game and meta session code create `MetaTelemetryFact` values for screen changes, saves, research purchases, and similar moments. The translator turns those into sink records. Prefer adding a fact kind and translation path over logging free-form strings from deep gameplay code.
 
 ## Consent and sinks
 
@@ -23,4 +23,4 @@ Respect telemetry consent before writing. The consent-aware wrapper chooses a re
 
 ## Keeping it honest
 
-Telemetry must not feed back into simulation decisions. If a metric seems to require changing combat balance at runtime, that logic belongs in Simulation design and tests, not in the sink.
+Telemetry must not feed back into gameplay decisions. If a metric seems to require changing combat balance at runtime, that logic belongs in Gameplay design and tests, not in the sink.

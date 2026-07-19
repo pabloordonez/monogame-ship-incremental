@@ -1,6 +1,6 @@
 # ShipGame.Persistence
 
-Persistence owns versioned save envelopes, migration registration, and atomic profile repositories. It depends on Domain and Content contracts. It does not run simulation ticks and never references MonoGame.
+Persistence owns versioned save envelopes, migration registration, and atomic profile repositories. It depends on Domain and Content contracts. It does not run gameplay ticks and never references MonoGame.
 
 `Save/` holds the generic envelope, compatibility status, migration registry, and foundation repository patterns. `Meta/` holds the meta profile schema, DTOs, and `MetaSaveRepository` used by the lobby continue path.
 

@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 public sealed record EncounterValidationResult(bool IsValid, IReadOnlyList<string> Issues);

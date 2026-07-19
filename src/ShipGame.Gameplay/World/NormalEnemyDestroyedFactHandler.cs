@@ -1,9 +1,9 @@
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 internal sealed class NormalEnemyDestroyedFactHandler : IRunFactHandler
 {
     public RunFactKind Kind => RunFactKind.NormalEnemyDestroyed;
 
-    public void Handle(in RunFact fact, WorldRunSimulation simulation, List<WorldRunEvent> events) =>
+    public void Handle(in RunFact fact, WorldRun simulation, List<WorldRunEvent> events) =>
         simulation.ApplyNormalEnemyDestroyedFact();
 }

@@ -1,8 +1,8 @@
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
-public sealed class WorldRunSimulation
+public sealed class WorldRun
 {
     public const int TickRate = 60;
     public const long CollapseWarningTick = 10 * 60 * TickRate;
@@ -22,7 +22,7 @@ public sealed class WorldRunSimulation
     private bool _eliteDefeated;
     private bool _rewardProposed;
 
-    public WorldRunSimulation(FieldDescriptor descriptor, RandomStreams random, bool recoveryProtocols = false)
+    public WorldRun(FieldDescriptor descriptor, RandomStreams random, bool recoveryProtocols = false)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(random);

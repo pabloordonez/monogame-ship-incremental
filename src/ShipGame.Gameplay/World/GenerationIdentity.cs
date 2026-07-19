@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 public readonly record struct GenerationIdentity(
     ContentId EnvironmentId,

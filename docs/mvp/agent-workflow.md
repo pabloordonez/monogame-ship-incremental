@@ -71,7 +71,7 @@ Final gameplay, balance data, complete UI, production assets, enemies, mining, o
 - Clean restore/build/test/content-build/launch succeeds.
 - DesktopVK window opens and walking skeleton completes.
 - Identical seed/commands produce identical headless hashes under different render cadences.
-- Simulation projects have no MonoGame dependency.
+- Gameplay projects have no MonoGame dependency.
 - Save round trip, corruption recovery, and atomic write tests pass.
 - Content duplicate/missing-ID validation fails correctly.
 - No legacy MGCB source-of-truth exists.
@@ -124,7 +124,7 @@ Legacy pipeline leakage, unstable path-based IDs, incorrect 3.8.5 API assumption
 
 **Owned paths**
 
-- Simulation components/systems for commands, movement, spatial queries, combat, shields, abilities, AI.
+- Gameplay components/systems for commands, movement, spatial queries, combat, shields, abilities, AI.
 - Game input adapters and combat presentation bindings.
 - Corresponding tests and content behavior registrations.
 

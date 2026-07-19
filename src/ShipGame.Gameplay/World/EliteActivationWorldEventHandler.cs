@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 internal sealed class EliteActivationWorldEventHandler : IWorldRunEventHandler
 {

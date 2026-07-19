@@ -12,7 +12,7 @@ Directory.Build.props
 src/
   ShipGame.Domain/          # IDs, numerics, RNG, versions, contracts
   ShipGame.Ecs/             # entities, typed stores, queries, scheduler
-  ShipGame.Simulation/      # commands, components, systems, events, generation
+  ShipGame.Gameplay/      # commands, components, systems, events, generation
   ShipGame.Content/         # definitions, runtime catalog, validation
   ShipGame.Persistence/     # DTOs, migrations, repositories
   ShipGame.Telemetry/       # versioned records and sinks
@@ -25,7 +25,7 @@ content/
   generated/
 tests/
   ShipGame.Ecs.Tests/
-  ShipGame.Simulation.Tests/
+  ShipGame.Gameplay.Tests/
   ShipGame.Content.Tests/
   ShipGame.Persistence.Tests/
   ShipGame.Architecture.Tests/
@@ -38,7 +38,7 @@ Projects may be combined only if the dependency rules remain enforceable and the
 
 - `Domain` depends only on the .NET base class library.
 - `Ecs` and `Content` depend on `Domain`.
-- `Simulation` depends on `Domain`, `Ecs`, and content contracts.
+- `Gameplay` depends on `Domain`, `Ecs`, and content contracts.
 - `Persistence` depends on explicit profile/simulation snapshots and content contracts.
 - `Telemetry` depends on versioned telemetry contracts.
 - `Game` composes runtime projects and is the only project referencing MonoGame runtime APIs.
@@ -74,11 +74,11 @@ Projects may be combined only if the dependency rules remain enforceable and the
 
 Order-sensitive systems sort entity IDs or generate explicitly ordered work. Dense insertion order is never an implicit rule.
 
-### Components and resources
+### Components and owned simulation state
 
 Components are data-only structs/records. They cannot load assets, invoke services, hold MonoGame objects, publish callbacks, or own RNG instances.
 
-World state such as tick, session, named RNG streams, and immutable content catalog uses typed resources with explicit owners.
+Tick counters, session state, named RNG streams, and immutable content catalogs live as fields on simulation facades (`FoundationSession`, `FlightCombatWorld`, orchestrators). There is no `WorldResource<T>` API on `World`.
 
 ### Structural changes and schedule
 
@@ -165,7 +165,7 @@ A build number is diagnostic metadata, not a substitute.
 ## Performance budgets
 
 - Use the reference machine, warm-up, capture method, and exact metrics defined in [validation-and-backlog.md](validation-and-backlog.md); every report records hardware, OS/driver, resolution, build/content versions, and capture tool.
-- Simulation sustains 60 fixed updates/second without accumulated tick debt.
+- Gameplay sustains 60 fixed updates/second without accumulated tick debt.
 - Rendering targets 60 frames/second at 1080p, with median frame time at most 16.7 ms, no more than 1% over 16.7 ms, and 99th percentile at most 33.3 ms over ten minutes.
 - No sustained managed allocation in steady gameplay.
 - No unbounded entity, event, particle, or audio growth over three runs.
@@ -190,7 +190,7 @@ Optimize from traces. Do not introduce pooling, multithreading, or unsafe code w
 Automated checks enforce:
 
 - Only `Game` references MonoGame runtime assemblies.
-- `Domain`, `Ecs`, and `Simulation` do not reference graphics, input, audio, filesystem, wall-clock, or JSON implementation namespaces.
+- `Domain`, `Ecs`, and `Gameplay` do not reference graphics, input, audio, filesystem, wall-clock, or JSON implementation namespaces.
 - Project dependencies follow the allowed graph and contain no cycles.
 - Components contain no services, assets, delegates, or framework objects.
 - Systems register once in the approved order.

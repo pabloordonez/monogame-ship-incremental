@@ -1,7 +1,7 @@
 using System.Numerics;
 using Microsoft.Xna.Framework.Input;
 using ShipGame.Ecs;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 
 namespace ShipGame.Game;
 

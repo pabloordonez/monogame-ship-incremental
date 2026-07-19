@@ -1,7 +1,7 @@
 using ShipGame.Domain;
 using ShipGame.Ecs;
 
-namespace ShipGame.Simulation.Tests;
+namespace ShipGame.Gameplay.Tests;
 
 public class P3WorldRunTests
 {
@@ -249,11 +249,11 @@ public class P3WorldRunTests
         var run = CreateRun(55);
         Assert.Equal(new ThreatState(4, false, false), run.Threat);
 
-        while (run.RunTick < 3 * 60 * WorldRunSimulation.TickRate)
+        while (run.RunTick < 3 * 60 * WorldRun.TickRate)
             run.Step(new());
         Assert.Equal(new ThreatState(6, true, false), run.Threat);
 
-        while (run.RunTick < 6 * 60 * WorldRunSimulation.TickRate)
+        while (run.RunTick < 6 * 60 * WorldRun.TickRate)
             run.Step(new());
         Assert.Equal(new ThreatState(8, true, false), run.Threat);
 
@@ -272,11 +272,11 @@ public class P3WorldRunTests
     public void CollapseWarningEmitsAtTenMinutes()
     {
         var run = CreateRun(56);
-        while (run.RunTick < WorldRunSimulation.CollapseWarningTick - 1)
+        while (run.RunTick < WorldRun.CollapseWarningTick - 1)
             run.Step(new());
         Assert.DoesNotContain(run.LastEvents, item => item.Kind == WorldRunEventKind.CollapseWarning);
         var events = run.Step(new());
-        Assert.Equal(WorldRunSimulation.CollapseWarningTick, run.RunTick);
+        Assert.Equal(WorldRun.CollapseWarningTick, run.RunTick);
         Assert.Contains(events, item => item.Kind == WorldRunEventKind.CollapseWarning);
         Assert.DoesNotContain(run.Step(new()), item => item.Kind == WorldRunEventKind.CollapseWarning);
     }
@@ -324,7 +324,7 @@ public class P3WorldRunTests
         Assert.Contains(events, item => item.Kind == WorldRunEventKind.DataCoreDropRequested && item.Amount == 1);
         ResolveOffers(run);
         run.Step(new(Facts: [new(91, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1)]));
-        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks; tick++)
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
             events = run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
 
         Assert.Equal(RunPhase.Succeeded, run.Phase);
@@ -358,9 +358,9 @@ public class P3WorldRunTests
     public void ReleasingInteractInZoneResetsExtractionAndRejectsDiscontinuousHold()
     {
         var run = ReadyForExtraction(89);
-        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks / 2; tick++)
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks / 2; tick++)
             run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
-        Assert.Equal(WorldRunSimulation.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
+        Assert.Equal(WorldRun.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
 
         // Still in zone but interact released — must reset (continuous hold required).
         var events = run.Step(new(PlayerInExtractionZone: true, InteractHeld: false));
@@ -368,13 +368,13 @@ public class P3WorldRunTests
         Assert.Contains(events, item => item.Kind == WorldRunEventKind.ExtractionReset);
 
         // Discontinuous 180+180 must NOT succeed: only continuous hold completes extraction.
-        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks / 2; tick++)
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks / 2; tick++)
             run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
-        Assert.Equal(WorldRunSimulation.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
+        Assert.Equal(WorldRun.ExtractionHoldTicks / 2, run.ExtractionProgressTicks);
         Assert.Equal(RunPhase.Extraction, run.Phase);
         Assert.Null(run.Reward);
 
-        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks / 2; tick++)
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks / 2; tick++)
             run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
         Assert.Equal(RunPhase.Succeeded, run.Phase);
         Assert.Equal(RunOutcome.Success, run.Reward!.Outcome);
@@ -384,24 +384,24 @@ public class P3WorldRunTests
     public void TerminalPriorityIsDeathThenExtractionThenDeadline()
     {
         var deathRace = ReadyForExtraction(101);
-        for (var tick = 1; tick < WorldRunSimulation.ExtractionHoldTicks; tick++)
+        for (var tick = 1; tick < WorldRun.ExtractionHoldTicks; tick++)
             deathRace.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
         deathRace.Step(new(PlayerHullDepleted: true, PlayerInExtractionZone: true, InteractHeld: true));
         Assert.Equal(RunOutcome.HullFailure, deathRace.Reward!.Outcome);
 
         var deadlineRace = ReadyForExtraction(102);
-        while (deadlineRace.RunTick < WorldRunSimulation.DeadlineTick - WorldRunSimulation.ExtractionHoldTicks)
+        while (deadlineRace.RunTick < WorldRun.DeadlineTick - WorldRun.ExtractionHoldTicks)
             deadlineRace.Step(new());
-        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks; tick++)
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
             deadlineRace.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
-        Assert.Equal(WorldRunSimulation.DeadlineTick, deadlineRace.RunTick);
+        Assert.Equal(WorldRun.DeadlineTick, deadlineRace.RunTick);
         Assert.Equal(RunOutcome.Success, deadlineRace.Reward!.Outcome);
 
         var timeout = CreateRun(103);
         while (!timeout.IsTerminal)
             timeout.Step(new());
         Assert.Equal(RunOutcome.DeadlineFailure, timeout.Reward!.Outcome);
-        Assert.Equal(WorldRunSimulation.DeadlineTick, timeout.RunTick);
+        Assert.Equal(WorldRun.DeadlineTick, timeout.RunTick);
     }
 
     [Fact]
@@ -411,7 +411,7 @@ public class P3WorldRunTests
         {
             var descriptor = new EncounterGenerator()
                 .Generate(GenerationIdentity.Current(WorldRunIds.CinderBelt, 211)).Descriptor;
-            var run = new WorldRunSimulation(descriptor, new RandomStreams(211), recovery);
+            var run = new WorldRun(descriptor, new RandomStreams(211), recovery);
             run.Step(new(
                 PlayerHullDepleted: true,
                 Facts:
@@ -445,7 +445,7 @@ public class P3WorldRunTests
             all.AddRange(run.Step(new(Facts: [new(1000, RunFactKind.EliteDestroyed)])));
             while (run.Upgrades.PendingOffer is not null)
                 all.AddRange(run.Step(new(UpgradeChoiceIndex: 0)));
-            for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks; tick++)
+            for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
                 all.AddRange(run.Step(new(PlayerInExtractionZone: true, InteractHeld: true)));
             return (
                 all.Select(item => $"{item.Sequence}:{item.RunTick}:{item.Kind}:{item.ContentId.Value}:{item.Amount}:{item.SecondaryAmount}").ToArray(),
@@ -481,7 +481,7 @@ public class P3WorldRunTests
     /// </summary>
     private static WorldRewardProposal ResolveSeedHeadlessLightweight(FieldDescriptor descriptor, ulong seed)
     {
-        var run = new WorldRunSimulation(descriptor, new RandomStreams(seed));
+        var run = new WorldRun(descriptor, new RandomStreams(seed));
         var facts = new List<RunFact>
         {
             new(1, RunFactKind.ResourceCollected, WorldRunIds.Ferrite, 30)
@@ -495,20 +495,20 @@ public class P3WorldRunTests
         while (run.Upgrades.PendingOffer is not null)
             run.Step(new(UpgradeChoiceIndex: 0));
         run.Step(new(Facts: [new(101, RunFactKind.ResourceCollected, WorldRunIds.DataCore, 1)]));
-        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks; tick++)
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks; tick++)
             run.Step(new(PlayerInExtractionZone: true, InteractHeld: true));
         Assert.Equal(RunPhase.Succeeded, run.Phase);
         return run.Reward!;
     }
 
-    private static WorldRunSimulation CreateRun(ulong seed)
+    private static WorldRun CreateRun(ulong seed)
     {
         var descriptor = new EncounterGenerator()
             .Generate(GenerationIdentity.Current(WorldRunIds.CinderBelt, seed)).Descriptor;
         return new(descriptor, new RandomStreams(seed));
     }
 
-    private static IReadOnlyList<WorldRunEvent> CompleteObjective(WorldRunSimulation run)
+    private static IReadOnlyList<WorldRunEvent> CompleteObjective(WorldRun run)
     {
         var facts = new List<RunFact>
         {
@@ -519,13 +519,13 @@ public class P3WorldRunTests
         return run.Step(new(Facts: facts));
     }
 
-    private static void ResolveOffers(WorldRunSimulation run)
+    private static void ResolveOffers(WorldRun run)
     {
         while (run.Upgrades.PendingOffer is not null)
             run.Step(new(UpgradeChoiceIndex: 0));
     }
 
-    private static WorldRunSimulation ReadyForExtraction(ulong seed)
+    private static WorldRun ReadyForExtraction(ulong seed)
     {
         var run = CreateRun(seed);
         CompleteObjective(run);

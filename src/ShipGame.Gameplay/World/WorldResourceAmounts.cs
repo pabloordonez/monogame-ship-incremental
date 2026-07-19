@@ -1,6 +1,6 @@
 using ShipGame.Domain;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 public readonly record struct WorldResourceAmounts(int Ferrite, int Lumen, int DataCores)
 {

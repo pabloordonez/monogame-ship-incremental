@@ -2,10 +2,10 @@ namespace ShipGame.Ecs;
 
 public sealed class SystemScheduler
 {
-    private readonly List<ISimulationSystem> _systems = [];
+    private readonly List<ISystem> _systems = [];
     public IReadOnlyList<string> Order => _systems.Select(system => system.Name).ToArray();
 
-    public void Add(ISimulationSystem system)
+    public void Add(ISystem system)
     {
         ArgumentNullException.ThrowIfNull(system);
         if (_systems.Any(existing => existing.Name == system.Name))

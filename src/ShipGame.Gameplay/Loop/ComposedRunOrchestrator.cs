@@ -2,7 +2,7 @@ using System.Numerics;
 using ShipGame.Domain;
 using ShipGame.Ecs;
 
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 /// <summary>
 /// P5 composition root: co-steps FlightCombat + WorldRun + mining/loot ECS and produces
@@ -53,7 +53,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         ArgumentNullException.ThrowIfNull(statistics);
         _threatEnabled = enableThreatDirector;
         EnvironmentId = environmentId;
-        RunSeed = FoundationSimulation.DeriveRunSeed(profileSeed, runIndex);
+        RunSeed = FoundationSession.DeriveRunSeed(profileSeed, runIndex);
         _environmentId = environmentId.Value;
         _runId = $"RUN_{runIndex:D6}_{environmentId.Value}";
 
@@ -62,8 +62,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         Descriptor = generated.Descriptor;
         Random = new RandomStreams(RunSeed);
         _loot = new(Random);
-        WorldRun = new WorldRunSimulation(Descriptor, Random, recoveryProtocols);
-        Combat = new FlightCombatSimulation(RunSeed);
+        WorldRun = new WorldRun(Descriptor, Random, recoveryProtocols);
+        Combat = new FlightCombatWorld(RunSeed);
 
         var spawn = CellToWorld(Descriptor.Spawn.Center);
         var weapon = new ContentId(loadout.Effective.Weapon);
@@ -75,19 +75,20 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             Combat.ConfigureThreatDirector(90, Math.Clamp(WorldRun.Threat.NormalEnemyCap, 1, 10));
 
         SeedAsteroids();
-        _collector = _miningWorld.Create();
-        _miningWorld.Set(_collector, new WorldPosition
-        {
-            X = (int)MathF.Round(spawn.X),
-            Y = (int)MathF.Round(spawn.Y)
-        });
-        _miningWorld.Set(_collector, new CollectionRadius
-        {
-            Radius = Math.Max(BaseCollectionRadius, statistics.PickupRadius),
-            PullSpeedPerTick = Math.Max(BasePullSpeed, statistics.PullSpeed / 60)
-        });
+        var collectorEntity = _miningWorld.Create();
+        _ = new Collector(
+            _miningWorld,
+            collectorEntity,
+            new WorldPosition
+            {
+                X = (int)MathF.Round(spawn.X),
+                Y = (int)MathF.Round(spawn.Y)
+            },
+            Math.Max(BaseCollectionRadius, statistics.PickupRadius),
+            Math.Max(BasePullSpeed, statistics.PullSpeed / 60));
+        _collector = collectorEntity;
 
-        _miningDamagePerTick = Math.Max(1, (int)Math.Round((double)statistics.MiningDamagePerSecond / WorldRunSimulation.TickRate));
+        _miningDamagePerTick = Math.Max(1, (int)Math.Round((double)statistics.MiningDamagePerSecond / WorldRun.TickRate));
         WorldRun.Upgrades.SeedFromStationPurchases(purchasedUpgradeIds ?? Array.Empty<string>());
         ApplyUpgradeModifiersIfChanged();
         Status = ComposedRunStatus.Active;
@@ -98,8 +99,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public ulong RunSeed { get; }
     public FieldDescriptor Descriptor { get; }
     public RandomStreams Random { get; }
-    public FlightCombatSimulation Combat { get; }
-    public WorldRunSimulation WorldRun { get; }
+    public FlightCombatWorld Combat { get; }
+    public WorldRun WorldRun { get; }
     public ComposedRunStatus Status { get; private set; }
     public RewardProposal? MappedReward { get; private set; }
     public IReadOnlyList<WorldRunEvent> LastWorldEvents { get; private set; } = Array.Empty<WorldRunEvent>();
@@ -125,7 +126,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 WorldRun.Objective.FerriteCollected,
                 WorldRun.Objective.NormalEnemiesDestroyed,
                 WorldRun.ExtractionProgressTicks,
-                WorldRunSimulation.ExtractionHoldTicks,
+                WorldRun.ExtractionHoldTicks,
                 WorldRun.Threat.NormalEnemyCap);
         }
     }
@@ -243,7 +244,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             inZone: false);
         NoteCheckpoint("extraction_ready");
 
-        for (var tick = 0; tick < WorldRunSimulation.ExtractionHoldTicks + 2; tick++)
+        for (var tick = 0; tick < WorldRun.ExtractionHoldTicks + 2; tick++)
         {
             FeedWorldFacts([], paused: false, hullDepleted: false, interact: true, inZone: true);
             if (Status == ComposedRunStatus.Terminal)
@@ -258,7 +259,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
 
     public RewardProposal FailByDeadlineHarness()
     {
-        while (WorldRun.RunTick < WorldRunSimulation.DeadlineTick && Status != ComposedRunStatus.Terminal)
+        while (WorldRun.RunTick < WorldRun.DeadlineTick && Status != ComposedRunStatus.Terminal)
             FeedWorldFacts([], paused: false, hullDepleted: false, interact: false, inZone: false);
         if (MappedReward is null)
             throw new InvalidOperationException("Deadline harness did not produce a reward.");
@@ -513,18 +514,17 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         {
             var entity = _miningWorld.Create();
             var world = CellToWorld(asteroid.Position);
-            _miningWorld.Set(entity, new MineableCell
-            {
-                CellId = asteroid.CellId,
-                Kind = asteroid.Kind,
-                Health = asteroid.Health,
-                Broken = false
-            });
-            _miningWorld.Set(entity, new WorldPosition
-            {
-                X = (int)MathF.Round(world.X),
-                Y = (int)MathF.Round(world.Y)
-            });
+            _ = new AsteroidCell(
+                _miningWorld,
+                entity,
+                asteroid.CellId,
+                asteroid.Kind,
+                asteroid.Health,
+                new WorldPosition
+                {
+                    X = (int)MathF.Round(world.X),
+                    Y = (int)MathF.Round(world.Y)
+                });
             _asteroidEntities[asteroid.CellId] = entity;
             // Sparse combat obstacles for cover readability without exhausting entity capacity.
             if (asteroid.ProvidesCompleteCover && asteroid.CellId % 3 == 0)

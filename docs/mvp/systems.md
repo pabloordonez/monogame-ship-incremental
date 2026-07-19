@@ -2,7 +2,7 @@
 
 ## Shared rules
 
-- Authoritative state lives in `ShipGame.Simulation`, independent of MonoGame.
+- Authoritative state lives in `ShipGame.Gameplay`, independent of MonoGame.
 - Entities are opaque IDs; components are data-only; ordered systems own mutation.
 - Entity/component structural changes are buffered to synchronization points.
 - Immutable simulation events describe facts. Presentation and telemetry observe them but cannot change outcomes.
@@ -61,9 +61,13 @@ Changing order requires an architecture decision and replay-test update.
 
 ## ECS world and lifecycle
 
-**Owns:** entity generations, typed component stores, resources, queries, buffered structural changes, ordered scheduling.
+**Owns:** entity generations, typed component stores, queries, buffered structural changes, ordered scheduling.
 
-**Core types:** `EntityId`, `ComponentStore<T>`, `WorldResource<T>`, `Query`, `CommandBuffer`, `SystemScheduler`.
+**Core types:** `EntityId`, `ComponentStore<T>`, `World`, `World.Query<TA,TB>()`, `CommandBuffer`, `SystemScheduler`, `ISystem`.
+
+**Schedule names (contract):** Foundation runs `ConsumeCommands`, `SessionTransitions`, `RunClock`, `PublishAndHash`. Flight combat runs `ApplyFlightCombatStructuralChanges`, `ConsumeFlightCommands`, `AdvanceCombatTimers`, `ConsumeTemporaryModifiers`, `AiAndThreatDecisions`, `ResolveMobility`, `IntegrateFlightMovement`, `RebuildCombatSpatialIndex`, `DetectCombatCollisions`, `ResolveWeapons`, `ResolveMines`, `ResolveOrderedDamage`, `PublishCombatEventsAndHash`. Each phase is a named `ISystem` registered in that exact order.
+
+**Structural sync:** Foundation has no ECS entities today. Combat marks destroys during a tick and applies them at the first phase next tick via `_pendingDestroy` in `ApplyFlightCombatStructuralChanges` (not `CommandBuffer`).
 
 **Invariants:** stale IDs fail; component ownership is unique; query iteration cannot be invalidated; store insertion order cannot affect outcomes.
 
@@ -77,7 +81,7 @@ Changing order requires an architecture decision and replay-test update.
 
 **Components:** `Transform2`, `Velocity2`, `Thruster`, `SpeedLimit`, `Collider`, `CollisionLayer`.
 
-**Systems/events:** `ThrustSystem`, `MovementIntegrationSystem`, `SpatialIndexSystem`, `CollisionDetectionSystem`; `CollisionDetected`.
+**Schedule phases (names, not separate types):** `IntegrateFlightMovement`, `RebuildCombatSpatialIndex`, `DetectCombatCollisions`; events include `CollisionDetected`.
 
 **Invariants:** fixed tick duration; stable pair order; each pair resolves once; interpolation never writes simulation transforms.
 
@@ -93,7 +97,7 @@ Changing order requires an architecture decision and replay-test update.
 
 **Components:** `Health`, `Shield`, `WeaponMount`, `WeaponState`, `Projectile`, `Homing`, `DamageSource`, `Faction`, `Destroyed`.
 
-**Systems/events:** cooldown, target lock, fire, projectile guidance, hit, damage, destruction; `WeaponFired`, `ShieldDepleted`, `HullDamaged`, `EntityDestroyed`.
+**Schedule phases (names):** `AdvanceCombatTimers`, `ResolveWeapons`, `ResolveOrderedDamage`; events include `WeaponFired`, `ShieldDepleted`, `HullDamaged`, `EntityDestroyed`.
 
 **Invariants:** a hit applies once; shield precedes hull; values stay in bounds; destroyed entities cannot act or reward twice; behavior keys select built-in composition.
 
@@ -109,7 +113,7 @@ Changing order requires an architecture decision and replay-test update.
 
 **Components:** `MobilityAbility`, `AbilityCooldown`, `TemporaryInvulnerability`.
 
-**Systems/events:** `AbilityRequestSystem`, `DashSystem`, `BlinkValidationSystem`; `AbilityActivated`, `AbilityRejected`.
+**Schedule phases (names):** `ResolveMobility`; events include `AbilityActivated`, `AbilityRejected`.
 
 **Invariants:** one activation per accepted command; invalid blink shortens safely; cooldown cannot become negative; endpoint shock occurs once.
 
@@ -125,7 +129,7 @@ Changing order requires an architecture decision and replay-test update.
 
 **Components:** `AiBrain`, `Target`, `SpawnAnchor`, `ThreatValue`, `Elite`.
 
-**Systems/events:** `AiDecisionSystem`, `ThreatDirectorSystem`, `SpawnSystem`, `EliteSpawnSystem`; `EnemySpawned`, `EliteActivated`.
+**Schedule phases (names):** `AiAndThreatDecisions`; events include `EnemySpawned`, `EliteActivated`.
 
 **Invariants:** spawn is off-camera and at least 450 units away; active caps hold; AI uses encounter RNG; at most one elite is active and at most one is spawned per run.
 

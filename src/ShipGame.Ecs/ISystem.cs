@@ -1,6 +1,6 @@
 namespace ShipGame.Ecs;
 
-public interface ISimulationSystem
+public interface ISystem
 {
     string Name { get; }
     void Update(World world, long tick);

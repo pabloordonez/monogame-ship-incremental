@@ -18,7 +18,7 @@ flowchart LR
 
 ## How content reaches the game
 
-Authoring lives under the repo `content/` tree. Definitions and manifests are validated, then the builder produces loadable assets. At runtime, Game loads the catalog and binds presentation IDs to textures and cues. Simulation should keep using stable content IDs and behavior keys, not file paths or MonoGame types.
+Authoring lives under the repo `content/` tree. Definitions and manifests are validated, then the builder produces loadable assets. At runtime, Game loads the catalog and binds presentation IDs to textures and cues. Gameplay should keep using stable content IDs and behavior keys, not file paths or MonoGame types.
 
 ## Changing art without changing gameplay
 

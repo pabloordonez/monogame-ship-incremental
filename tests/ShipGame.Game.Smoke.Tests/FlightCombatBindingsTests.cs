@@ -1,7 +1,7 @@
 using System.Numerics;
 using ShipGame.Domain;
 using ShipGame.Ecs;
-using ShipGame.Simulation;
+using ShipGame.Gameplay;
 
 namespace ShipGame.Game.Smoke.Tests;
 
@@ -41,7 +41,7 @@ public sealed class FlightCombatBindingsTests
     [Fact]
     public void PresentationBindingsAreReadOnlyAndDoNotMutateSimulation()
     {
-        var simulation = new FlightCombatSimulation(11);
+        var simulation = new FlightCombatWorld(11);
         var player = simulation.SpawnPlayer(Vector2.Zero, new ContentId("MOD_WEAPON_PULSE"));
         simulation.SpawnEnemy(new ContentId("ENM_INTERCEPTOR"), new Vector2(80, 0));
         simulation.Queue(new FlightCommandFrame(

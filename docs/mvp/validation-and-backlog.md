@@ -76,7 +76,7 @@ Measure release builds after a two-minute warm-up on the MVP reference class:
 
 - Windows 10/11 x64, four physical CPU cores at 3.0 GHz or better, 8 GB RAM, SSD, and a Vulkan 1.2 GPU with 2 GB dedicated/shared graphics memory.
 - Record exact CPU, GPU, RAM, OS build, driver, resolution, build/content version, and capture tool with every result; choose and retain one physical reference machine before the first performance baseline.
-- Simulation sustains 60 fixed updates/second with no accumulated tick debt during the busiest encounter.
+- Gameplay sustains 60 fixed updates/second with no accumulated tick debt during the busiest encounter.
 - Rendering targets 60 frames/second at 1080p: median frame time no greater than 16.7 ms, no more than 1% of frames above 16.7 ms, and 99th-percentile frame time no greater than 33.3 ms over a ten-minute capture.
 - No sustained managed allocation in steady gameplay; document unavoidable transients.
 - No unbounded working-set/entity/event/particle growth over three expeditions.

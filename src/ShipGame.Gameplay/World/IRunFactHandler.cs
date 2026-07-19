@@ -1,7 +1,7 @@
-namespace ShipGame.Simulation;
+namespace ShipGame.Gameplay;
 
 internal interface IRunFactHandler
 {
     RunFactKind Kind { get; }
-    void Handle(in RunFact fact, WorldRunSimulation simulation, List<WorldRunEvent> events);
+    void Handle(in RunFact fact, WorldRun simulation, List<WorldRunEvent> events);
 }
