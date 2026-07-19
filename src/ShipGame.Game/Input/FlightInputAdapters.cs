@@ -7,6 +7,8 @@ namespace ShipGame.Game;
 
 public static class FlightInputAdapters
 {
+    public const float GamepadStickDeadzone = 0.2f;
+
     public static FlightCommandFrame Keyboard(long targetTick, KeyboardFlightInput input)
     {
         var move = new Vector2(
@@ -17,6 +19,51 @@ public static class FlightInputAdapters
 
     public static FlightCommandFrame Gamepad(long targetTick, GamepadFlightInput input) =>
         Create(targetTick, input.Move, input.Aim, input.Fire, input.Mine, input.Mobility, input.Interact);
+
+    /// <summary>
+    /// Keyboard is the base command. Active gamepad sticks override Move/Aim only;
+    /// action flags from both devices are OR'd so Interact (E) is never swallowed by stick drift.
+    /// </summary>
+    public static FlightCommandFrame Merge(
+        long targetTick,
+        KeyboardFlightInput keyboard,
+        GamepadFlightInput? gamepad,
+        bool gamepadConnected)
+    {
+        var command = Keyboard(targetTick, keyboard);
+        if (!gamepadConnected || gamepad is null)
+            return command;
+
+        var pad = gamepad.Value;
+        var stickMagnitude = pad.Move.Length() + pad.Aim.Length();
+        var move = command.Move;
+        var aim = command.Aim;
+        if (stickMagnitude > GamepadStickDeadzone)
+        {
+            if (pad.Move.LengthSquared() > 0.0001f)
+                move = pad.Move;
+            if (pad.Aim.LengthSquared() > 0.0001f)
+                aim = pad.Aim;
+        }
+
+        var actions = command.Actions;
+        if (pad.Fire)
+            actions |= FlightAction.Fire;
+        else if (pad.Mine && (actions & FlightAction.Fire) == 0)
+            actions |= FlightAction.Mine;
+        if (pad.Mobility)
+            actions |= FlightAction.Mobility;
+        if (pad.Interact)
+            actions |= FlightAction.Interact;
+
+        return new FlightCommandFrame(
+            targetTick,
+            FlightCommandFrame.Quantize(ClampUnit(move).X),
+            FlightCommandFrame.Quantize(ClampUnit(move).Y),
+            FlightCommandFrame.Quantize(ClampUnit(aim).X),
+            FlightCommandFrame.Quantize(ClampUnit(aim).Y),
+            actions);
+    }
 
     public static KeyboardFlightInput ReadKeyboard(KeyboardState keyboard, Vector2 worldAim) => new(
         keyboard.IsKeyDown(Keys.W),

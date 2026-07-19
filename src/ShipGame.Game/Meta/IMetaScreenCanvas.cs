@@ -23,6 +23,8 @@ public interface IMetaScreenCanvas
     void DrawRunHud(ComposedRunHud hud, RunPresentationHints hints, XnaVector2 playerScreen);
     void UpdateCombatFlash(ComposedRunOrchestrator run, RunPresentationHints hints);
     void DrawRunFlashOverlay(RunPresentationHints hints);
+    void DrawEdgePing(string regionId, EdgePing ping, int size, string? label = null);
+    void DrawPhaseToast();
     void Fill(int x, int y, int width, int height, XnaColor color);
     void Frame(int x, int y, int width, int height, XnaColor color, int thickness);
     UiControl? FindControl(UiShell ui, string id);

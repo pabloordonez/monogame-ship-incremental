@@ -26,10 +26,12 @@ internal sealed class ResolveMobilitySystem(FlightCombatContext context) : ISyst
                 detail: "cooldown"));
             return;
         }
-        var direction = FlightCombatContext.NormalizeOr(intent.Move, FlightCombatContext.NormalizeOr(intent.Aim, Vector2.UnitX));
-        var start = context.World.Get<Transform2>(context.Player).Position;
-        var destination = context.ShortenAgainstObstacles(context.Player, start, start + direction * ability.Distance);
         ref var transform = ref context.World.Get<Transform2>(context.Player);
+        var facing = ShipRelativeMovement.FacingFromAim(intent.Aim, transform.Rotation);
+        var worldMove = ShipRelativeMovement.ToWorld(intent.Move, facing);
+        var direction = FlightCombatContext.NormalizeOr(worldMove, FlightCombatContext.NormalizeOr(intent.Aim, Vector2.UnitX));
+        var start = transform.Position;
+        var destination = context.ShortenAgainstObstacles(context.Player, start, start + direction * ability.Distance);
         transform = transform with { Position = destination, Rotation = MathF.Atan2(direction.Y, direction.X) };
         var modifiers = context.World.Get<TemporaryCombatModifiers>(context.Player);
         var cooldown = Math.Max(1, (int)MathF.Round(ability.CooldownTicks * modifiers.MobilityCooldownMultiplier));

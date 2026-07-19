@@ -31,6 +31,8 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
     private float _flashAlpha;
     private XnaColor _flashColor = XnaColor.White;
     private long _lastFlashTick = -1;
+    private string? _phaseToast;
+    private int _phaseToastFrames;
 
     public MvpPresentation(
         GraphicsDevice device,
@@ -313,7 +315,8 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
 
     public void DrawRunHud(ComposedRunHud hud, RunPresentationHints hints, XnaVector2 playerScreen)
     {
-        Fill(0, 0, VirtualWidth, 48, new XnaColor(0, 0, 0, 180));
+        var briefing = RunObjectiveBriefing.For(hud);
+        Fill(0, 0, VirtualWidth, 72, new XnaColor(0, 0, 0, 180));
         DrawRegion("ui/icons/hull", 8, 6, 16, 16);
         DrawBar(28, 8, 90, 10, hints.MaxHull <= 0 ? 0 : hud.Hull / hints.MaxHull, new XnaColor(200, 90, 90));
         DrawText(122, 6, $"{hud.Hull:0}", XnaColor.White);
@@ -324,13 +327,15 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
 
         DrawRegion("ui/icons/resource-ferrite", 320, 6, 16, 16);
         DrawText(340, 6, $"{hud.FerriteHeld}", new XnaColor(220, 200, 160));
-        DrawText(400, 6, $"Obj {hud.ObjectiveFerrite}/30  K {hud.ObjectiveKills}/8", XnaColor.White);
+        DrawRegion("ui/icons/resource-lumen", 380, 6, 16, 16);
+        DrawText(400, 6, $"{hud.LumenHeld}", new XnaColor(140, 210, 230));
+        DrawRegion("ui/icons/resource-data-core", 440, 6, 16, 16);
+        DrawText(460, 6, $"{hud.DataCoresHeld}", new XnaColor(200, 180, 255));
 
-        DrawText(
-            8,
-            28,
-            $"{hud.Phase}  t{hud.RunTick}  WASD move  mouse aim  LMB fire  RMB mine  Space dash  E extract",
-            new XnaColor(180, 200, 220));
+        DrawText(8, 26, briefing.Title, new XnaColor(220, 230, 200));
+        DrawText(8, 40, Truncate(briefing.Body, 78), new XnaColor(180, 200, 180));
+        if (briefing.Controls.Length > 0)
+            DrawText(8, 54, briefing.Controls, new XnaColor(150, 170, 190));
 
         if (hints.MoveIntent.LengthSquared() > 0.01f)
         {
@@ -338,6 +343,22 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
             var tip = new XnaVector2(playerScreen.X + dir.X * 22f, playerScreen.Y + dir.Y * 22f);
             Fill((int)tip.X - 2, (int)tip.Y - 2, 4, 4, new XnaColor(120, 220, 160));
         }
+    }
+
+    public void DrawEdgePing(string regionId, EdgePing ping, int size, string? label = null)
+    {
+        DrawRegionRotated(regionId, ping.ScreenPosition, ping.RotationRadians, size);
+        if (label is not null)
+            DrawText((int)ping.ScreenPosition.X - 16, (int)ping.ScreenPosition.Y + size / 2 + 2, label, new XnaColor(220, 220, 160));
+    }
+
+    public void DrawPhaseToast()
+    {
+        if (_phaseToastFrames <= 0 || _phaseToast is null)
+            return;
+        Fill(80, 86, VirtualWidth - 160, 22, new XnaColor(0, 0, 0, 160));
+        DrawText(88, 92, Truncate(_phaseToast, 70), new XnaColor(200, 230, 180));
+        _phaseToastFrames--;
     }
 
     public void UpdateCombatFlash(ComposedRunOrchestrator run, RunPresentationHints hints)
@@ -389,10 +410,18 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
 
         foreach (var worldEvent in run.LastWorldEvents)
         {
+            var toast = RunObjectiveBriefing.ToastFor(worldEvent.Kind);
+            if (toast is not null)
+            {
+                _phaseToast = toast;
+                _phaseToastFrames = 150;
+            }
+
             var bound = WorldRunPresentationBindings.Bind(worldEvent);
             if (bound is null)
                 continue;
-            if (worldEvent.Kind is WorldRunEventKind.ExtractionActivated or WorldRunEventKind.ObjectiveCompleted)
+            if (worldEvent.Kind is WorldRunEventKind.ExtractionActivated or WorldRunEventKind.ObjectiveCompleted
+                or WorldRunEventKind.EliteActivationRequested)
             {
                 _flashColor = new XnaColor(140, 220, 160);
                 _flashAlpha = MathF.Max(_flashAlpha, 0.22f);

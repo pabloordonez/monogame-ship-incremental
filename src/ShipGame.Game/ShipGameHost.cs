@@ -329,6 +329,7 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
             if (move.LengthSquared() > 1f)
                 move = System.Numerics.Vector2.Normalize(move);
             aim = MouseAimWorld(mouse);
+            move = ShipRelativeMovement.ToWorld(move, aim, 0f);
             fire = mouse.LeftButton == ButtonState.Pressed;
             mine = mouse.RightButton == ButtonState.Pressed && !fire;
             showReticle = showCursor;
@@ -360,12 +361,12 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
         var keyboard = Keyboard.GetState();
         var mouse = Mouse.GetState();
         var aim = MouseAimWorld(mouse);
-        var command = FlightInputAdapters.Keyboard(
-            _run.Combat.Tick,
-            FlightInputAdapters.ReadKeyboard(keyboard, aim));
         var gamepad = GamePad.GetState(PlayerIndex.One);
-        if (gamepad.IsConnected && gamepad.ThumbSticks.Left.Length() + gamepad.ThumbSticks.Right.Length() > 0.2f)
-            command = FlightInputAdapters.Gamepad(_run.Combat.Tick, FlightInputAdapters.ReadGamepad(gamepad));
+        var command = FlightInputAdapters.Merge(
+            _run.Combat.Tick,
+            FlightInputAdapters.ReadKeyboard(keyboard, aim),
+            gamepad.IsConnected ? FlightInputAdapters.ReadGamepad(gamepad) : null,
+            gamepad.IsConnected);
         _run.Step(command);
         if (_run.Status == ComposedRunStatus.Terminal)
             CommitRunReward();
@@ -395,7 +396,9 @@ public sealed class ShipGameHost : Microsoft.Xna.Framework.Game
     {
         if (_session is null || _run?.MappedReward is null)
             return;
-        _session.CommitReward(_run.MappedReward);
+        var result = _session.CommitReward(_run.MappedReward);
+        if (result.Status is not (ProfileMutationStatus.Applied or ProfileMutationStatus.Duplicate))
+            return;
         _run = null;
         if (_uiContext is not null)
             _uiContext.Run = null;

@@ -165,6 +165,46 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         }
     }
 
+    public bool TryGetEliteWorldPosition(out Vector2 position)
+    {
+        position = default;
+        if (_eliteEntity == default || !Combat.IsElite(_eliteEntity))
+            return false;
+        try
+        {
+            var snapshot = Combat.Snapshot(_eliteEntity);
+            if (snapshot.Destroyed)
+                return false;
+            position = snapshot.Position;
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    public bool TryGetNearestHostileWorldPosition(Vector2 from, out Vector2 position)
+    {
+        position = default;
+        var best = float.MaxValue;
+        var found = false;
+        foreach (var item in LiveRenderItems)
+        {
+            if (item.Kind != CombatRenderKind.EnemyShip || item.Elite)
+                continue;
+            var delta = item.Position - from;
+            var distanceSquared = delta.LengthSquared();
+            if (distanceSquared >= best)
+                continue;
+            best = distanceSquared;
+            position = item.Position;
+            found = true;
+        }
+
+        return found;
+    }
+
     public IEnumerable<ComposedPickupView> Pickups
     {
         get

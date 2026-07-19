@@ -25,14 +25,15 @@ internal sealed class IntegrateFlightMovementSystem(FlightCombatContext context)
                     ? context.World.Get<TemporaryCombatModifiers>(entity)
                     : FlightCombatContext.DefaultModifiers();
                 var maxSpeed = statistics.MaximumSpeed * modifiers.SpeedMultiplier;
-                var target = intent.Move * maxSpeed;
-                var rate = intent.Move.LengthSquared() > 0.0001f ? statistics.Acceleration : statistics.Braking;
+                var facing = ShipRelativeMovement.FacingFromAim(intent.Aim, transform.Rotation);
+                var move = context.Has<PlayerControlled>(entity)
+                    ? ShipRelativeMovement.ToWorld(intent.Move, facing)
+                    : intent.Move;
+                var target = move * maxSpeed;
+                var rate = move.LengthSquared() > 0.0001f ? statistics.Acceleration : statistics.Braking;
                 velocity = new Velocity2(FlightCombatContext.MoveTowards(velocity.Value, target, rate * FlightCombatConstants.TickSeconds));
                 if (velocity.Value.LengthSquared() > maxSpeed * maxSpeed)
                     velocity = new Velocity2(Vector2.Normalize(velocity.Value) * maxSpeed);
-                var facing = intent.Aim.LengthSquared() > 0.0001f
-                    ? MathF.Atan2(intent.Aim.Y, intent.Aim.X)
-                    : transform.Rotation;
                 transform = transform with { Rotation = facing };
             }
             if (context.Has<Homing>(entity))

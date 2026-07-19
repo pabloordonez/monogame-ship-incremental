@@ -26,7 +26,8 @@ public sealed class FlightCombatTests
                 accumulator += frames[frame++ % frames.Length];
                 while (accumulator >= 1d / 60d && simulation.Tick < 60)
                 {
-                    simulation.Queue(Command(simulation.Tick, move: Vector2.UnitX));
+                    // Local W stick with Aim +X → world thrust along +X (ship-relative).
+                    simulation.Queue(Command(simulation.Tick, move: new Vector2(0, -1), aim: Vector2.UnitX));
                     simulation.Step();
                     accumulator -= 1d / 60d;
                 }
@@ -34,7 +35,7 @@ public sealed class FlightCombatTests
             var moving = simulation.Snapshot(simulation.Player);
             while (simulation.Tick < 90)
             {
-                simulation.Queue(Command(simulation.Tick));
+                simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX));
                 simulation.Step();
             }
             return (moving, simulation.Snapshot(simulation.Player), simulation.LastStateHash);
@@ -46,6 +47,30 @@ public sealed class FlightCombatTests
         Assert.Equal(sixty, mixed);
         Assert.InRange(sixty.Moving.Position.X, 190, 220);
         Assert.InRange(sixty.Braked.Position.X - sixty.Moving.Position.X, 15, 25);
+    }
+
+    [Fact]
+    public void PlayerThrustFollowsAimFacingNotWorldAxes()
+    {
+        var alongX = NewSimulation(Pulse);
+        for (var i = 0; i < 45; i++)
+        {
+            alongX.Queue(Command(alongX.Tick, move: new Vector2(0, -1), aim: Vector2.UnitX));
+            alongX.Step();
+        }
+        var xPos = alongX.Snapshot(alongX.Player).Position;
+        Assert.True(xPos.X > 80, $"Expected forward thrust along +X, got {xPos}");
+        Assert.InRange(xPos.Y, -8f, 8f);
+
+        var alongY = NewSimulation(Pulse);
+        for (var i = 0; i < 45; i++)
+        {
+            alongY.Queue(Command(alongY.Tick, move: new Vector2(0, -1), aim: Vector2.UnitY));
+            alongY.Step();
+        }
+        var yPos = alongY.Snapshot(alongY.Player).Position;
+        Assert.True(yPos.Y > 80, $"Expected forward thrust along +Y, got {yPos}");
+        Assert.InRange(yPos.X, -8f, 8f);
     }
 
     [Fact]
@@ -155,15 +180,15 @@ public sealed class FlightCombatTests
     {
         var simulation = NewSimulation(Pulse, behavior);
         simulation.SpawnObstacle(new Vector2(100, 0), 20);
-        simulation.Queue(Command(0, move: Vector2.UnitX, aim: Vector2.UnitX, actions: FlightAction.Mobility));
+        simulation.Queue(Command(0, move: new Vector2(0, -1), aim: Vector2.UnitX, actions: FlightAction.Mobility));
 
         simulation.Step();
 
         Assert.InRange(simulation.Snapshot(simulation.Player).Position.X, 61.9f, 62.1f);
         Assert.Equal(cooldown, simulation.MobilityStatus(simulation.Player).CooldownRemaining);
-        simulation.Queue(Command(1, move: Vector2.UnitX, actions: FlightAction.None));
+        simulation.Queue(Command(1, move: new Vector2(0, -1), aim: Vector2.UnitX, actions: FlightAction.None));
         simulation.Step();
-        simulation.Queue(Command(2, move: Vector2.UnitX, actions: FlightAction.Mobility));
+        simulation.Queue(Command(2, move: new Vector2(0, -1), aim: Vector2.UnitX, actions: FlightAction.Mobility));
         simulation.Step();
         Assert.Contains(simulation.Events, value =>
             value.Kind == CombatEventKind.AbilityRejected && value.Detail == "cooldown");
@@ -174,7 +199,7 @@ public sealed class FlightCombatTests
     {
         var simulation = NewSimulation(Pulse);
         var source = simulation.SpawnEnemy(Interceptor, new Vector2(400, 0));
-        simulation.Queue(Command(0, move: Vector2.UnitX, actions: FlightAction.Mobility));
+        simulation.Queue(Command(0, move: new Vector2(0, -1), aim: Vector2.UnitX, actions: FlightAction.Mobility));
         simulation.Step();
         Assert.Contains(simulation.Events, value => value.Kind == CombatEventKind.AbilityActivated);
 
@@ -369,7 +394,7 @@ public sealed class FlightCombatTests
         queued.SpawnObstacle(new Vector2(80, 0), 16);
         for (var i = 0; i < 2_000; i++)
         {
-            queued.Queue(Command(queued.Tick, move: Vector2.UnitX, aim: Vector2.UnitX));
+            queued.Queue(Command(queued.Tick, move: new Vector2(0, -1), aim: Vector2.UnitX));
             queued.Step();
         }
         GC.Collect();
@@ -377,14 +402,14 @@ public sealed class FlightCombatTests
         GC.Collect();
         for (var i = 0; i < 200; i++)
         {
-            queued.Queue(Command(queued.Tick, move: Vector2.UnitX, aim: Vector2.UnitX));
+            queued.Queue(Command(queued.Tick, move: new Vector2(0, -1), aim: Vector2.UnitX));
             queued.Step();
         }
 
         var beforeQueued = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < 5_000; i++)
         {
-            queued.Queue(Command(queued.Tick, move: Vector2.UnitX, aim: Vector2.UnitX));
+            queued.Queue(Command(queued.Tick, move: new Vector2(0, -1), aim: Vector2.UnitX));
             queued.Step();
         }
         var queuedAllocated = GC.GetAllocatedBytesForCurrentThread() - beforeQueued;

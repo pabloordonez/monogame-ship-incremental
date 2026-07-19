@@ -66,10 +66,14 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
         }
 
         var playerScreen = new XnaVector2(MvpPresentation.VirtualWidth / 2f, MvpPresentation.VirtualHeight / 2f);
+        var anyHostileOnScreen = false;
         foreach (var item in run.LiveRenderItems)
         {
             var screen = canvas.WorldToScreen(item.Position, camera);
-            if (!canvas.OnScreen(screen, 40))
+            var onScreen = canvas.OnScreen(screen, 40);
+            if (item.Kind == CombatRenderKind.EnemyShip && !item.Elite && onScreen)
+                anyHostileOnScreen = true;
+            if (!onScreen)
                 continue;
             switch (item.Kind)
             {
@@ -83,11 +87,15 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                         canvas.DrawMineRay(screen, hints.AimDirection);
                     break;
                 case CombatRenderKind.EnemyShip:
+                    if (item.Elite)
+                        canvas.DrawRegion("telegraphs/elite-marker", (int)screen.X - 18, (int)screen.Y - 18, 36, 36);
                     canvas.DrawRegionRotated(
                         item.Elite ? "enemies/elite-outline" : "enemies/interceptor",
                         screen,
                         item.Rotation,
                         item.Elite ? 28 : 22);
+                    if (item.Elite)
+                        canvas.DrawText((int)screen.X - 14, (int)screen.Y + 16, "ELITE", new XnaColor(240, 200, 120));
                     break;
                 case CombatRenderKind.Projectile:
                     canvas.DrawRegion("projectiles/hostile", (int)screen.X - 3, (int)screen.Y - 3, 6, 6);
@@ -98,26 +106,44 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
             }
         }
 
-        var extract = canvas.WorldToScreen(
-            new System.Numerics.Vector2(
+        if (hud.Phase == RunPhase.Extraction)
+        {
+            var extractWorld = new System.Numerics.Vector2(
                 run.Descriptor.Extraction.Center.X * FieldDescriptor.WorldUnitsPerCell,
-                run.Descriptor.Extraction.Center.Y * FieldDescriptor.WorldUnitsPerCell),
-            camera);
-        if (canvas.OnScreen(extract, 40))
-            canvas.DrawRegion("field/extraction-marker", (int)extract.X - 16, (int)extract.Y - 16, 32, 32);
+                run.Descriptor.Extraction.Center.Y * FieldDescriptor.WorldUnitsPerCell);
+            var extract = canvas.WorldToScreen(extractWorld, camera);
+            if (canvas.OnScreen(extract, 40))
+                canvas.DrawRegion("field/extraction-marker", (int)extract.X - 16, (int)extract.Y - 16, 32, 32);
+            else if (ScreenEdgePing.Project(extract, MvpPresentation.VirtualWidth, MvpPresentation.VirtualHeight) is { } extractPing)
+                canvas.DrawEdgePing("field/extraction-marker", extractPing, 24, "EXTRACT");
+        }
+
+        if (hud.Phase == RunPhase.Elite && run.TryGetEliteWorldPosition(out var eliteWorld))
+        {
+            var eliteScreen = canvas.WorldToScreen(eliteWorld, camera);
+            if (ScreenEdgePing.Project(eliteScreen, MvpPresentation.VirtualWidth, MvpPresentation.VirtualHeight) is { } elitePing)
+                canvas.DrawEdgePing("telegraphs/elite-marker", elitePing, 28, "ELITE");
+        }
+        else if (hud.Phase == RunPhase.Objective &&
+                 !anyHostileOnScreen &&
+                 run.TryGetNearestHostileWorldPosition(camera, out var hostileWorld))
+        {
+            var hostileScreen = canvas.WorldToScreen(hostileWorld, camera);
+            if (ScreenEdgePing.Project(hostileScreen, MvpPresentation.VirtualWidth, MvpPresentation.VirtualHeight) is { } hostilePing)
+                canvas.DrawEdgePing("enemies/interceptor", hostilePing, 16, "HOSTILE");
+        }
 
         if (hints.ShowAimReticle)
             canvas.DrawAimReticle(hints.MouseVirtual);
 
-        // Flash fade is owned by presentation surface state via UpdateCombatFlash + DrawRunHud path.
         canvas.DrawRunFlashOverlay(hints);
-
         canvas.DrawRunHud(hud, hints, playerScreen);
+        canvas.DrawPhaseToast();
 
         if (hud.Phase == RunPhase.Extraction)
             canvas.DrawText(
                 8,
-                52,
+                76,
                 $"Hold E in extract zone: {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks}",
                 new XnaColor(160, 220, 180));
 
