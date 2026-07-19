@@ -131,7 +131,7 @@ The composed host path (`ComposedRunOrchestrator`) co-steps flight combat, world
 
 **Schedule phases (names):** `AiAndThreatDecisions`; events include `EnemySpawned`, `EliteActivated`.
 
-**Invariants:** spawn is off-camera and at least 450 units away; active caps hold; AI uses encounter RNG; at most one elite is active and at most one is spawned per run.
+**Invariants:** spawn is off-camera and at least 450 units away; active caps hold; AI uses encounter RNG; elite spawn cap is environment-aware (1 on Cinder Belt, 2 simultaneous on Ion Veil); Ion Veil may assign rare beam/seeker mounts to non-elite interceptor/gunship threat spawns.
 
 **Dependencies:** session timer, spatial queries, content, objective.
 

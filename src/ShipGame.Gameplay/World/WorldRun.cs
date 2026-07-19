@@ -19,8 +19,9 @@ public sealed class WorldRun
     private readonly RunFactHandlerRegistry _factHandlers = RunFactHandlerRegistry.Create();
     private long _eventSequence;
     private bool _collapseWarningEmitted;
-    private bool _eliteDefeated;
+    private int _elitesDefeated;
     private bool _rewardProposed;
+    private readonly int _elitesRequired;
 
     public WorldRun(FieldDescriptor descriptor, RandomStreams random, bool recoveryProtocols = false)
     {
@@ -30,10 +31,14 @@ public sealed class WorldRun
         if (!validation.IsValid)
             throw new ArgumentException($"Invalid field descriptor: {string.Join("; ", validation.Issues)}", nameof(descriptor));
         _identity = descriptor.Identity;
+        _elitesRequired = descriptor.Identity.EnvironmentId == WorldRunIds.IonVeil ? 2 : 1;
         _hazards = new(descriptor);
         _upgrades = new(random);
         _recoveryProtocols = recoveryProtocols;
     }
+
+    /// <summary>Elites that must be defeated before extraction (1 Cinder / 2 Ion Veil).</summary>
+    public int ElitesRequired => _elitesRequired;
 
     public long RunTick { get; private set; }
     public RunPhase Phase { get; private set; } = RunPhase.Objective;
@@ -94,11 +99,10 @@ public sealed class WorldRun
             Emit(events, WorldRunEventKind.ObjectiveCompleted, WorldRunIds.FieldProof);
             Emit(events, WorldRunEventKind.EliteActivationRequested);
         }
-        if (_eliteDefeated && Phase == RunPhase.Elite)
+        if (_elitesDefeated >= _elitesRequired && Phase == RunPhase.Elite)
         {
             Phase = RunPhase.Extraction;
             Emit(events, WorldRunEventKind.EliteDefeated);
-            Emit(events, WorldRunEventKind.DataCoreDropRequested, WorldRunIds.DataCore, 1);
             Emit(events, WorldRunEventKind.ExtractionActivated, WorldRunIds.StandardGate);
         }
 
@@ -152,10 +156,13 @@ public sealed class WorldRun
         Emit(events, WorldRunEventKind.ResourceCredited, fact.ResourceId, fact.Quantity);
     }
 
-    internal void ApplyEliteDestroyedFact()
+    internal void ApplyEliteDestroyedFact(List<WorldRunEvent> events)
     {
-        if (Phase == RunPhase.Elite && !_eliteDefeated)
-            _eliteDefeated = true;
+        if (Phase != RunPhase.Elite || _elitesDefeated >= _elitesRequired)
+            return;
+        _elitesDefeated++;
+        // One Data Core per elite death (Ion Veil: two elites → two cores).
+        Emit(events, WorldRunEventKind.DataCoreDropRequested, WorldRunIds.DataCore, 1);
     }
 
     private void AdvanceExtraction(WorldRunTickInput input, List<WorldRunEvent> events)

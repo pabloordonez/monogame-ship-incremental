@@ -37,12 +37,12 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     private readonly List<BrokenAsteroidPresentation> _brokenAsteroidBuffer = new(16);
     private readonly System.Collections.ObjectModel.ReadOnlyCollection<BrokenAsteroidPresentation> _brokenAsteroidView;
     private EntityId _collector;
-    private EntityId _eliteEntity;
+    private readonly List<EntityId> _eliteEntities = new(2);
+    private int _elitesSpawned;
     private ulong _nextFactId = 1;
     private long _normalKills;
     private long _eliteKills;
     private long _ferriteCollected;
-    private bool _eliteSpawnRequested;
     private bool _rewardMapped;
     private TemporaryModifiers _appliedModifiers = TemporaryModifiers.Identity;
     private int _miningDamagePerTick;
@@ -87,8 +87,13 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         _loot = new(Random);
         WorldRun = new WorldRun(Descriptor, Random, recoveryProtocols);
         Combat = new FlightCombatWorld(RunSeed);
+        Combat.ConfigureEliteCap(WorldRun.ElitesRequired);
+        _loot.ConfigureEliteDataCoreLimit(WorldRun.ElitesRequired);
         if (IsIonVeil)
+        {
             Combat.ConfigureEnvironmentCombat(hullMultiplier: 1.20f, damageMultiplier: 1.15f);
+            Combat.ConfigureRareAdvancedThreatWeapons(true);
+        }
 
         var spawn = CellToWorld(Descriptor.Spawn.Center);
         var weapon = new ContentId(loadout.Effective.Weapon);
@@ -222,20 +227,26 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public bool TryGetEliteWorldPosition(out Vector2 position)
     {
         position = default;
-        if (_eliteEntity == default || !Combat.IsElite(_eliteEntity))
-            return false;
-        try
+        for (var i = 0; i < _eliteEntities.Count; i++)
         {
-            var snapshot = Combat.Snapshot(_eliteEntity);
-            if (snapshot.Destroyed)
-                return false;
-            position = snapshot.Position;
-            return true;
+            var elite = _eliteEntities[i];
+            if (elite == default || !Combat.IsElite(elite))
+                continue;
+            try
+            {
+                var snapshot = Combat.Snapshot(elite);
+                if (snapshot.Destroyed)
+                    continue;
+                position = snapshot.Position;
+                return true;
+            }
+            catch (Exception)
+            {
+                // Stale elite entity — try the next.
+            }
         }
-        catch (Exception)
-        {
-            return false;
-        }
+
+        return false;
     }
 
     public bool TryGetNearestHostileWorldPosition(Vector2 from, out Vector2 position)
@@ -444,7 +455,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 ? position
                 : SafePlayerSnapshot().Position;
 
-            if (combatEvent.Entity == _eliteEntity || Combat.IsElite(combatEvent.Entity))
+            if (Combat.IsElite(combatEvent.Entity) || _eliteEntities.Contains(combatEvent.Entity))
             {
                 _lastEliteDeathWorldPosition = deathPos;
                 _factBuffer.Add(new(_nextFactId++, RunFactKind.EliteDestroyed));
@@ -853,11 +864,18 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     bool IWorldRunEventHost.TrySpawnEliteEnemy(ContentId enemyId, Vector2 worldPosition, out EntityId eliteEntity)
     {
         eliteEntity = default;
-        if (_eliteSpawnRequested)
+        if (_elitesSpawned >= WorldRun.ElitesRequired)
             return false;
-        _eliteSpawnRequested = true;
-        _eliteEntity = Combat.SpawnEnemy(enemyId, worldPosition, elite: true);
-        eliteEntity = _eliteEntity;
+        // Offset simultaneous Ion elites so they do not stack on the arena center.
+        var offset = _elitesSpawned switch
+        {
+            0 when WorldRun.ElitesRequired > 1 => new Vector2(-48f, 12f),
+            1 => new Vector2(48f, -16f),
+            _ => Vector2.Zero
+        };
+        eliteEntity = Combat.SpawnEnemy(enemyId, worldPosition + offset, elite: true);
+        _eliteEntities.Add(eliteEntity);
+        _elitesSpawned++;
         return true;
     }
 

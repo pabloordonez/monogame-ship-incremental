@@ -59,11 +59,11 @@ Content definition yields for standard Ferrite cells are 2–4 and Lumen cells 1
 
 ### `MOD_ELITE_PROTOCOL`
 
-Applied to the elite spawn (always `ENM_GUNSHIP` in the composed run):
+Applied to elite gunship spawn(s) (always `ENM_GUNSHIP` in the composed run):
 
 - Scale `1.35`; hull `2.75x`; damage `1.35x`; speed `1.10x`; cooldown `0.80x`.
-- Adds elite outline, arena marker, and exactly one Data Core drop.
-- Only one elite may exist per run.
+- Adds elite outline, arena marker, and one Data Core drop per elite defeated.
+- Elite cap: one on Cinder Belt; two simultaneous on Ion Veil.
 
 ## Ship modules
 
