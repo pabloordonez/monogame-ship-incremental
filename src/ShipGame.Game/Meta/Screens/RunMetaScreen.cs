@@ -200,7 +200,13 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                 run.Descriptor.Extraction.Center.Y * FieldDescriptor.WorldUnitsPerCell);
             var extract = canvas.WorldToScreen(extractWorld, camera);
             if (canvas.OnScreen(extract, 40))
+            {
+                var progress = MvpPresentation.ExtractionProgressRatio(
+                    hud.ExtractionProgressTicks,
+                    hud.ExtractionHoldTicks);
+                canvas.DrawExtractionCharge(extract, progress, hud.RunTick);
                 canvas.DrawRegion("field/extraction-marker", (int)extract.X - 16, (int)extract.Y - 16, 32, 32);
+            }
             else if (ScreenEdgePing.Project(extract, MvpPresentation.VirtualWidth, MvpPresentation.VirtualHeight) is { } extractPing)
                 canvas.DrawEdgePing("field/extraction-marker", extractPing, 24, "EXTRACT");
         }
@@ -228,13 +234,6 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
         canvas.DrawRunFlashOverlay(hints);
         canvas.DrawRunHud(hud, hints, playerScreen);
         canvas.DrawPhaseToast();
-
-        if (hud.Phase == RunPhase.Extraction)
-            canvas.DrawText(
-                8,
-                76,
-                $"Extracting: {hud.ExtractionProgressTicks}/{hud.ExtractionHoldTicks}",
-                new XnaColor(160, 220, 180));
 
         _ = context.Ui;
         _ = context.Session;

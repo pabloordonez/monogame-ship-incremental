@@ -86,7 +86,7 @@ When both are complete, the run enters the elite phase. One `ENM_GUNSHIP` spawns
 
 ### Extraction
 
-`EXT_STANDARD_GATE` becomes visible on the HUD and field-edge indicator.
+`EXT_STANDARD_GATE` becomes visible on the HUD and field-edge indicator. Charge progress is shown as a pulsing ring and arc at the gate marker (no numeric tick HUD).
 
 - Enter the extraction zone and remain inside for six continuous seconds.
 - Leaving the zone resets progress.

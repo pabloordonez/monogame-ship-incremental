@@ -53,6 +53,7 @@ public interface IMetaScreenCanvas
     void DrawParticles(System.Numerics.Vector2 camera);
     void DrawRunFlashOverlay(RunPresentationHints hints);
     void DrawEdgePing(string regionId, EdgePing ping, int size, string? label = null);
+    void DrawExtractionCharge(XnaVector2 center, float progressRatio, long tick);
     void DrawPhaseToast();
     void Fill(int x, int y, int width, int height, XnaColor color);
     void Frame(int x, int y, int width, int height, XnaColor color, int thickness);
