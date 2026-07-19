@@ -80,38 +80,53 @@ internal static class ParticlePresets
     public static ParticleBurst AsteroidBreak(AsteroidCellKind kind) => kind switch
     {
         AsteroidCellKind.Ferrite => new(
-            Count: 22,
-            MinSpeed: 25f,
-            MaxSpeed: 100f,
-            MinLife: 0.18f,
-            MaxLife: 0.50f,
-            ColorA: new XnaColor(180, 140, 90),
-            ColorB: new XnaColor(230, 200, 140),
-            MinSize: 1,
-            MaxSize: 3,
-            Drag: 0.92f),
-        AsteroidCellKind.Lumen => new(
-            Count: 24,
-            MinSpeed: 30f,
+            Count: 16,
+            MinSpeed: 28f,
             MaxSpeed: 110f,
-            MinLife: 0.20f,
+            MinLife: 0.22f,
             MaxLife: 0.55f,
-            ColorA: new XnaColor(90, 190, 230),
-            ColorB: new XnaColor(180, 240, 255),
-            MinSize: 1,
-            MaxSize: 3,
-            Drag: 0.92f),
+            ColorA: XnaColor.White,
+            ColorB: XnaColor.White,
+            MinSize: 6,
+            MaxSize: 10,
+            Drag: 0.92f,
+            RegionIds:
+            [
+                "asteroids/debris/ferrite-a",
+                "asteroids/debris/ferrite-b",
+                "asteroids/debris/rock-a",
+                "asteroids/debris/rock-b"
+            ]),
+        AsteroidCellKind.Lumen => new(
+            Count: 16,
+            MinSpeed: 30f,
+            MaxSpeed: 115f,
+            MinLife: 0.22f,
+            MaxLife: 0.58f,
+            ColorA: XnaColor.White,
+            ColorB: XnaColor.White,
+            MinSize: 6,
+            MaxSize: 10,
+            Drag: 0.92f,
+            RegionIds:
+            [
+                "asteroids/debris/lumen-a",
+                "asteroids/debris/lumen-b",
+                "asteroids/debris/rock-a",
+                "asteroids/debris/rock-b"
+            ]),
         _ => new(
-            Count: 18,
-            MinSpeed: 20f,
-            MaxSpeed: 90f,
-            MinLife: 0.16f,
-            MaxLife: 0.45f,
-            ColorA: new XnaColor(140, 140, 150),
-            ColorB: new XnaColor(200, 200, 210),
-            MinSize: 1,
-            MaxSize: 3,
-            Drag: 0.92f)
+            Count: 12,
+            MinSpeed: 22f,
+            MaxSpeed: 95f,
+            MinLife: 0.18f,
+            MaxLife: 0.48f,
+            ColorA: XnaColor.White,
+            ColorB: XnaColor.White,
+            MinSize: 6,
+            MaxSize: 10,
+            Drag: 0.92f,
+            RegionIds: ["asteroids/debris/rock-a", "asteroids/debris/rock-b"])
     };
 
     public static ParticleBurst BeamTip { get; } = new(

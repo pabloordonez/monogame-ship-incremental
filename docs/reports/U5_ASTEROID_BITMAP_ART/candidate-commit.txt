@@ -1,0 +1,7 @@
+Branch: feature/u5-asteroid-bitmap-art
+Base: d24e9f1eb3f39307e3546559c0342568d9d71b74 (main tip at branch creation)
+
+Candidate commit: (create after staging package files; do not include .vs/ or bin/obj noise)
+
+Suggested subject:
+  U5: asteroid health-tier bitmaps and debris break VFX

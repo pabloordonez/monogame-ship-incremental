@@ -1,0 +1,34 @@
+# U5_ASTEROID_BITMAP_ART — Commands and Results
+
+## Atlas pack
+Command:
+  dotnet run --project tools/ShipGame.ContentBuilder -- --pack-atlases
+Result:
+  Packed 4 atlases from authored sprites. (exit 0)
+
+## Content build
+Command:
+  dotnet run --project tools/ShipGame.ContentBuilder --
+Result:
+  Validated catalog mvp-p1-v1 (...)
+  Content Builder Finished — 23 succeeded, 0 failed (exit 0)
+
+## Content tests
+Command:
+  dotnet test tests/ShipGame.Content.Tests/ShipGame.Content.Tests.csproj
+Result:
+  Passed! — Failed: 0, Passed: 19, Skipped: 0 (exit 0)
+
+## Gameplay tests
+Command:
+  dotnet test tests/ShipGame.Gameplay.Tests/ShipGame.Gameplay.Tests.csproj
+Result:
+  Passed! — Failed: 0, Passed: 99, Skipped: 0 (exit 0)
+
+## Game project build
+Command:
+  dotnet build src/ShipGame.Game/ShipGame.Game.csproj -c Debug
+Result:
+  Build succeeded. 0 Warning(s), 0 Error(s) (exit 0)
+
+Note: Release build may fail if ShipGame.exe is running and locks output DLLs.

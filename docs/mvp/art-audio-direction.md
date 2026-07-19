@@ -129,7 +129,7 @@ CI rejects duplicate IDs/paths, missing files, wrong dimensions, unresolved atla
 - Wayfarer hull, engine frames, damage flash, shield mask, and dash/blink frames.
 - Pulse, beam, seeker missile, mining beam, and seismic charge. Seeker missile frames face +X (nose right); ships face up. Rotated ship draws add +π/2; seeker draws subtract that offset so velocity heading matches the sprite.
 - Interceptor, Gunship, Sapper, elite outline/marker, and telegraphs.
-- Three asteroid sizes with ordinary/Ferrite/Lumen cell variants and break frames. Ferrite/Lumen rocks show ore chunk chips in the run view; cracked `asteroids/break` overlays mark mid/low health damage states.
+- Three asteroid sizes with ordinary/Ferrite/Lumen cell variants and three health-tier bitmaps each (`healthy`, `-cracked`, `-shattered`). Ferrite/Lumen rocks bake ore veins into the rock PNG; break VFX uses `asteroids/debris/*` bitmap chunks (not colored Fill squares or UI chip overlays).
 - Ferrite, Lumen, Data Core, station upgrade icons, and extraction marker.
 - Cinder Belt and Ion Veil backgrounds, hazards, star glow, and cover cues.
 - Hull/shield/resource/module/research/lock/objective/pause/input UI icons.

@@ -43,48 +43,14 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
             var screen = canvas.WorldToScreen(new System.Numerics.Vector2(asteroid.X, asteroid.Y), camera);
             if (!canvas.OnScreen(screen, drawSize + 8))
                 continue;
-            var region = AsteroidSizing.AtlasRegion(asteroid.Kind, asteroid.Size);
+            var fraction = asteroid.MaxHealth <= 0 ? 1f : asteroid.Health / (float)asteroid.MaxHealth;
+            var region = AsteroidSizing.AtlasRegion(asteroid.Kind, asteroid.Size, fraction);
             canvas.DrawRegion(
                 region,
                 (int)screen.X - drawSize / 2,
                 (int)screen.Y - drawSize / 2,
                 drawSize,
                 drawSize);
-            // Visible ore chunks for ferrite / lumen veins (ordinary stays rock-only).
-            if (asteroid.Kind is AsteroidCellKind.Ferrite or AsteroidCellKind.Lumen)
-            {
-                var oreIcon = asteroid.Kind == AsteroidCellKind.Lumen
-                    ? "ui/icons/resource-lumen"
-                    : "ui/icons/resource-ferrite";
-                var chip = Math.Max(5, drawSize / 3);
-                canvas.DrawRegion(
-                    oreIcon,
-                    (int)screen.X - chip / 2 + drawSize / 6,
-                    (int)screen.Y - chip / 2 - drawSize / 8,
-                    chip,
-                    chip);
-                canvas.DrawRegion(
-                    oreIcon,
-                    (int)screen.X - chip / 2 - drawSize / 7,
-                    (int)screen.Y - chip / 2 + drawSize / 7,
-                    Math.Max(4, chip - 2),
-                    Math.Max(4, chip - 2));
-            }
-
-            // Damage tiers: cracked overlays as health falls.
-            var fraction = asteroid.MaxHealth <= 0 ? 1f : asteroid.Health / asteroid.MaxHealth;
-            if (fraction < 0.66f)
-            {
-                var crackAlpha = fraction < 0.33f ? (byte)200 : (byte)120;
-                var crackSize = Math.Max(8, drawSize - 4);
-                canvas.DrawRegion(
-                    "asteroids/break",
-                    (int)screen.X - crackSize / 2,
-                    (int)screen.Y - crackSize / 2,
-                    crackSize,
-                    crackSize,
-                    new XnaColor((byte)255, (byte)220, (byte)180, crackAlpha));
-            }
         }
 
         foreach (var pickup in run.Pickups)
@@ -92,12 +58,11 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
             var screen = canvas.WorldToScreen(new System.Numerics.Vector2(pickup.X, pickup.Y), camera);
             if (!canvas.OnScreen(screen, 16))
                 continue;
-            // Use the same crisp UI resource icons as the HUD (pickups/* atlas blobs are placeholders).
             var region = pickup.ResourceId.Value switch
             {
-                MetaContentIds.Lumen => "ui/icons/resource-lumen",
-                MetaContentIds.DataCore => "ui/icons/resource-data-core",
-                _ => "ui/icons/resource-ferrite"
+                MetaContentIds.Lumen => "pickups/lumen",
+                MetaContentIds.DataCore => "pickups/data-core",
+                _ => "pickups/ferrite"
             };
             const int size = 10;
             canvas.DrawRegion(region, (int)screen.X - size / 2, (int)screen.Y - size / 2, size, size);

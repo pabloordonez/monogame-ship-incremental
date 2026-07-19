@@ -18,7 +18,7 @@
       "provenance": "Original outlined arcade ship sprites authored programmatically (white outline, cyan cockpit, limited palette); no copied identity.",
       "replacementCriterion": "Replace after art review with a silhouette-compatible sheet preserving region IDs, frame tiers, pivots, and hardpoints.",
       "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
-      "width": 512, "height": 512, "metadata": "data/atlas-player-modules.json", "sourceHash": null
+      "width": 1024, "height": 1024, "metadata": "data/atlas-player-modules.json", "sourceHash": null
     },
     {
       "id": "atlases/enemies-telegraphs", "kind": "atlas", "source": "textures/atlases/enemies-telegraphs.png",
@@ -27,16 +27,16 @@
       "provenance": "Original outlined arcade enemy sprites authored programmatically; no copied identity.",
       "replacementCriterion": "Replace after native-resolution threat-readability review while preserving IDs and telegraph timing semantics.",
       "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
-      "width": 512, "height": 512, "metadata": "data/atlas-enemies-telegraphs.json", "sourceHash": null
+      "width": 1024, "height": 1024, "metadata": "data/atlas-enemies-telegraphs.json", "sourceHash": null
     },
     {
       "id": "atlases/asteroids-resources", "kind": "atlas", "source": "textures/atlases/asteroids-resources.png",
-      "status": "candidate", "owner": "P1_CONTENT_ART", "license": "CC0-1.0",
-      "attribution": "Original pixel-grid art authored programmatically for Ship Game by P1_CONTENT_ART.", "sourceUrl": null,
-      "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, external image, sample, or copied identity.",
-      "replacementCriterion": "Replace after mining/resource shape-language review while preserving IDs and collision references.",
-      "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
-      "width": 512, "height": 512, "metadata": "data/atlas-asteroids-resources.json", "sourceHash": null
+      "status": "candidate", "owner": "U5_ASTEROID_BITMAP_ART", "license": "CC0-1.0",
+      "attribution": "AI-assisted pixel-art asteroid and ore debris candidates pixel-cleaned for Ship Game by U5_ASTEROID_BITMAP_ART.", "sourceUrl": null,
+      "provenance": "AI-generated pixel-art candidates (ordinary/ferrite/lumen rocks + debris nuggets) pixel-cleaned to exact frame tiers with transparent backgrounds; health-tier and debris variants derived for atlas packing. No copied third-party identity.",
+      "replacementCriterion": "Replace after mining/resource readability review while preserving region IDs, frame tiers, and collision references.",
+      "waiver": "U5 package specification authorizes AI-assisted candidate asteroid bitmaps with complete provenance and pixel-clean workflow.",
+      "width": 1024, "height": 1024, "metadata": "data/atlas-asteroids-resources.json", "sourceHash": null
     },
     {
       "id": "atlases/ui-icons", "kind": "atlas", "source": "textures/atlases/ui-icons.png",
@@ -45,7 +45,7 @@
       "provenance": "Deterministic geometric pixel primitives in SourceAssetGenerator.cs; no model, font, external image, or copied identity.",
       "replacementCriterion": "Replace after 24px/32px UI comprehension testing while preserving stable icon region IDs.",
       "waiver": "P1 integration-owner package specification authorizes original first-pass candidate art with complete provenance.",
-      "width": 512, "height": 512, "metadata": "data/atlas-ui-icons.json", "sourceHash": null
+      "width": 1024, "height": 1024, "metadata": "data/atlas-ui-icons.json", "sourceHash": null
     },
     {
       "id": "ui/title/wordmark", "kind": "texture", "source": "textures/ui/title-wordmark.png",

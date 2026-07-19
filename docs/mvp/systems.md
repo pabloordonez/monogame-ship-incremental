@@ -137,7 +137,7 @@ The composed host path (`ComposedRunOrchestrator`) co-steps flight combat, world
 
 **Owns:** sized asteroid descriptors (S/M/L), drifting combat obstacles mirrored to mineable cells, loot burst on break, ore-readable presentation tiers.
 
-**Invariants:** each generated field includes all three sizes; obstacle radii match size; combat positions sync to mining `WorldPosition` each tick; projectile-obstacle contact applies knockback then destroys the projectile; loot pickups spawn at the break center with outward `PickupBurst` before tractor pull.
+**Invariants:** each generated field includes all three sizes; obstacle radii match size; combat positions sync to mining `WorldPosition` each tick; projectile-obstacle contact applies knockback then destroys the projectile; loot pickups spawn at the break center with outward `PickupBurst` before tractor pull; presentation draws size×kind×health-tier rock bitmaps and sprays `asteroids/debris/*` chunks on break.
 
 **Dependencies:** session timer, spatial queries, content, objective.
 

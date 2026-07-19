@@ -942,7 +942,20 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
             var fade = Math.Clamp(particle.Life / Math.Max(0.001f, particle.MaxLife), 0f, 1f);
             var color = particle.Color * fade;
             var size = particle.Size;
-            Fill((int)screen.X - size / 2, (int)screen.Y - size / 2, size, size, color);
+            if (!string.IsNullOrEmpty(particle.RegionId))
+            {
+                DrawRegion(
+                    particle.RegionId,
+                    (int)screen.X - size / 2,
+                    (int)screen.Y - size / 2,
+                    size,
+                    size,
+                    color);
+            }
+            else
+            {
+                Fill((int)screen.X - size / 2, (int)screen.Y - size / 2, size, size, color);
+            }
         }
 
         if (_particles.ActiveCount > 0)

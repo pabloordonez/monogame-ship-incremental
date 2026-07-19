@@ -12,4 +12,6 @@ internal struct Particle
     public XnaColor Color;
     public byte Size;
     public bool Active;
+    /// <summary>When set, draw this atlas region instead of a colored Fill square.</summary>
+    public string? RegionId;
 }

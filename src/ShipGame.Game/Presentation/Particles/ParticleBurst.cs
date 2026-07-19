@@ -15,4 +15,5 @@ internal readonly record struct ParticleBurst(
     byte MaxSize,
     float Drag = 0.92f,
     Vector2 BiasDirection = default,
-    float BiasStrength = 0f);
+    float BiasStrength = 0f,
+    string[]? RegionIds = null);

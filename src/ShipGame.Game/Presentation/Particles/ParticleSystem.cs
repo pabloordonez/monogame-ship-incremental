@@ -66,6 +66,10 @@ internal sealed class ParticleSystem
 
             var life = Lerp(burst.MinLife, burst.MaxLife, (float)_random.NextDouble());
             var t = (float)_random.NextDouble();
+            string? regionId = null;
+            if (burst.RegionIds is { Length: > 0 })
+                regionId = burst.RegionIds[_random.Next(burst.RegionIds.Length)];
+            var maxSize = regionId is null ? 3 : 12;
             ref var particle = ref _particles[index];
             particle = new Particle
             {
@@ -73,12 +77,13 @@ internal sealed class ParticleSystem
                 Velocity = direction * speed,
                 Life = life,
                 MaxLife = life,
-                Color = LerpColor(burst.ColorA, burst.ColorB, t),
+                Color = regionId is null ? LerpColor(burst.ColorA, burst.ColorB, t) : XnaColor.White,
                 Size = (byte)Math.Clamp(
                     burst.MinSize + _random.Next(Math.Max(0, burst.MaxSize - burst.MinSize + 1)),
                     1,
-                    3),
-                Active = true
+                    maxSize),
+                Active = true,
+                RegionId = regionId
             };
             // Per-particle drag is applied uniformly in Update; burst.Drag reserved for future.
             _ = burst.Drag;

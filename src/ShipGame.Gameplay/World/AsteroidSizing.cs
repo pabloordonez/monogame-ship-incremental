@@ -26,7 +26,10 @@ public static class AsteroidSizing
         _ => 45
     };
 
-    public static string AtlasRegion(AsteroidCellKind kind, AsteroidCellSize size)
+    public static string AtlasRegion(AsteroidCellKind kind, AsteroidCellSize size) =>
+        AtlasRegion(kind, size, healthFraction: 1f);
+
+    public static string AtlasRegion(AsteroidCellKind kind, AsteroidCellSize size, float healthFraction)
     {
         var sizeKey = size switch
         {
@@ -40,6 +43,11 @@ public static class AsteroidSizing
             AsteroidCellKind.Lumen => "lumen",
             _ => "ordinary"
         };
-        return $"asteroids/{sizeKey}/{kindKey}";
+        var baseId = $"asteroids/{sizeKey}/{kindKey}";
+        if (healthFraction < 0.33f)
+            return baseId + "-shattered";
+        if (healthFraction < 0.66f)
+            return baseId + "-cracked";
+        return baseId;
     }
 }

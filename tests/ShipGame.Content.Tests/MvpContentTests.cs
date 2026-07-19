@@ -68,7 +68,7 @@ public class MvpContentTests
             var asset = catalog.GetAsset(id);
             Assert.False(string.IsNullOrWhiteSpace(asset.License));
             Assert.False(string.IsNullOrWhiteSpace(asset.Provenance));
-            Assert.True(asset.Owner is "P1_CONTENT_ART" or "P0_FOUNDATION");
+            Assert.True(asset.Owner is "P1_CONTENT_ART" or "P0_FOUNDATION" or "U5_ASTEROID_BITMAP_ART");
             Assert.True(asset.License is "CC0-1.0" or "proprietary");
             if (asset.Status is "candidate" or "placeholder")
             {
@@ -206,7 +206,10 @@ public class MvpContentTests
             ("atlases/asteroids-resources",
             [
                 "asteroids/small/ordinary", "asteroids/small/ferrite", "asteroids/small/lumen",
+                "asteroids/small/ferrite-cracked", "asteroids/small/ferrite-shattered",
                 "asteroids/medium/ordinary", "asteroids/medium/ferrite", "asteroids/medium/lumen",
+                "asteroids/large/ordinary", "asteroids/large/ferrite", "asteroids/large/lumen",
+                "asteroids/debris/rock-a", "asteroids/debris/ferrite-a", "asteroids/debris/lumen-a",
                 "pickups/ferrite", "pickups/lumen", "pickups/data-core"
             ]),
             ("atlases/player-modules", ["weapons/pulse", "weapons/seeker", "ships/player/wayfarer"]),

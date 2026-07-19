@@ -131,7 +131,7 @@ public static partial class MvpContentLoader
                 issues.Add(new("asset.id", $"Asset ID '{asset.Id}' must be lowercase slash-separated."));
             if (asset.Status is not ("candidate" or "approved" or "placeholder"))
                 issues.Add(new("asset.status", $"Asset '{asset.Id}' has invalid status '{asset.Status}'."));
-            if (asset.Owner != "P1_CONTENT_ART" && asset.Owner != "P0_FOUNDATION")
+            if (asset.Owner is not ("P1_CONTENT_ART" or "P0_FOUNDATION" or "U5_ASTEROID_BITMAP_ART"))
                 issues.Add(new("asset.owner", $"Asset '{asset.Id}' has unknown owner '{asset.Owner}'."));
             if (string.IsNullOrWhiteSpace(asset.License) || string.IsNullOrWhiteSpace(asset.Provenance) ||
                 string.IsNullOrWhiteSpace(asset.Attribution))
@@ -251,6 +251,8 @@ public static partial class MvpContentLoader
             "ships/player/wayfarer" => region.Width == 64 && region.Height == 64,
             var id when id.StartsWith("enemies/", StringComparison.Ordinal) =>
                 region.Width is >= 32 and <= 64 && region.Height is >= 32 and <= 64,
+            var id when id.StartsWith("asteroids/debris/", StringComparison.Ordinal) =>
+                region.Width == 8 && region.Height == 8,
             var id when id.StartsWith("asteroids/small/", StringComparison.Ordinal) =>
                 region.Width == 32 && region.Height == 32,
             var id when id.StartsWith("asteroids/medium/", StringComparison.Ordinal) =>
