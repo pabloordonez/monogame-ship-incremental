@@ -10,12 +10,14 @@ namespace ShipGame.Gameplay;
 /// </summary>
 public sealed class ComposedRunOrchestrator : IWorldRunEventHost
 {
-    public const int MiningRangeWorldUnits = 70;
+    public const int MiningRangeWorldUnits = 130;
     public const int BaseCollectionRadius = 90;
     public const int BasePullSpeed = 8;
-    public const int NormalKillFerriteSalvage = 2;
+    public const int NormalKillFerriteSalvage = 5;
     /// <summary>Matches drawn medium asteroid sprites (24×24).</summary>
     public const float AsteroidVisualRadius = 12f;
+    /// <summary>Aim cone (half-angle) for near-miss mining assist when the ray barely misses.</summary>
+    public const float MiningAssistConeDegrees = 18f;
 
     private readonly World _miningWorld = new();
     private readonly MiningSystem _mining = new();
@@ -103,9 +105,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
 
         SeedAsteroids();
         _basePickupRadius = Math.Max(BaseCollectionRadius, statistics.PickupRadius);
-        // Catalog pullSpeed is world-units/sec; /20 keeps tractor faster than the base collector.
+        // Catalog pullSpeed is world-units/sec; /12 keeps tractor snappy toward the ship.
         _basePullSpeedPerTick = statistics.PullSpeed > 0
-            ? Math.Max(BasePullSpeed, (int)Math.Round(statistics.PullSpeed / 20.0))
+            ? Math.Max(BasePullSpeed + 4, (int)Math.Round(statistics.PullSpeed / 12.0))
             : BasePullSpeed;
         _hasScoutDrone = statistics.HasScoutDrone;
         _hasTractor = !_hasScoutDrone && statistics.PullSpeed > 0;
@@ -442,16 +444,15 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             {
                 _factBuffer.Add(new(_nextFactId++, RunFactKind.NormalEnemyDestroyed));
                 _normalKills++;
-                _loot.SpawnSalvage(
+                _loot.SpawnSalvageBurst(
                     _miningWorld,
                     new WorldPosition
                     {
                         X = (int)MathF.Round(deathPos.X),
                         Y = (int)MathF.Round(deathPos.Y)
                     },
-                    WorldRunIds.Ferrite,
-                    NormalKillFerriteSalvage,
-                    WorldRun.RunTick);
+                    WorldRun.RunTick,
+                    NormalKillFerriteSalvage);
             }
         }
     }
@@ -473,50 +474,19 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             return;
         }
 
-        EntityId best = default;
-        var bestScore = float.MaxValue;
-        var bestPosition = Vector2.Zero;
-        var bestKind = AsteroidCellKind.Ordinary;
-        foreach (var pair in _asteroidEntities)
+        if (!TryPickMiningTarget(origin, aimDir, out var best, out var bestPosition, out var bestKind, out var tipDistance))
         {
-            var entity = pair.Value;
-            if (!_miningWorld.IsAlive(entity) || !_miningWorld.Store<MineableCell>().Has(entity))
-                continue;
-            var cell = _miningWorld.Get<MineableCell>(entity);
-            if (cell.Broken)
-                continue;
-            var position = _miningWorld.Get<WorldPosition>(entity);
-            var world = new Vector2(position.X, position.Y);
-            var delta = world - origin;
-            var distance = delta.Length();
-            if (distance > MiningRangeWorldUnits)
-                continue;
-            var direction = distance < 0.001f ? aim : Vector2.Normalize(delta);
-            var alignment = 1f - Math.Clamp(Vector2.Dot(aim, direction), -1f, 1f);
-            var score = distance + alignment * 40f;
-            if (score < bestScore)
-            {
-                bestScore = score;
-                best = entity;
-                bestPosition = world;
-                bestKind = cell.Kind;
-            }
-        }
-
-        if (best == default)
-        {
-            const float searchLength = 36f;
             LastMiningPresentation = new MiningPresentationState(
                 Active: true,
                 Hit: false,
                 Origin: origin,
-                HitPosition: origin + aimDir * searchLength,
-                HitDistance: searchLength,
+                HitPosition: origin + aimDir * MiningRangeWorldUnits,
+                HitDistance: MiningRangeWorldUnits,
                 Kind: default);
             return;
         }
 
-        ResolveMiningBeamTip(origin, aimDir, bestPosition, out var tipDistance, out var tipPosition);
+        var tipPosition = origin + aimDir * tipDistance;
         LastMiningPresentation = new MiningPresentationState(
             Active: true,
             Hit: true,
@@ -529,6 +499,86 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             1,
             (int)Math.Round(_miningDamagePerTick * (_appliedModifiers.MiningDamageBasisPoints / 10_000.0)));
         CommitBrokenCells(_mining.Resolve(_miningWorld, [new MiningContact(Combat.Player, best, damage)]));
+        _ = bestPosition;
+    }
+
+    /// <summary>
+    /// Prefer true aim-ray / circle hits; fall back to a narrow cone assist for near misses.
+    /// Range is measured to the asteroid surface along the aim ray (or center distance for assist).
+    /// </summary>
+    private bool TryPickMiningTarget(
+        Vector2 origin,
+        Vector2 aimDir,
+        out EntityId best,
+        out Vector2 bestPosition,
+        out AsteroidCellKind bestKind,
+        out float tipDistance)
+    {
+        best = default;
+        bestPosition = default;
+        bestKind = AsteroidCellKind.Ordinary;
+        tipDistance = MiningRangeWorldUnits;
+        var bestRayDistance = float.MaxValue;
+        var bestAssistScore = float.MaxValue;
+        EntityId assist = default;
+        var assistPosition = Vector2.Zero;
+        var assistKind = AsteroidCellKind.Ordinary;
+        float assistTip = MiningRangeWorldUnits;
+        var minDot = MathF.Cos(MiningAssistConeDegrees * MathF.PI / 180f);
+
+        foreach (var pair in _asteroidEntities)
+        {
+            var entity = pair.Value;
+            if (!_miningWorld.IsAlive(entity) || !_miningWorld.Store<MineableCell>().Has(entity))
+                continue;
+            var cell = _miningWorld.Get<MineableCell>(entity);
+            if (cell.Broken)
+                continue;
+            var position = _miningWorld.Get<WorldPosition>(entity);
+            var world = new Vector2(position.X, position.Y);
+            var toCenter = world - origin;
+            var centerDistance = toCenter.Length();
+            if (centerDistance - AsteroidVisualRadius > MiningRangeWorldUnits)
+                continue;
+
+            if (FlightCombatMath.TryRayCircleEntry(origin, aimDir, world, AsteroidVisualRadius, out var entry) &&
+                entry <= MiningRangeWorldUnits &&
+                entry < bestRayDistance)
+            {
+                bestRayDistance = entry;
+                best = entity;
+                bestPosition = world;
+                bestKind = cell.Kind;
+                tipDistance = entry;
+            }
+
+            if (centerDistance > 0.001f)
+            {
+                var facing = Vector2.Dot(aimDir, toCenter / centerDistance);
+                if (facing >= minDot)
+                {
+                    var score = centerDistance;
+                    if (score < bestAssistScore)
+                    {
+                        bestAssistScore = score;
+                        assist = entity;
+                        assistPosition = world;
+                        assistKind = cell.Kind;
+                        assistTip = MathF.Max(0f, centerDistance - AsteroidVisualRadius);
+                    }
+                }
+            }
+        }
+
+        if (best != default)
+            return true;
+        if (assist == default)
+            return false;
+        best = assist;
+        bestPosition = assistPosition;
+        bestKind = assistKind;
+        tipDistance = MathF.Min(assistTip, MiningRangeWorldUnits);
+        return true;
     }
 
     private void ApplySeismicCharge(Vector2 origin, Vector2 aimDir)
@@ -616,33 +666,6 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             WorldRun.RunTick,
             _appliedModifiers.FractureLens,
             _ferriteYieldMultiplier);
-    }
-
-    private static void ResolveMiningBeamTip(
-        Vector2 origin,
-        Vector2 aimDir,
-        Vector2 asteroidCenter,
-        out float tipDistance,
-        out Vector2 tipPosition)
-    {
-        if (FlightCombatMath.TryRayCircleEntry(
-                origin,
-                aimDir,
-                asteroidCenter,
-                AsteroidVisualRadius,
-                out tipDistance))
-        {
-            tipPosition = origin + aimDir * tipDistance;
-            return;
-        }
-
-        // Soft aim lock can select a rock the ray misses; tip the silhouette facing the player.
-        var towardPlayer = origin - asteroidCenter;
-        var surfaceOffset = towardPlayer.LengthSquared() > 0.0001f
-            ? Vector2.Normalize(towardPlayer) * AsteroidVisualRadius
-            : -aimDir * AsteroidVisualRadius;
-        tipPosition = asteroidCenter + surfaceOffset;
-        tipDistance = MathF.Max(0f, Vector2.Dot(aimDir, tipPosition - origin));
     }
 
     private void SyncCollector()

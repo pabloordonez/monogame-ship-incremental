@@ -283,15 +283,20 @@ public sealed class FlightCombatTests
     }
 
     [Fact]
-    public void SeekerRequiresConeLockAndSurvivesTargetLoss()
+    public void SeekerFiresStraightWithoutLockAndHomesWithConeLock()
     {
         var simulation = NewSimulation(Seeker);
         var target = simulation.SpawnEnemy(Interceptor, new Vector2(300, 0));
+        // Off-cone aim still free-fires straight (no lock target on the event).
         simulation.Queue(Command(0, aim: Vector2.UnitY, actions: FlightAction.Fire));
         simulation.Step();
-        Assert.DoesNotContain(simulation.Events, value => value.Kind == CombatEventKind.WeaponFired);
+        Assert.Contains(simulation.Events, value =>
+            value.Kind == CombatEventKind.WeaponFired && value.Other == default && value.Amount == 2);
 
-        simulation.Queue(Command(1, aim: Vector2.UnitX, actions: FlightAction.Fire));
+        // Wait out seeker cadence (~36 ticks) then lock on-axis.
+        for (var i = 1; i < 40; i++)
+            simulation.Step();
+        simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
         simulation.Step();
         Assert.Contains(simulation.Events, value =>
             value.Kind == CombatEventKind.WeaponFired && value.Other == target && value.Amount == 2);

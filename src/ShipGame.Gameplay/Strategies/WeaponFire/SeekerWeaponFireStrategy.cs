@@ -21,15 +21,14 @@ internal sealed class SeekerWeaponFireStrategy : IWeaponFireStrategy
             return;
         var cadence = Math.Max(1, (int)MathF.Round(definition.CadenceTicks / modifiers.FireRateMultiplier));
         var lockTarget = actions.FindTargetInCone(entity, aim, definition.Range, definition.LockConeDegrees);
-        if (lockTarget == default)
-            return;
+        // Always fire: home when a cone lock exists, otherwise fly straight along aim.
         actions.SpawnPlayerProjectiles(new PlayerProjectileSpawnRequest(
             entity,
             aim,
             definition,
             modifiers,
             lockTarget,
-            Homing: true,
+            Homing: lockTarget != default,
             definition.TurnDegreesPerSecond));
         state = state with { CooldownTicks = cadence, Target = lockTarget };
     }

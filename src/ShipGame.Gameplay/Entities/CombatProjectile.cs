@@ -39,7 +39,8 @@ public sealed class CombatProjectile
             pierces,
             missile,
             detonateOnHit));
-        if (missile)
+        // Homing only when a live lock exists; otherwise the missile flies straight.
+        if (missile && target != default)
             world.Set(entity, new Homing(target, speed, turnDegrees * MathF.PI / 180f));
     }
 }

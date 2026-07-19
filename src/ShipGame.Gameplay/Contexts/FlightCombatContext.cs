@@ -174,10 +174,12 @@ internal sealed class FlightCombatContext
         var definition = request.Definition;
         var modifiers = request.Modifiers;
         var count = definition.BurstCount + modifiers.ExtraProjectiles;
-        // Catalog: pulse fork 85%, seeker fork 60%.
-        var forkMultiplier = request.Homing ? 0.6f : 0.85f;
-        var pierce = request.Homing ? 0 : modifiers.PierceCount;
-        var detonate = request.Homing && modifiers.PierceCount > 0;
+        var isSeeker = definition.Behavior == WeaponBehavior.Seeker;
+        // Catalog: pulse fork 85%, seeker fork 60%. Seeker always uses missile art.
+        var forkMultiplier = isSeeker ? 0.6f : 0.85f;
+        var pierce = isSeeker ? 0 : modifiers.PierceCount;
+        var detonate = isSeeker && modifiers.PierceCount > 0;
+        var homeTarget = isSeeker && request.Homing ? request.Target : default;
         for (var index = 0; index < count; index++)
         {
             var angle = count == 1 ? 0 : (index - (count - 1) * 0.5f) * 0.08f;
@@ -191,8 +193,8 @@ internal sealed class FlightCombatContext
                 definition.Range,
                 Faction.Player,
                 pierce,
-                request.Homing,
-                request.Target,
+                missile: isSeeker,
+                homeTarget,
                 request.TurnDegreesPerSecond,
                 detonateOnHit: detonate);
         }

@@ -17,30 +17,39 @@ public sealed class CollectionSystem
         var collection = world.Store<CollectionRadius>().Read(collector);
         var radius = Math.Clamp(collection.Radius, 0, 10_000);
         var pull = Math.Clamp(collection.PullSpeedPerTick, 0, 1_000);
-        var pullRange = radius * 2;
+        var pullRange = Math.Max(radius * 3, radius + 80);
         var pullRangeSquared = (long)pullRange * pullRange;
         var collected = new List<ResourceCollectedFact>();
         var destroy = new List<EntityId>();
         foreach (var pickup in world.Query<Collectible, WorldPosition>())
         {
             ref var item = ref world.Get<Collectible>(pickup);
-            if (item.Credited || item.Quantity <= 0 || currentTick < item.CollectibleAfterTick)
+            if (item.Credited || item.Quantity <= 0)
                 continue;
             ref var position = ref world.Get<WorldPosition>(pickup);
             var dx = collectorPosition.X - position.X;
             var dy = collectorPosition.Y - position.Y;
             var distanceSquared = (long)dx * dx + (long)dy * dy;
+
+            // Tractor pulls immediately (including grace); credit only after grace.
+            if (pull > 0 && distanceSquared > 0 && distanceSquared <= pullRangeSquared)
+            {
+                position.X += Math.Clamp(dx, -pull, pull);
+                position.Y += Math.Clamp(dy, -pull, pull);
+                dx = collectorPosition.X - position.X;
+                dy = collectorPosition.Y - position.Y;
+                distanceSquared = (long)dx * dx + (long)dy * dy;
+            }
+
+            if (currentTick < item.CollectibleAfterTick)
+                continue;
+
             if (distanceSquared <= (long)radius * radius)
             {
                 item.Credited = true;
                 collected.Add(new(pickup, item.ResourceId, item.Quantity));
                 destroy.Add(pickup);
-                continue;
             }
-            if (pull == 0 || distanceSquared > pullRangeSquared)
-                continue;
-            position.X += Math.Clamp(dx, -pull, pull);
-            position.Y += Math.Clamp(dy, -pull, pull);
         }
         foreach (var pickup in destroy)
             world.Destroy(pickup);

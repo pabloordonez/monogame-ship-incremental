@@ -35,6 +35,7 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
     private long _particlesSpawnedForCombatTick = -1;
     private long _lastMiningSparkTick = -1;
     private long _lastBeamSparkTick = -1;
+    private long _lastThrustParticleTick = -1;
     private string? _phaseToast;
     private int _phaseToastFrames;
 
@@ -445,15 +446,44 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         if (move.LengthSquared() < 0.01f)
             return;
         var dir = System.Numerics.Vector2.Normalize(move);
-        var back = new XnaVector2(-dir.X, -dir.Y);
-        var flicker = (tick / 3) % 2 == 0;
-        var length = flicker ? 18 : 14;
-        for (var i = 1; i <= 3; i++)
+        var forward = new XnaVector2(dir.X, dir.Y);
+        var right = new XnaVector2(-dir.Y, dir.X);
+        var aft = new XnaVector2(-dir.X, -dir.Y);
+        var flicker = (tick / 2) % 2 == 0;
+        var engineSize = flicker ? 22 : 18;
+        var engineAlpha = flicker ? 1f : 0.82f;
+        // Nose-up hardpoints mapped into facing space (aft = +local Y).
+        var leftEngine = shipCenter + aft * 12f + right * -7f;
+        var rightEngine = shipCenter + aft * 12f + right * 7f;
+        var tint = new XnaColor(255, 230, 200) * engineAlpha;
+        DrawRegionRotated("ships/player/engine", leftEngine, MathF.Atan2(forward.Y, forward.X), engineSize, tint);
+        DrawRegionRotated("ships/player/engine", rightEngine, MathF.Atan2(forward.Y, forward.X), engineSize, tint);
+
+        for (var i = 1; i <= 4; i++)
         {
-            var px = (int)(shipCenter.X + back.X * (8 + i * 5));
-            var py = (int)(shipCenter.Y + back.Y * (8 + i * 5));
-            var size = Math.Max(2, length / i - 2);
-            Fill(px - size / 2, py - size / 2, size, size, new XnaColor((byte)255, (byte)180, (byte)80, (byte)(200 - i * 40)));
+            var t = i / 4f;
+            var px = (int)(shipCenter.X + aft.X * (10 + i * 5));
+            var py = (int)(shipCenter.Y + aft.Y * (10 + i * 5));
+            var size = Math.Max(2, 7 - i);
+            Fill(
+                px - size / 2,
+                py - size / 2,
+                size,
+                size,
+                new XnaColor((byte)255, (byte)Math.Max(40, 170 - i * 20), (byte)60, (byte)Math.Max(40, 210 - i * 40)));
+            Fill(
+                (int)(leftEngine.X + aft.X * (4 + i * 3)) - 1,
+                (int)(leftEngine.Y + aft.Y * (4 + i * 3)) - 1,
+                2,
+                2,
+                new XnaColor((byte)120, (byte)200, (byte)255, (byte)Math.Max(20, 160 - i * 30)));
+            Fill(
+                (int)(rightEngine.X + aft.X * (4 + i * 3)) - 1,
+                (int)(rightEngine.Y + aft.Y * (4 + i * 3)) - 1,
+                2,
+                2,
+                new XnaColor((byte)120, (byte)200, (byte)255, (byte)Math.Max(20, 160 - i * 30)));
+            _ = t;
         }
     }
 
@@ -474,19 +504,22 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         const float muzzle = 14f;
         var dir = System.Numerics.Vector2.Normalize(aim);
         var start = new XnaVector2(shipCenter.X + dir.X * muzzle, shipCenter.Y + dir.Y * muzzle);
-        var worldLength = hitDistanceWorld is > 0 and var hit
-            ? MathF.Max(0f, hit - muzzle)
-            : 36f;
-        var length = Math.Clamp(worldLength, 16f, ComposedRunOrchestrator.MiningRangeWorldUnits + 8f);
+        var maxRange = ComposedRunOrchestrator.MiningRangeWorldUnits;
+        var hasHit = hitDistanceWorld is > 0;
+        var worldLength = hasHit
+            ? MathF.Max(0f, MathF.Min(hitDistanceWorld!.Value, maxRange) - muzzle)
+            : MathF.Max(0f, maxRange - muzzle);
+        var length = Math.Clamp(worldLength, 8f, maxRange);
         var rotation = MathF.Atan2(dir.Y, dir.X);
-        DrawRotatedBeamLayer(start, length, rotation, thickness: 6f, new XnaColor(40, 140, 180, 60));
-        DrawRotatedBeamLayer(start, length, rotation, thickness: 3f, new XnaColor(90, 210, 240, 170));
-        DrawRotatedBeamLayer(start, length, rotation, thickness: 1f, new XnaColor(200, 250, 255, 230));
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 6f, new XnaColor(40, 140, 180, hasHit ? 70 : 40));
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 3f, new XnaColor(90, 210, 240, hasHit ? 200 : 110));
+        DrawRotatedBeamLayer(start, length, rotation, thickness: 1f, new XnaColor(200, 250, 255, hasHit ? 240 : 140));
         Fill((int)start.X - 2, (int)start.Y - 2, 5, 5, new XnaColor(180, 240, 255));
-        if (hitDistanceWorld is > 0)
+        if (hasHit)
         {
             var tip = new XnaVector2(start.X + dir.X * length, start.Y + dir.Y * length);
             Fill((int)tip.X - 2, (int)tip.Y - 2, 5, 5, new XnaColor(160, 230, 255));
+            Fill((int)tip.X - 1, (int)tip.Y - 1, 3, 3, new XnaColor(255, 255, 240));
         }
 
         _drewSprites = true;
@@ -751,6 +784,24 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
                 : System.Numerics.Vector2.UnitX;
             // Match DrawBeamRay: tip is at ship-center hit distance along aim.
             _particles.Burst(player + aim * beamHit, ParticlePresets.BeamTip);
+        }
+
+        if (!paused &&
+            hints.MoveIntent.LengthSquared() > 0.01f &&
+            combatTick != _lastThrustParticleTick &&
+            combatTick % 2 == 0 &&
+            run.Combat.Player != default)
+        {
+            _lastThrustParticleTick = combatTick;
+            var player = run.Combat.Snapshot(run.Combat.Player);
+            var move = System.Numerics.Vector2.Normalize(hints.MoveIntent);
+            var aft = -move;
+            var right = new System.Numerics.Vector2(-move.Y, move.X);
+            var leftNozzle = player.Position + aft * 14f + right * -8f;
+            var rightNozzle = player.Position + aft * 14f + right * 8f;
+            _particles.Burst(leftNozzle, ParticlePresets.ThrustFlame(aft));
+            _particles.Burst(rightNozzle, ParticlePresets.ThrustFlame(aft));
+            _particles.Burst(player.Position + aft * 16f, ParticlePresets.ThrustEmber(aft));
         }
 
         if (!paused)

@@ -149,4 +149,32 @@ internal static class ParticlePresets
         MinSize: 1,
         MaxSize: 3,
         Drag: 0.88f);
+
+    public static ParticleBurst ThrustFlame(System.Numerics.Vector2 aftDirection) => new(
+        Count: 3,
+        MinSpeed: 40f,
+        MaxSpeed: 110f,
+        MinLife: 0.08f,
+        MaxLife: 0.22f,
+        ColorA: new XnaColor(255, 140, 40),
+        ColorB: new XnaColor(255, 230, 140),
+        MinSize: 1,
+        MaxSize: 3,
+        Drag: 0.86f,
+        BiasDirection: aftDirection,
+        BiasStrength: 2.4f);
+
+    public static ParticleBurst ThrustEmber(System.Numerics.Vector2 aftDirection) => new(
+        Count: 2,
+        MinSpeed: 20f,
+        MaxSpeed: 60f,
+        MinLife: 0.12f,
+        MaxLife: 0.30f,
+        ColorA: new XnaColor(80, 160, 255),
+        ColorB: new XnaColor(180, 230, 255),
+        MinSize: 1,
+        MaxSize: 2,
+        Drag: 0.90f,
+        BiasDirection: aftDirection,
+        BiasStrength: 1.8f);
 }

@@ -7,7 +7,7 @@ public static class MetaItemDescriptions
     {
         ModuleCatalog.WeaponPulse => "Rapid bolts. Reliable discrete fire with no ammo.",
         ModuleCatalog.WeaponBeam => "Continuous hitscan beam. Overheats if held too long.",
-        ModuleCatalog.WeaponSeeker => "Locks in a cone and launches a dual missile salvo.",
+        ModuleCatalog.WeaponSeeker => "Dual missiles: home in-cone, or fly straight when no lock.",
         ModuleCatalog.MiningLaser => "Continuous mining beam for asteroid cells.",
         ModuleCatalog.MiningCharge => "Aimed seismic blast: mining AoE plus light combat damage.",
         ModuleCatalog.ShieldCapacitor => "Balanced shield capacity and recharge.",

@@ -54,15 +54,17 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
         foreach (var pickup in run.Pickups)
         {
             var screen = canvas.WorldToScreen(new System.Numerics.Vector2(pickup.X, pickup.Y), camera);
-            if (!canvas.OnScreen(screen, 20))
+            if (!canvas.OnScreen(screen, 16))
                 continue;
+            // Use the same crisp UI resource icons as the HUD (pickups/* atlas blobs are placeholders).
             var region = pickup.ResourceId.Value switch
             {
-                MetaContentIds.Lumen => "pickups/lumen",
-                MetaContentIds.DataCore => "pickups/data-core",
-                _ => "pickups/ferrite"
+                MetaContentIds.Lumen => "ui/icons/resource-lumen",
+                MetaContentIds.DataCore => "ui/icons/resource-data-core",
+                _ => "ui/icons/resource-ferrite"
             };
-            canvas.DrawRegion(region, (int)screen.X - 8, (int)screen.Y - 8, 16, 16);
+            const int size = 10;
+            canvas.DrawRegion(region, (int)screen.X - size / 2, (int)screen.Y - size / 2, size, size);
         }
 
         var playerScreen = new XnaVector2(MvpPresentation.VirtualWidth / 2f, MvpPresentation.VirtualHeight / 2f);
@@ -79,7 +81,12 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
             {
                 case CombatRenderKind.PlayerShip:
                     playerScreen = screen;
-                    canvas.DrawThrustTrail(screen, hints.MoveIntent, hud.RunTick);
+                    // Prefer facing-aligned thrust so engines stay on the aft of the hull art.
+                    var thrustDir = hints.MoveIntent.LengthSquared() > 0.01f
+                        ? hints.MoveIntent
+                        : new System.Numerics.Vector2(MathF.Cos(item.Rotation), MathF.Sin(item.Rotation));
+                    if (hints.MoveIntent.LengthSquared() > 0.01f)
+                        canvas.DrawThrustTrail(screen, thrustDir, hud.RunTick);
                     canvas.DrawRegionRotated("ships/player/wayfarer", screen, item.Rotation, 32);
                     if (run.HasTractorUtility)
                     {
@@ -106,7 +113,9 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                     if (hints.MineHeld)
                     {
                         var mining = run.LastMiningPresentation;
-                        float? mineHit = mining.Active ? mining.HitDistance : 36f;
+                        float? mineHit = mining is { Active: true, Hit: true }
+                            ? mining.HitDistance
+                            : null;
                         canvas.DrawMineRay(screen, hints.AimDirection, mineHit);
                     }
 
