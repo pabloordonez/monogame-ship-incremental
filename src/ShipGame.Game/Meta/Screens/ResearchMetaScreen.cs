@@ -73,6 +73,9 @@ internal sealed class ResearchMetaScreen : MetaScreenHandlerBase
         canvas.DrawText(24, 36, "Unlock modules for your loadout", new XnaColor(180, 200, 220));
         canvas.DrawBankedPurse(session);
 
+        string? tooltipTitle = null;
+        string? tooltipBody = null;
+        string? tooltipStatus = null;
         foreach (var node in _visible)
         {
             var id = $"research:{node.Definition.Id}";
@@ -100,7 +103,17 @@ internal sealed class ResearchMetaScreen : MetaScreenHandlerBase
                 MvpPresentation.ShortId(node.Definition.Id),
                 subtitle,
                 accent);
+
+            if (ui.GetState(id) is UiControlState.Focused or UiControlState.Hovered)
+            {
+                tooltipTitle = node.Definition.Name;
+                tooltipBody = MetaItemDescriptions.For(node.Definition.Id);
+                tooltipStatus = node.Purchased ? "OWNED" : ready ? "READY" : "LOCKED";
+            }
         }
+
+        if (tooltipTitle is not null && tooltipBody is not null)
+            canvas.DrawItemTooltip(tooltipTitle, tooltipBody, tooltipStatus);
 
         canvas.DrawShellButtons(ui);
         if (_statusFrames > 0 && !string.IsNullOrEmpty(_statusMessage))

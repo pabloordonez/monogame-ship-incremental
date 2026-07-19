@@ -66,12 +66,20 @@ public sealed class FlightCombatWorld
     public EntityId SpawnPlayer(
         Vector2 position,
         ContentId weaponId,
-        MobilityBehavior mobility = MobilityBehavior.Dash)
+        MobilityBehavior mobility = MobilityBehavior.Dash,
+        PlayerSpawnStats? stats = null)
     {
         if (_context.Player != default && _context.World.IsAlive(_context.Player))
             throw new InvalidOperationException("Only one player is supported.");
         var entity = _context.CreateEntity();
-        _ = new PlayerShip(_context.World, entity, position, weaponId, _context.Registry.Weapon(weaponId), mobility);
+        _ = new PlayerShip(
+            _context.World,
+            entity,
+            position,
+            weaponId,
+            _context.Registry.Weapon(weaponId),
+            mobility,
+            stats ?? PlayerSpawnStats.Defaults);
         _context.Player = entity;
         return entity;
     }
@@ -198,6 +206,9 @@ public sealed class FlightCombatWorld
             if (kind == CombatRenderKind.EnemyShip && _context.Has<WeaponMount>(entity))
                 archetype = _context.World.Get<WeaponMount>(entity).BehaviorId;
 
+            var isMissile = kind == CombatRenderKind.Projectile &&
+                            _context.Has<Projectile>(entity) &&
+                            _context.World.Get<Projectile>(entity).IsMissile;
             into.Add(new(
                 entity,
                 transform.Position,
@@ -207,12 +218,32 @@ public sealed class FlightCombatWorld
                 _context.Has<Elite>(entity),
                 _context.Has<Health>(entity) ? _context.World.Get<Health>(entity).Current : 0,
                 _context.Has<Shield>(entity) ? _context.World.Get<Shield>(entity).Current : 0,
-                archetype));
+                archetype,
+                isMissile));
         }
     }
 
     public bool IsElite(EntityId entity) =>
         entity != default && _context.World.IsAlive(entity) && _context.Has<Elite>(entity);
+
+    /// <summary>True for hostile ships (not projectiles/mines/obstacles), including the destroy tick.</summary>
+    public bool IsHostileShip(EntityId entity) =>
+        entity != default &&
+        _context.World.IsAlive(entity) &&
+        _context.Has<Combatant>(entity) &&
+        _context.World.Get<Combatant>(entity).Faction == Faction.Hostile &&
+        _context.Has<Health>(entity) &&
+        !_context.Has<Projectile>(entity) &&
+        !_context.Has<Mine>(entity);
+
+    public bool TryGetPosition(EntityId entity, out Vector2 position)
+    {
+        position = default;
+        if (entity == default || !_context.World.IsAlive(entity) || !_context.Has<Transform2>(entity))
+            return false;
+        position = _context.World.Get<Transform2>(entity).Position;
+        return true;
+    }
 
     public bool TryGetPlayerAim(out Vector2 aim)
     {
@@ -297,6 +328,41 @@ public sealed class FlightCombatWorld
         if (_context.ExternalDamageCount >= _context.ExternalDamage.Length)
             throw new InvalidOperationException("External damage exceeded the deterministic per-tick bound.");
         _context.ExternalDamage[_context.ExternalDamageCount++] = new FlightCombatContext.DamageRequest(target, source, amount, projectile);
+    }
+
+    public void QueueAreaDamage(EntityId source, Vector2 center, float radius, float damage, Faction targetFaction)
+    {
+        if (source == default || !_context.World.IsAlive(source))
+            return;
+        _context.QueueAreaDamage(source, center, radius, damage, targetFaction);
+    }
+
+    /// <summary>Spawns a player-faction bolt from an arbitrary world origin (scout drone assistant).</summary>
+    public EntityId SpawnScoutProjectile(Vector2 origin, Vector2 direction, float damage, float speed, float range)
+    {
+        EnsurePlayer();
+        var aim = direction.LengthSquared() > 0.0001f ? Vector2.Normalize(direction) : Vector2.UnitX;
+        var entity = _context.SpawnProjectile(
+            _context.Player,
+            aim,
+            damage,
+            speed,
+            range,
+            Faction.Player,
+            pierces: 0,
+            missile: false,
+            target: default,
+            turnDegrees: 0,
+            originOverride: origin);
+        _context.AddEvent(CombatEvent.Create(
+            CombatEventKind.WeaponFired,
+            Tick,
+            _context.Player,
+            default,
+            new ContentId("MOD_UTILITY_DRONE"),
+            origin,
+            amount: 1));
+        return entity;
     }
 
     public ulong Step()

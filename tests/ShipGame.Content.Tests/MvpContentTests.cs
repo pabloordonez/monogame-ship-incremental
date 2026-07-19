@@ -55,6 +55,7 @@ public class MvpContentTests
         Assert.Contains("data/title-placeholder", catalog.AssetIds);
         Assert.Contains("MAT_FERRITE", catalog.DefinitionIds);
         Assert.Contains("projectiles/hostile", catalog.RegionIds);
+        Assert.Contains("projectiles/seeker", catalog.RegionIds);
         Assert.Contains("weapons/pulse", catalog.RegionIds);
     }
 
@@ -209,7 +210,7 @@ public class MvpContentTests
                 "pickups/ferrite", "pickups/lumen", "pickups/data-core"
             ]),
             ("atlases/player-modules", ["weapons/pulse", "weapons/seeker", "ships/player/wayfarer"]),
-            ("atlases/enemies-telegraphs", ["projectiles/hostile", "enemies/interceptor", "telegraphs/muzzle-flash"])
+            ("atlases/enemies-telegraphs", ["projectiles/hostile", "projectiles/seeker", "enemies/interceptor", "telegraphs/muzzle-flash"])
         };
 
         foreach (var (atlasId, regionIds) in regionAssets)

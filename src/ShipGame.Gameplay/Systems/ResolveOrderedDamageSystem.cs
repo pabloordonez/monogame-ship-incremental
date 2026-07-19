@@ -35,6 +35,17 @@ internal sealed class ResolveOrderedDamageSystem(FlightCombatContext context) : 
                         remaining: shield.Current));
                     if (before > 0 && shield.Current <= 0)
                         context.AddEvent(CombatEvent.Create(CombatEventKind.ShieldDepleted, tick, request.Target, request.Source));
+                    if (request.Projectile &&
+                        absorbed > 0 &&
+                        context.Has<ReflectiveShield>(request.Target) &&
+                        request.Source != default &&
+                        context.IsTargetable(request.Source) &&
+                        context.Has<Health>(request.Source))
+                    {
+                        var reflected = absorbed * context.World.Get<ReflectiveShield>(request.Target).ReflectFraction;
+                        if (reflected > 0)
+                            context.QueueDamage(request.Source, request.Target, reflected, projectile: false);
+                    }
                 }
             }
             if (remaining <= 0)

@@ -323,6 +323,55 @@ public sealed class P5ComposedRunTests
         Assert.True(end.Hull + end.Shield < startVitality || end.Destroyed);
     }
 
+    [Fact]
+    public void EnemyKill_SpawnsVisibleFerritePickup()
+    {
+        var profile = ProfileAggregate.CreateNew(503);
+        profile.BeginRun("TX_BEGIN_SALVAGE");
+        var run = new ComposedRunOrchestrator(
+            WorldRunIds.CinderBelt,
+            profile.Snapshot.ProfileSeed,
+            profile.Snapshot.RunIndex,
+            profile.ResolveLoadout(),
+            profile.DeriveStatistics(),
+            recoveryProtocols: false,
+            enableThreatDirector: false);
+
+        var playerPos = run.Combat.Snapshot(run.Combat.Player).Position;
+        var enemy = run.Combat.SpawnEnemy(
+            new ContentId("ENM_INTERCEPTOR"),
+            playerPos + new Vector2(80, 0));
+        run.Combat.InflictDamage(enemy, run.Combat.Player, 10_000f, projectile: true);
+        run.Step(FlightCommandFrame.Neutral(run.Combat.Tick));
+
+        Assert.Contains(run.Pickups, pickup => pickup.ResourceId == WorldRunIds.Ferrite);
+    }
+
+    [Fact]
+    public void StationHullAndShieldUpgrades_ApplyOnSpawn()
+    {
+        var profile = ProfileAggregate.CreateNew(504);
+        var snap = profile.Snapshot;
+        profile = new ProfileAggregate(snap with
+        {
+            PurchasedUpgradeIds = ["UPG_REINFORCED_FRAME", "UPG_SHIELD_RESERVOIR"],
+            Balances = new ResourceAmounts(500, 20, 20)
+        });
+        profile.BeginRun("TX_BEGIN_UPG_SPAWN");
+        var run = new ComposedRunOrchestrator(
+            WorldRunIds.CinderBelt,
+            profile.Snapshot.ProfileSeed,
+            profile.Snapshot.RunIndex,
+            profile.ResolveLoadout(),
+            profile.DeriveStatistics(),
+            recoveryProtocols: false,
+            purchasedUpgradeIds: profile.Snapshot.PurchasedUpgradeIds);
+
+        var player = run.Combat.Snapshot(run.Combat.Player);
+        Assert.Equal(125, player.Hull); // 100 + 25
+        Assert.Equal(90, player.Shield); // 60 + 30
+    }
+
     private static ProfileAggregate UnlockAndEquipDrone(ProfileAggregate profile)
     {
         var snap = profile.Snapshot;

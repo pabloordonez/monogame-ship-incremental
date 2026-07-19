@@ -5,7 +5,7 @@ namespace ShipGame.Gameplay;
 
 public sealed class CollectionSystem
 {
-    public IReadOnlyList<ResourceCollectedFact> Resolve(World world, EntityId collector)
+    public IReadOnlyList<ResourceCollectedFact> Resolve(World world, EntityId collector, long currentTick = long.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(world);
         if (!world.IsAlive(collector) ||
@@ -17,12 +17,14 @@ public sealed class CollectionSystem
         var collection = world.Store<CollectionRadius>().Read(collector);
         var radius = Math.Clamp(collection.Radius, 0, 10_000);
         var pull = Math.Clamp(collection.PullSpeedPerTick, 0, 1_000);
+        var pullRange = radius * 2;
+        var pullRangeSquared = (long)pullRange * pullRange;
         var collected = new List<ResourceCollectedFact>();
         var destroy = new List<EntityId>();
         foreach (var pickup in world.Query<Collectible, WorldPosition>())
         {
             ref var item = ref world.Get<Collectible>(pickup);
-            if (item.Credited || item.Quantity <= 0)
+            if (item.Credited || item.Quantity <= 0 || currentTick < item.CollectibleAfterTick)
                 continue;
             ref var position = ref world.Get<WorldPosition>(pickup);
             var dx = collectorPosition.X - position.X;
@@ -35,7 +37,7 @@ public sealed class CollectionSystem
                 destroy.Add(pickup);
                 continue;
             }
-            if (pull == 0)
+            if (pull == 0 || distanceSquared > pullRangeSquared)
                 continue;
             position.X += Math.Clamp(dx, -pull, pull);
             position.Y += Math.Clamp(dy, -pull, pull);

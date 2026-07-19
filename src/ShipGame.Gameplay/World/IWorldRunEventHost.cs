@@ -10,6 +10,7 @@ internal interface IWorldRunEventHost
     EntityId PlayerEntity { get; }
     Vector2 EliteArenaWorldCenter { get; }
     Vector2 PlayerWorldPosition { get; }
+    Vector2 LastEliteDeathWorldPosition { get; }
     void InflictDamage(EntityId target, EntityId source, float amount, bool projectile);
     /// <summary>Spawns the elite once; returns false if already requested.</summary>
     bool TrySpawnEliteEnemy(ContentId enemyId, Vector2 worldPosition, out EntityId eliteEntity);

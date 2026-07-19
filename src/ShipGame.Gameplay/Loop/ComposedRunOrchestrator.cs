@@ -46,8 +46,13 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     private readonly int _basePickupRadius;
     private readonly int _basePullSpeedPerTick;
     private readonly bool _hasScoutDrone;
+    private readonly bool _hasTractor;
+    private readonly bool _hasSeismicCharge;
+    private readonly decimal _ferriteYieldMultiplier;
     private float _droneOrbitAngle;
     private int _droneCooldownTicks;
+    private int _seismicCooldownTicks;
+    private Vector2 _lastEliteDeathWorldPosition;
 
     public ComposedRunOrchestrator(
         ContentId environmentId,
@@ -79,7 +84,18 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         var spawn = CellToWorld(Descriptor.Spawn.Center);
         var weapon = new ContentId(loadout.Effective.Weapon);
         var mobility = statistics.HasBlink ? MobilityBehavior.Blink : MobilityBehavior.Dash;
-        Combat.SpawnPlayer(spawn, weapon, mobility);
+        var stationUpgrades = RunUpgradeCatalog.Fold(purchasedUpgradeIds ?? Array.Empty<string>());
+        var shieldDelaySeconds = (float)statistics.ShieldRechargeDelaySeconds +
+                                 stationUpgrades.ShieldDelayTicksFlat / (float)WorldRun.TickRate;
+        var spawnStats = new PlayerSpawnStats(
+            MaximumHull: statistics.MaximumHull + stationUpgrades.HullFlat,
+            MaximumSpeed: statistics.MaximumSpeed,
+            ShieldCapacity: statistics.ShieldCapacity + stationUpgrades.ShieldCapacityFlat,
+            ShieldRechargePerSecond: (float)statistics.ShieldRechargePerSecond *
+                                     (stationUpgrades.ShieldRechargeBasisPoints / 10_000f),
+            ShieldDelayTicks: Math.Max(1, (int)MathF.Round(MathF.Max(0.1f, shieldDelaySeconds) * WorldRun.TickRate)),
+            ReflectiveFraction: statistics.HasReflectiveShield ? 0.2f : 0f);
+        Combat.SpawnPlayer(spawn, weapon, mobility, spawnStats);
         foreach (var sector in Descriptor.Sectors)
             Combat.AddSpawnAnchor(CellToWorld(sector.Center), outsideCamera: sector.Kind != SectorKind.Spawn);
         if (enableThreatDirector)
@@ -92,6 +108,9 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             ? Math.Max(BasePullSpeed, (int)Math.Round(statistics.PullSpeed / 20.0))
             : BasePullSpeed;
         _hasScoutDrone = statistics.HasScoutDrone;
+        _hasTractor = !_hasScoutDrone && statistics.PullSpeed > 0;
+        _ferriteYieldMultiplier = statistics.FerriteYieldMultiplier;
+        _hasSeismicCharge = loadout.Effective.Mining == ModuleCatalog.MiningCharge;
         var collectorEntity = _miningWorld.Create();
         _ = new Collector(
             _miningWorld,
@@ -405,10 +424,16 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         {
             if (combatEvent.Kind != CombatEventKind.EntityDestroyed)
                 continue;
-            if (combatEvent.Entity == Combat.Player)
+            if (combatEvent.Entity == Combat.Player || !Combat.IsHostileShip(combatEvent.Entity))
                 continue;
+
+            var deathPos = Combat.TryGetPosition(combatEvent.Entity, out var position)
+                ? position
+                : SafePlayerSnapshot().Position;
+
             if (combatEvent.Entity == _eliteEntity || Combat.IsElite(combatEvent.Entity))
             {
+                _lastEliteDeathWorldPosition = deathPos;
                 _factBuffer.Add(new(_nextFactId++, RunFactKind.EliteDestroyed));
                 _eliteKills++;
                 NoteCheckpoint("elite_destroyed_combat");
@@ -416,24 +441,38 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             else
             {
                 _factBuffer.Add(new(_nextFactId++, RunFactKind.NormalEnemyDestroyed));
-                _factBuffer.Add(new(
-                    _nextFactId++,
-                    RunFactKind.ResourceCollected,
-                    WorldRunIds.Ferrite,
-                    NormalKillFerriteSalvage));
                 _normalKills++;
-                _ferriteCollected += NormalKillFerriteSalvage;
+                _loot.SpawnSalvage(
+                    _miningWorld,
+                    new WorldPosition
+                    {
+                        X = (int)MathF.Round(deathPos.X),
+                        Y = (int)MathF.Round(deathPos.Y)
+                    },
+                    WorldRunIds.Ferrite,
+                    NormalKillFerriteSalvage,
+                    WorldRun.RunTick);
             }
         }
     }
 
     private void ApplyMining(FlightCommandFrame command)
     {
+        if (_seismicCooldownTicks > 0)
+            _seismicCooldownTicks--;
         if ((command.Actions & FlightAction.Mine) == 0)
             return;
         Combat.TryGetPlayerAim(out var aim);
         var player = SafePlayerSnapshot();
         var origin = player.Position;
+        var aimDir = aim.LengthSquared() > 0.01f ? Vector2.Normalize(aim) : Vector2.UnitX;
+
+        if (_hasSeismicCharge)
+        {
+            ApplySeismicCharge(origin, aimDir);
+            return;
+        }
+
         EntityId best = default;
         var bestScore = float.MaxValue;
         var bestPosition = Vector2.Zero;
@@ -464,7 +503,6 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             }
         }
 
-        var aimDir = aim.LengthSquared() > 0.01f ? Vector2.Normalize(aim) : Vector2.UnitX;
         if (best == default)
         {
             const float searchLength = 36f;
@@ -490,7 +528,64 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         var damage = Math.Max(
             1,
             (int)Math.Round(_miningDamagePerTick * (_appliedModifiers.MiningDamageBasisPoints / 10_000.0)));
-        var broken = _mining.Resolve(_miningWorld, [new MiningContact(Combat.Player, best, damage)]);
+        CommitBrokenCells(_mining.Resolve(_miningWorld, [new MiningContact(Combat.Player, best, damage)]));
+    }
+
+    private void ApplySeismicCharge(Vector2 origin, Vector2 aimDir)
+    {
+        const float seismicRange = 300f;
+        const float seismicRadius = 110f;
+        const int seismicMiningDamage = 65;
+        const float seismicCombatDamage = 12f;
+        var aimPoint = origin + aimDir * Math.Min(seismicRange, 180f);
+        LastMiningPresentation = new MiningPresentationState(
+            Active: true,
+            Hit: _seismicCooldownTicks <= 0,
+            Origin: origin,
+            HitPosition: aimPoint,
+            HitDistance: Vector2.Distance(origin, aimPoint),
+            Kind: AsteroidCellKind.Ordinary);
+
+        if (_seismicCooldownTicks > 0)
+            return;
+
+        _seismicCooldownTicks = 3 * WorldRun.TickRate;
+        var contacts = new List<MiningContact>();
+        var miningDamage = Math.Max(
+            1,
+            (int)Math.Round(seismicMiningDamage * (_appliedModifiers.MiningDamageBasisPoints / 10_000.0)));
+        foreach (var pair in _asteroidEntities)
+        {
+            var entity = pair.Value;
+            if (!_miningWorld.IsAlive(entity) || !_miningWorld.Store<MineableCell>().Has(entity))
+                continue;
+            var cell = _miningWorld.Get<MineableCell>(entity);
+            if (cell.Broken)
+                continue;
+            var position = _miningWorld.Get<WorldPosition>(entity);
+            var world = new Vector2(position.X, position.Y);
+            if (Vector2.Distance(origin, world) > seismicRange)
+                continue;
+            if (Vector2.Distance(aimPoint, world) > seismicRadius)
+                continue;
+            contacts.Add(new MiningContact(Combat.Player, entity, miningDamage));
+        }
+
+        CommitBrokenCells(_mining.Resolve(_miningWorld, contacts));
+        Combat.CollectSnapshots(_snapshotBuffer);
+        var radiusSq = seismicRadius * seismicRadius;
+        foreach (var snap in _snapshotBuffer)
+        {
+            if (snap.Faction != Faction.Hostile || snap.Destroyed || snap.Hull <= 0)
+                continue;
+            if (Vector2.DistanceSquared(aimPoint, snap.Position) > radiusSq)
+                continue;
+            Combat.InflictDamage(snap.Entity, Combat.Player, seismicCombatDamage, projectile: false);
+        }
+    }
+
+    private void CommitBrokenCells(IReadOnlyList<CellBrokenFact> broken)
+    {
         if (broken.Count == 0)
             return;
 
@@ -502,9 +597,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 AsteroidCellKind.Lumen => WorldRunIds.Lumen,
                 _ => default
             };
-            // Every broken cell routes through the fact pipeline for lifetime accounting.
             _factBuffer.Add(new(_nextFactId++, RunFactKind.ResourceCellBroken, resource, 1));
-            var breakPosition = bestPosition;
+            var breakPosition = Vector2.Zero;
             if (_miningWorld.IsAlive(cell.Cell) && _miningWorld.Store<WorldPosition>().Has(cell.Cell))
             {
                 var pos = _miningWorld.Get<WorldPosition>(cell.Cell);
@@ -516,8 +610,12 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 Combat.DestroyEntity(obstacle);
         }
 
-        var spawned = _loot.Spawn(_miningWorld, broken, _appliedModifiers.FractureLens);
-        _ = spawned;
+        _ = _loot.Spawn(
+            _miningWorld,
+            broken,
+            WorldRun.RunTick,
+            _appliedModifiers.FractureLens,
+            _ferriteYieldMultiplier);
     }
 
     private static void ResolveMiningBeamTip(
@@ -599,24 +697,28 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             ? MathF.Atan2(targetPos.Y - dronePos.Y, targetPos.X - dronePos.X)
             : _droneOrbitAngle + MathF.PI * 0.5f;
 
+        var fired = false;
         if (_droneCooldownTicks > 0)
             _droneCooldownTicks--;
         else if (target != default)
         {
-            Combat.InflictDamage(target, Combat.Player, ScoutDroneDamage, projectile: true);
+            var aim = targetPos - dronePos;
+            Combat.SpawnScoutProjectile(dronePos, aim, ScoutDroneDamage, ScoutDroneProjectileSpeed, ScoutDroneRange);
             _droneCooldownTicks = ScoutDroneCooldownTicks;
+            fired = true;
         }
 
-        LastScoutDronePresentation = new ScoutDronePresentation(true, dronePos, rotation);
+        LastScoutDronePresentation = new ScoutDronePresentation(true, dronePos, rotation, fired);
     }
 
     private const float ScoutDroneRange = 450f;
     private const float ScoutDroneDamage = 8f;
+    private const float ScoutDroneProjectileSpeed = 500f;
     private const int ScoutDroneCooldownTicks = (int)(0.8f * WorldRun.TickRate);
 
     private void CollectPickups()
     {
-        var collected = _collection.Resolve(_miningWorld, _collector);
+        var collected = _collection.Resolve(_miningWorld, _collector, WorldRun.RunTick);
         foreach (var item in collected)
         {
             _factBuffer.Add(new(_nextFactId++, RunFactKind.ResourceCollected, item.ResourceId, item.Quantity));
@@ -637,6 +739,10 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
 
     Vector2 IWorldRunEventHost.PlayerWorldPosition => SafePlayerSnapshot().Position;
 
+    Vector2 IWorldRunEventHost.LastEliteDeathWorldPosition => _lastEliteDeathWorldPosition;
+
+    public bool HasTractorUtility => _hasTractor;
+
     void IWorldRunEventHost.InflictDamage(EntityId target, EntityId source, float amount, bool projectile) =>
         Combat.InflictDamage(target, source, amount, projectile);
 
@@ -652,7 +758,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     }
 
     void IWorldRunEventHost.SpawnEliteDataCore(WorldPosition position) =>
-        _loot.SpawnEliteDataCore(_miningWorld, position);
+        _loot.SpawnEliteDataCore(_miningWorld, position, WorldRun.RunTick);
 
     void IWorldRunEventHost.NoteCheckpoint(string name) => NoteCheckpoint(name);
 

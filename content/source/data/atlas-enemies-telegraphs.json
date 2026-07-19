@@ -153,6 +153,18 @@
       "animation": null
     },
     {
+      "id": "projectiles/seeker",
+      "x": 91,
+      "y": 74,
+      "width": 12,
+      "height": 12,
+      "pivotX": 0.5,
+      "pivotY": 0.5,
+      "collision": "collision/projectile",
+      "hardpoints": null,
+      "animation": null
+    },
+    {
       "id": "telegraphs/elite-marker",
       "x": 371,
       "y": 5,

@@ -274,6 +274,20 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         DrawText(textX, bounds.Y + bounds.Height - 16 + inset, Truncate(subtitle, maxChars), subtitleColor);
     }
 
+    /// <summary>Compact effect tooltip above the footer band (virtual 640×360).</summary>
+    public void DrawItemTooltip(string title, string body, string? status = null)
+    {
+        const int x = 200;
+        const int y = 286;
+        const int width = 416;
+        const int height = 34;
+        Fill(x, y, width, height, new XnaColor(12, 18, 28, 230));
+        Frame(x, y, width, height, new XnaColor(80, 110, 140), 1);
+        DrawText(x + 6, y + 4, Truncate(title, 48), new XnaColor(230, 240, 255));
+        var line = string.IsNullOrEmpty(status) ? body : $"{body}  [{status}]";
+        DrawText(x + 6, y + 18, Truncate(line, 64), new XnaColor(170, 200, 180));
+    }
+
     public bool TryResolveUiIcon(
         string definitionId,
         out string regionId,
@@ -684,10 +698,28 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
             });
 
             foreach (var cue in cues)
+            {
                 SpawnParticlesForCue(cue);
+                if (cue.Kind == CombatCueKind.Weapon &&
+                    run.Combat.TryGetPlayerWeapon(out var firedWeapon, out _) &&
+                    firedWeapon == WeaponBehavior.Seeker)
+                    _particles.Burst(cue.Position, ParticlePresets.MissileLaunch);
+            }
 
             foreach (var broken in run.LastBrokenAsteroids)
                 _particles.Burst(broken.Position, ParticlePresets.AsteroidBreak(broken.Kind));
+
+            if (combatTick % 2 == 0)
+            {
+                foreach (var item in run.LiveRenderItems)
+                {
+                    if (!item.IsMissile)
+                        continue;
+                    var behind = item.Position -
+                                 new System.Numerics.Vector2(MathF.Cos(item.Rotation), MathF.Sin(item.Rotation)) * 8f;
+                    _particles.Burst(behind, ParticlePresets.MissileSmoke);
+                }
+            }
         }
 
         var mining = run.LastMiningPresentation;

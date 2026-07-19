@@ -167,6 +167,12 @@
           "collision": "collision/projectile"
         },
         {
+          "id": "projectiles/seeker",
+          "width": 12,
+          "height": 12,
+          "collision": "collision/projectile"
+        },
+        {
           "id": "telegraphs/elite-marker",
           "width": 32,
           "height": 32,

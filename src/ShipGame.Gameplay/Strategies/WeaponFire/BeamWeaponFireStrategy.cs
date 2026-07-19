@@ -33,23 +33,41 @@ internal sealed class BeamWeaponFireStrategy : IWeaponFireStrategy
         }
 
         var cone = definition.LockConeDegrees > 0 ? definition.LockConeDegrees : 24f;
-        var target = actions.FindTargetInCone(entity, aim, definition.Range, cone);
-        if (target != default)
+        var tickDamage = definition.Damage * FlightCombatConstants.TickSeconds *
+                         modifiers.DamageMultiplier * modifiers.FireRateMultiplier;
+        var maxTargets = 1 + Math.Max(0, modifiers.PierceCount);
+        var targets = actions.FindTargetsInConeOrdered(entity, aim, definition.Range, cone, maxTargets);
+        EntityId primary = default;
+        if (targets.Count > 0)
         {
-            actions.QueueDamage(
-                target,
-                entity,
-                definition.Damage * FlightCombatConstants.TickSeconds * modifiers.DamageMultiplier * modifiers.FireRateMultiplier,
-                false);
+            primary = targets[0];
+            for (var i = 0; i < targets.Count; i++)
+                actions.QueueDamage(targets[i], entity, tickDamage, false);
+
+            if (modifiers.ExtraProjectiles > 0)
+            {
+                var forkAim = FlightCombatContext.Rotate(
+                    FlightCombatContext.NormalizeOr(aim, Vector2.UnitX),
+                    0.12f);
+                var forkTargets = actions.FindTargetsInConeOrdered(
+                    entity,
+                    forkAim,
+                    definition.Range,
+                    cone,
+                    maxTargets);
+                for (var i = 0; i < forkTargets.Count; i++)
+                    actions.QueueDamage(forkTargets[i], entity, tickDamage * 0.45f, false);
+            }
+
             actions.AddEvent(CombatEvent.Create(
                 CombatEventKind.WeaponFired,
                 tick,
                 entity,
-                target,
+                primary,
                 definition.Id));
         }
 
         var nextHeat = MathF.Min(180, state.Heat + definition.HeatPerTick);
-        state = state with { Heat = nextHeat, HeatLocked = nextHeat >= 180, Target = target };
+        state = state with { Heat = nextHeat, HeatLocked = nextHeat >= 180, Target = primary };
     }
 }

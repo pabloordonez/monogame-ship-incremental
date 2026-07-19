@@ -58,7 +58,12 @@ internal sealed class FlightCombatContext
         Random = new RandomStreams(seed);
         EventView = Events.AsReadOnly();
         EnemyAiCombat = new EnemyAiCombatActions(SpawnHostileProjectile, SpawnMine);
-        WeaponFireActions = new WeaponFireActions(FindTargetInCone, QueueDamage, AddEvent, SpawnPlayerProjectiles);
+        WeaponFireActions = new WeaponFireActions(
+            FindTargetInCone,
+            FindTargetsInConeOrdered,
+            QueueDamage,
+            AddEvent,
+            SpawnPlayerProjectiles);
     }
 
     internal void ClearTickBuffers()
@@ -169,11 +174,15 @@ internal sealed class FlightCombatContext
         var definition = request.Definition;
         var modifiers = request.Modifiers;
         var count = definition.BurstCount + modifiers.ExtraProjectiles;
+        // Catalog: pulse fork 85%, seeker fork 60%.
+        var forkMultiplier = request.Homing ? 0.6f : 0.85f;
+        var pierce = request.Homing ? 0 : modifiers.PierceCount;
+        var detonate = request.Homing && modifiers.PierceCount > 0;
         for (var index = 0; index < count; index++)
         {
             var angle = count == 1 ? 0 : (index - (count - 1) * 0.5f) * 0.08f;
             var shotDirection = Rotate(direction, angle);
-            var multiplier = index < definition.BurstCount ? 1 : modifiers.ExtraProjectileDamageMultiplier;
+            var multiplier = index < definition.BurstCount ? 1f : forkMultiplier;
             SpawnProjectile(
                 request.Source,
                 shotDirection,
@@ -181,10 +190,11 @@ internal sealed class FlightCombatContext
                 definition.ProjectileSpeed,
                 definition.Range,
                 Faction.Player,
-                modifiers.PierceCount,
+                pierce,
                 request.Homing,
                 request.Target,
-                request.TurnDegreesPerSecond);
+                request.TurnDegreesPerSecond,
+                detonateOnHit: detonate);
         }
         AddEvent(CombatEvent.Create(
             CombatEventKind.WeaponFired,
@@ -208,10 +218,26 @@ internal sealed class FlightCombatContext
         int pierces,
         bool missile,
         EntityId target,
-        float turnDegrees)
+        float turnDegrees,
+        Vector2? originOverride = null,
+        bool detonateOnHit = false)
     {
         var entity = CreateEntity();
-        _ = new CombatProjectile(World, entity, source, direction, damage, speed, range, faction, pierces, missile, target, turnDegrees);
+        _ = new CombatProjectile(
+            World,
+            entity,
+            source,
+            direction,
+            damage,
+            speed,
+            range,
+            faction,
+            pierces,
+            missile,
+            target,
+            turnDegrees,
+            originOverride,
+            detonateOnHit);
         return entity;
     }
 
@@ -260,8 +286,18 @@ internal sealed class FlightCombatContext
                 MarkDestroyed(projectileEntity, source.Owner);
             return;
         }
-        QueueDamage(target, source.Owner, source.Damage, source.Projectile);
         ref var projectile = ref World.Get<Projectile>(projectileEntity);
+        if (projectile.DetonateOnHit)
+        {
+            var center = Has<Transform2>(projectileEntity)
+                ? World.Get<Transform2>(projectileEntity).Position
+                : World.Get<Transform2>(target).Position;
+            QueueAreaDamage(source.Owner, center, 55f, source.Damage, Faction.Hostile);
+            MarkDestroyed(projectileEntity, source.Owner);
+            return;
+        }
+
+        QueueDamage(target, source.Owner, source.Damage, source.Projectile);
         if (projectile.RemainingPierces > 0)
             projectile = projectile with { RemainingPierces = projectile.RemainingPierces - 1 };
         else
@@ -318,11 +354,22 @@ internal sealed class FlightCombatContext
 
     internal EntityId FindTargetInCone(EntityId source, Vector2 aim, float range, float halfConeDegrees)
     {
+        var ordered = FindTargetsInConeOrdered(source, aim, range, halfConeDegrees, 1);
+        return ordered.Count > 0 ? ordered[0] : default;
+    }
+
+    internal IReadOnlyList<EntityId> FindTargetsInConeOrdered(
+        EntityId source,
+        Vector2 aim,
+        float range,
+        float halfConeDegrees,
+        int maxTargets)
+    {
         var origin = World.Get<Transform2>(source).Position;
         var direction = NormalizeOr(aim, Vector2.UnitX);
         var minimumDot = halfConeDegrees <= 0 ? 0.999f : MathF.Cos(halfConeDegrees * MathF.PI / 180f);
-        var best = default(EntityId);
-        var bestDistanceSquared = range * range;
+        var rangeSquared = range * range;
+        var scored = new List<(EntityId Id, float DistSq)>(8);
         RebuildSortedLive();
         for (var i = 0; i < SortedLive.Count; i++)
         {
@@ -333,7 +380,7 @@ internal sealed class FlightCombatContext
                 continue;
             var delta = World.Get<Transform2>(candidate).Position - origin;
             var distanceSquared = delta.LengthSquared();
-            if (distanceSquared > bestDistanceSquared || distanceSquared <= 0.0001f)
+            if (distanceSquared > rangeSquared || distanceSquared <= 0.0001f)
                 continue;
             var along = Vector2.Dot(direction, delta);
             if (along <= 0f || along > range)
@@ -346,10 +393,15 @@ internal sealed class FlightCombatContext
             var inCone = Vector2.Dot(direction, Vector2.Normalize(delta)) >= minimumDot;
             if (!rayHits && !inCone)
                 continue;
-            best = candidate;
-            bestDistanceSquared = distanceSquared;
+            scored.Add((candidate, distanceSquared));
         }
-        return best;
+
+        scored.Sort(static (a, b) => a.DistSq.CompareTo(b.DistSq));
+        var limit = Math.Clamp(maxTargets, 0, scored.Count);
+        var result = new EntityId[limit];
+        for (var i = 0; i < limit; i++)
+            result[i] = scored[i].Id;
+        return result;
     }
 
     internal Vector2 ShortenAgainstObstacles(EntityId mover, Vector2 start, Vector2 requested)

@@ -125,4 +125,28 @@ internal static class ParticlePresets
         MinSize: 1,
         MaxSize: 2,
         Drag: 0.85f);
+
+    public static ParticleBurst MissileSmoke { get; } = new(
+        Count: 2,
+        MinSpeed: 4f,
+        MaxSpeed: 18f,
+        MinLife: 0.18f,
+        MaxLife: 0.45f,
+        ColorA: new XnaColor(120, 130, 140),
+        ColorB: new XnaColor(180, 190, 200),
+        MinSize: 1,
+        MaxSize: 2,
+        Drag: 0.92f);
+
+    public static ParticleBurst MissileLaunch { get; } = new(
+        Count: 6,
+        MinSpeed: 20f,
+        MaxSpeed: 55f,
+        MinLife: 0.10f,
+        MaxLife: 0.28f,
+        ColorA: new XnaColor(140, 150, 160),
+        ColorB: new XnaColor(220, 230, 240),
+        MinSize: 1,
+        MaxSize: 3,
+        Drag: 0.88f);
 }

@@ -6,11 +6,12 @@ internal sealed class DataCoreDropWorldEventHandler : IWorldRunEventHandler
 
     public void Handle(in WorldRunEvent worldEvent, IWorldRunEventHost host)
     {
-        var player = host.PlayerWorldPosition;
+        var death = host.LastEliteDeathWorldPosition;
+        var position = death == default ? host.PlayerWorldPosition : death;
         host.SpawnEliteDataCore(new WorldPosition
         {
-            X = (int)MathF.Round(player.X),
-            Y = (int)MathF.Round(player.Y)
+            X = (int)MathF.Round(position.X),
+            Y = (int)MathF.Round(position.Y)
         });
     }
 }

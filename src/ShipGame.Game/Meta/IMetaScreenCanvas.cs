@@ -23,6 +23,7 @@ public interface IMetaScreenCanvas
         string title,
         string subtitle,
         MetaRowAccent accent);
+    void DrawItemTooltip(string title, string body, string? status = null);
     bool TryResolveUiIcon(string definitionId, out string regionId, MetaIconPreference preference = MetaIconPreference.UiIconFirst);
     void DrawBankedPurse(MetaSession session);
     void DrawPanel(string title, params string[] lines);

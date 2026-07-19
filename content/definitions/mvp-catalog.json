@@ -24,7 +24,7 @@
 
     { "id": "MOD_WEAPON_PULSE", "kind": "module", "references": ["SLOT_WEAPON", "weapons/pulse", "ui/icons/module-weapon"], "values": { "damage": 10, "rate": 5, "speed": 700, "range": 650 } },
     { "id": "MOD_WEAPON_BEAM", "kind": "module", "references": ["SLOT_WEAPON", "weapons/beam", "RES_WEAPON_BEAM"], "values": { "damagePerSecond": 30, "range": 520, "heatSeconds": 3 } },
-    { "id": "MOD_WEAPON_SEEKER", "kind": "module", "references": ["SLOT_WEAPON", "weapons/seeker", "RES_WEAPON_SEEKER"], "values": { "damage": 16, "count": 2, "cooldown": 2.4, "range": 600 } },
+    { "id": "MOD_WEAPON_SEEKER", "kind": "module", "references": ["SLOT_WEAPON", "weapons/seeker", "RES_WEAPON_SEEKER"], "values": { "damage": 16, "count": 2, "cooldown": 1.2, "range": 600 } },
     { "id": "MOD_MINING_LASER", "kind": "module", "references": ["SLOT_MINING", "weapons/mining-beam"], "values": { "damagePerSecond": 25, "range": 260 } },
     { "id": "MOD_MINING_CHARGE", "kind": "module", "references": ["SLOT_MINING", "weapons/seismic-charge", "RES_MINING_SEISMIC"], "values": { "cooldown": 3, "range": 300, "radius": 110, "miningDamage": 65, "combatDamage": 12 } },
     { "id": "MOD_SHIELD_CAPACITOR", "kind": "module", "references": ["SLOT_SHIELD", "ships/player/shield-mask"], "values": { "capacity": 60, "recharge": 12, "delay": 3 } },

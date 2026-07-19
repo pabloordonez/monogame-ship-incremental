@@ -98,7 +98,9 @@ internal sealed class LoadoutMetaScreen : MetaScreenHandlerBase
         canvas.DrawRegion("ships/player/wayfarer", 520, 48, 72, 72);
 
         ModuleSlot? lastSlot = null;
-        string? focusedHint = null;
+        string? tooltipTitle = null;
+        string? tooltipBody = null;
+        string? tooltipStatus = null;
         foreach (var (slot, preview, equipped) in _rows)
         {
             var id = $"loadout:{slot}:{preview.ModuleId}";
@@ -135,14 +137,16 @@ internal sealed class LoadoutMetaScreen : MetaScreenHandlerBase
 
             if (ui.GetState(id) is UiControlState.Focused or UiControlState.Hovered)
             {
-                focusedHint = equipped
-                    ? "Currently equipped"
-                    : FormatStatHint(preview)
-                      ?? (string.IsNullOrWhiteSpace(preview.Explanation)
-                          ? "Enter/click to equip"
-                          : preview.Explanation);
+                tooltipTitle = MvpPresentation.ShortId(preview.ModuleId);
+                tooltipBody = MetaItemDescriptions.For(preview.ModuleId);
+                tooltipStatus = equipped
+                    ? "EQUIPPED"
+                    : FormatStatHint(preview) ?? "Enter to equip";
             }
         }
+
+        if (tooltipTitle is not null && tooltipBody is not null)
+            canvas.DrawItemTooltip(tooltipTitle, tooltipBody, tooltipStatus);
 
         canvas.DrawShellButtons(ui);
         if (_statusFrames > 0 && !string.IsNullOrEmpty(_statusMessage))
@@ -151,10 +155,7 @@ internal sealed class LoadoutMetaScreen : MetaScreenHandlerBase
             _statusFrames--;
         }
         else
-        {
-            var footer = focusedHint ?? "Enter/click to equip";
-            canvas.DrawText(200, 326, canvas.Truncate(footer, 52), new XnaColor(140, 150, 160));
-        }
+            canvas.DrawText(200, 326, "Enter/click to equip", new XnaColor(140, 150, 160));
     }
 
     private static string? FormatStatHint(LoadoutPreview preview)

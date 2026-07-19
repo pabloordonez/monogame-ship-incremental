@@ -164,21 +164,26 @@ public class P3WorldRunTests
         Assert.Single(broken);
 
         var loot = new LootGenerationSystem(new RandomStreams(42));
-        var spawned = loot.Spawn(world, broken);
+        var spawned = loot.Spawn(world, broken, currentTick: 0);
         Assert.Single(spawned);
         Assert.InRange(spawned[0].Quantity, 2, 4);
 
         var collector = world.Create();
         world.Set(collector, new WorldPosition { X = 100, Y = 100 });
-        world.Set(collector, new CollectionRadius { Radius = 70, PullSpeedPerTick = 5 });
+        world.Set(collector, new CollectionRadius { Radius = 70, PullSpeedPerTick = 20 });
         var collection = new CollectionSystem();
-        var collected = collection.Resolve(world, collector);
+        Assert.Empty(collection.Resolve(world, collector, currentTick: 0));
+        var collected = new List<ResourceCollectedFact>();
+        for (var tick = LootGenerationSystem.PickupGraceTicks;
+             tick < LootGenerationSystem.PickupGraceTicks + 40 && collected.Count == 0;
+             tick++)
+            collected.AddRange(collection.Resolve(world, collector, currentTick: tick));
 
         Assert.Single(collected);
         Assert.Equal(spawned.Sum(value => value.Quantity), collected.Sum(value => value.Quantity));
-        Assert.Empty(collection.Resolve(world, collector));
-        Assert.Null(loot.SpawnEliteDataCore(world, default) is { } first
-            ? loot.SpawnEliteDataCore(world, default)
+        Assert.Empty(collection.Resolve(world, collector, currentTick: LootGenerationSystem.PickupGraceTicks + 50));
+        Assert.Null(loot.SpawnEliteDataCore(world, default, currentTick: 0) is { } first
+            ? loot.SpawnEliteDataCore(world, default, currentTick: 0)
             : throw new Xunit.Sdk.XunitException("Expected the first elite Data Core."));
     }
 

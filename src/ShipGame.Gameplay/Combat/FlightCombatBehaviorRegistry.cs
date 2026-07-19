@@ -37,7 +37,7 @@ public sealed class FlightCombatBehaviorRegistry
             new(new ContentId("MOD_WEAPON_PULSE"), WeaponBehavior.Pulse, 10, 12, 700, 650),
             // Upgrade vs pulse (~50 DPS): 100 DPS hitscan, wider cone, longer sustain before overheat.
             new(new ContentId("MOD_WEAPON_BEAM"), WeaponBehavior.Beam, 100, 1, 0, 600, 0.5f, 3f, LockConeDegrees: 24),
-            new(new ContentId("MOD_WEAPON_SEEKER"), WeaponBehavior.Seeker, 16, 144, 360, 600, BurstCount: 2, LockConeDegrees: 35, TurnDegreesPerSecond: 150)
+            new(new ContentId("MOD_WEAPON_SEEKER"), WeaponBehavior.Seeker, 16, 72, 360, 600, BurstCount: 2, LockConeDegrees: 35, TurnDegreesPerSecond: 150)
         ],
         [
             new(new ContentId("ENM_INTERCEPTOR"), EnemyBehavior.Interceptor, 28, 190, 120, 6, 132),

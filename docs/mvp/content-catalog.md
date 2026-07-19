@@ -83,7 +83,7 @@ Applied to one seeded archetype:
 **`MOD_WEAPON_SEEKER` — Warden Seeker Rack**
 
 - Requires `RES_WEAPON_SEEKER`.
-- Launches two missiles, 16 damage each, every 2.4 seconds.
+- Launches two missiles, 16 damage each, every 1.2 seconds.
 - Projectile speed 360; lock range 600; turn rate 150 degrees/second.
 - Requires a target inside a 35-degree aim cone; otherwise does not fire.
 

@@ -54,7 +54,7 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
         foreach (var pickup in run.Pickups)
         {
             var screen = canvas.WorldToScreen(new System.Numerics.Vector2(pickup.X, pickup.Y), camera);
-            if (!canvas.OnScreen(screen, 16))
+            if (!canvas.OnScreen(screen, 20))
                 continue;
             var region = pickup.ResourceId.Value switch
             {
@@ -62,7 +62,7 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                 MetaContentIds.DataCore => "pickups/data-core",
                 _ => "pickups/ferrite"
             };
-            canvas.DrawRegion(region, (int)screen.X - 6, (int)screen.Y - 6, 12, 12);
+            canvas.DrawRegion(region, (int)screen.X - 8, (int)screen.Y - 8, 16, 16);
         }
 
         var playerScreen = new XnaVector2(MvpPresentation.VirtualWidth / 2f, MvpPresentation.VirtualHeight / 2f);
@@ -81,6 +81,15 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                     playerScreen = screen;
                     canvas.DrawThrustTrail(screen, hints.MoveIntent, hud.RunTick);
                     canvas.DrawRegionRotated("ships/player/wayfarer", screen, item.Rotation, 32);
+                    if (run.HasTractorUtility)
+                    {
+                        var tractorOffset = new XnaVector2(MathF.Cos(item.Rotation), MathF.Sin(item.Rotation)) * 14f;
+                        canvas.DrawRegionRotated(
+                            "effects/tractor",
+                            screen + tractorOffset,
+                            item.Rotation + MathF.Sin(hud.RunTick * 0.12f) * 0.15f,
+                            20);
+                    }
                     if (hints.FireHeld)
                     {
                         if (run.Combat.TryGetPlayerWeapon(out var weapon, out var beamRange) &&
@@ -118,7 +127,10 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
                     break;
                 }
                 case CombatRenderKind.Projectile:
-                    canvas.DrawRegion("projectiles/hostile", (int)screen.X - 3, (int)screen.Y - 3, 6, 6);
+                    if (item.IsMissile)
+                        canvas.DrawRegionRotated("projectiles/seeker", screen, item.Rotation, 10);
+                    else
+                        canvas.DrawRegion("projectiles/hostile", (int)screen.X - 3, (int)screen.Y - 3, 6, 6);
                     break;
                 case CombatRenderKind.Mine:
                     canvas.DrawRegion("telegraphs/mine-radius", (int)screen.X - 10, (int)screen.Y - 10, 20, 20);
@@ -128,13 +140,21 @@ internal sealed class RunMetaScreen : MetaScreenHandlerBase
 
         if (run.LastScoutDronePresentation.Active)
         {
-            var droneScreen = canvas.WorldToScreen(run.LastScoutDronePresentation.WorldPosition, camera);
+            var drone = run.LastScoutDronePresentation;
+            var droneScreen = canvas.WorldToScreen(drone.WorldPosition, camera);
             if (canvas.OnScreen(droneScreen, 24))
+            {
                 canvas.DrawRegionRotated(
                     "ships/utility/firefly",
                     droneScreen,
-                    run.LastScoutDronePresentation.Rotation,
+                    drone.Rotation,
                     18);
+                if (drone.FiredThisTick)
+                {
+                    var aim = new System.Numerics.Vector2(MathF.Cos(drone.Rotation), MathF.Sin(drone.Rotation));
+                    canvas.DrawMuzzleFlash(droneScreen, aim, hud.RunTick);
+                }
+            }
         }
 
         if (hud.Phase == RunPhase.Extraction)

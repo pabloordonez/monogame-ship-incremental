@@ -70,6 +70,9 @@ internal sealed class UpgradesMetaScreen : MetaScreenHandlerBase
         canvas.DrawText(24, 36, "Permanent perks from banked resources", new XnaColor(180, 200, 220));
         canvas.DrawBankedPurse(context.Session);
 
+        string? tooltipTitle = null;
+        string? tooltipBody = null;
+        string? tooltipStatus = null;
         foreach (var node in _visible)
         {
             var upgradeId = node.Definition.Id.Value;
@@ -98,7 +101,17 @@ internal sealed class UpgradesMetaScreen : MetaScreenHandlerBase
                 MvpPresentation.ShortId(upgradeId),
                 subtitle,
                 accent);
+
+            if (ui.GetState(id) is UiControlState.Focused or UiControlState.Hovered)
+            {
+                tooltipTitle = MvpPresentation.ShortId(upgradeId);
+                tooltipBody = MetaItemDescriptions.For(upgradeId);
+                tooltipStatus = node.Purchased ? "OWNED" : ready ? "READY" : "NEED";
+            }
         }
+
+        if (tooltipTitle is not null && tooltipBody is not null)
+            canvas.DrawItemTooltip(tooltipTitle, tooltipBody, tooltipStatus);
 
         canvas.DrawShellButtons(ui);
         if (_statusFrames > 0 && !string.IsNullOrEmpty(_statusMessage))
