@@ -297,10 +297,11 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
     {
         if (aim.LengthSquared() < 0.01f)
             return;
+        const float muzzle = 14f;
         var dir = System.Numerics.Vector2.Normalize(aim);
-        var start = new XnaVector2(shipCenter.X + dir.X * 14f, shipCenter.Y + dir.Y * 14f);
+        var start = new XnaVector2(shipCenter.X + dir.X * muzzle, shipCenter.Y + dir.Y * muzzle);
         var worldLength = hitDistanceWorld is > 0 and var hit
-            ? hit
+            ? MathF.Max(0f, hit - muzzle)
             : 36f;
         var length = Math.Clamp(worldLength, 16f, ComposedRunOrchestrator.MiningRangeWorldUnits + 8f);
         var rotation = MathF.Atan2(dir.Y, dir.X);
@@ -326,10 +327,11 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
         if (aim.LengthSquared() < 0.01f)
             return;
         var dir = System.Numerics.Vector2.Normalize(aim);
-        var start = new XnaVector2(shipCenter.X + dir.X * 14f, shipCenter.Y + dir.Y * 14f);
-        // World units map ~1:1 to virtual pixels near the ship; clamp so the beam reads on-screen.
+        const float muzzle = 14f;
+        var start = new XnaVector2(shipCenter.X + dir.X * muzzle, shipCenter.Y + dir.Y * muzzle);
+        // Hit distance is from ship center to surface; subtract muzzle so the tip lands on the hit.
         var worldLength = hitDistanceWorld is > 0 and var hit
-            ? MathF.Min(hit, rangeWorld)
+            ? MathF.Max(0f, MathF.Min(hit, rangeWorld) - muzzle)
             : rangeWorld;
         var length = Math.Clamp(worldLength, 40f, 340f);
         var rotation = MathF.Atan2(dir.Y, dir.X);
@@ -555,6 +557,7 @@ public sealed class MvpPresentation : IMetaScreenCanvas, IDisposable
             var aim = hints.AimDirection.LengthSquared() > 0.01f
                 ? System.Numerics.Vector2.Normalize(hints.AimDirection)
                 : System.Numerics.Vector2.UnitX;
+            // Match DrawBeamRay: tip is at ship-center hit distance along aim.
             _particles.Burst(player + aim * beamHit, ParticlePresets.BeamTip);
         }
 

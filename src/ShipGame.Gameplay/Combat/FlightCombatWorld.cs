@@ -86,6 +86,18 @@ public sealed class FlightCombatWorld
         return entity;
     }
 
+    /// <summary>
+    /// Marks an entity for removal on the next structural pass without emitting combat events
+    /// (used when mined asteroids tear down their mirrored obstacles).
+    /// </summary>
+    public void DestroyEntity(EntityId entity)
+    {
+        if (entity == default || !_context.World.IsAlive(entity) || _context.Has<Destroyed>(entity))
+            return;
+        _context.World.Set(entity, new Destroyed(_context.Tick));
+        _context.PendingDestroy.Add(entity);
+    }
+
     public void AddSpawnAnchor(Vector2 position, bool outsideCamera = true)
     {
         if (_context.Anchors.Count >= 64)
@@ -224,7 +236,11 @@ public sealed class FlightCombatWorld
         return true;
     }
 
-    /// <summary>When the beam is locked on a live target, returns world distance to that target.</summary>
+    /// <summary>
+    /// When the beam is locked and the aim ray clips the target collider, returns distance along aim
+    /// to the surface entry. Cone-only locks (ray miss) return false so presentation does not shorten
+    /// the beam into empty space.
+    /// </summary>
     public bool TryGetPlayerBeamHitDistance(out float distance)
     {
         distance = 0f;
@@ -236,9 +252,13 @@ public sealed class FlightCombatWorld
         var target = _context.World.Get<WeaponState>(_context.Player).Target;
         if (target == default || !_context.World.IsAlive(target) || !_context.Has<Transform2>(target))
             return false;
+        if (!TryGetPlayerAim(out var aim))
+            return false;
         var from = _context.World.Get<Transform2>(_context.Player).Position;
         var to = _context.World.Get<Transform2>(target).Position;
-        distance = Vector2.Distance(from, to);
+        var radius = _context.Has<Collider>(target) ? _context.World.Get<Collider>(target).Radius : 0f;
+        if (!FlightCombatMath.TryRayCircleEntry(from, aim, to, radius, out distance))
+            return false;
         return distance > 0.001f;
     }
 

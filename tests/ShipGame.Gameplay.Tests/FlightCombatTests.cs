@@ -241,6 +241,48 @@ public sealed class FlightCombatTests
     }
 
     [Fact]
+    public void BeamHitDistanceUsesAimRaySurfaceNotCenter()
+    {
+        var simulation = NewSimulation(Beam);
+        // Interceptor collider radius 16; on-axis lock should report surface entry (~184), not 200.
+        simulation.SpawnEnemy(Interceptor, new Vector2(200, 0));
+        simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
+        simulation.Step();
+
+        Assert.True(simulation.TryGetPlayerBeamHitDistance(out var hit));
+        Assert.InRange(hit, 183.5f, 184.5f);
+    }
+
+    [Fact]
+    public void BeamHitDistanceIsAbsentForConeOnlyLock()
+    {
+        var simulation = NewSimulation(Beam);
+        // Y=30 is inside the 24° cone but outside the r=16 collider along +X aim.
+        simulation.SpawnEnemy(Interceptor, new Vector2(200, 30));
+        simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX, actions: FlightAction.Fire));
+        simulation.Step();
+
+        Assert.Contains(simulation.Events, value => value.Kind == CombatEventKind.WeaponFired);
+        Assert.False(simulation.TryGetPlayerBeamHitDistance(out _));
+    }
+
+    [Fact]
+    public void DestroyEntityRemovesObstacleWithoutCombatKillEvent()
+    {
+        var simulation = NewSimulation(Pulse);
+        var obstacle = simulation.SpawnObstacle(new Vector2(100, 0), 12f);
+        Assert.False(simulation.Snapshot(obstacle).Destroyed);
+
+        simulation.DestroyEntity(obstacle);
+        Assert.True(simulation.Snapshot(obstacle).Destroyed);
+        Assert.DoesNotContain(simulation.Events, value => value.Kind == CombatEventKind.EntityDestroyed);
+
+        simulation.Queue(Command(simulation.Tick, aim: Vector2.UnitX));
+        simulation.Step();
+        Assert.Throws<InvalidOperationException>(() => simulation.Snapshot(obstacle));
+    }
+
+    [Fact]
     public void SeekerRequiresConeLockAndSurvivesTargetLoss()
     {
         var simulation = NewSimulation(Seeker);

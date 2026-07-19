@@ -14,6 +14,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     public const int BaseCollectionRadius = 90;
     public const int BasePullSpeed = 8;
     public const int NormalKillFerriteSalvage = 2;
+    /// <summary>Matches drawn medium asteroid sprites (24×24).</summary>
+    public const float AsteroidVisualRadius = 12f;
 
     private readonly World _miningWorld = new();
     private readonly MiningSystem _mining = new();
@@ -21,6 +23,7 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
     private readonly CollectionSystem _collection = new();
     private readonly WorldRunEventHandlerRegistry _worldEventHandlers = WorldRunEventHandlerRegistry.Create();
     private readonly Dictionary<int, EntityId> _asteroidEntities = new();
+    private readonly Dictionary<int, EntityId> _obstacleByCellId = new();
     private readonly List<RunFact> _factBuffer = new(64);
     private readonly List<CombatSnapshot> _snapshotBuffer = new(256);
     private readonly List<CombatRenderItem> _renderBuffer = new(256);
@@ -416,7 +419,6 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
         var bestScore = float.MaxValue;
         var bestPosition = Vector2.Zero;
         var bestKind = AsteroidCellKind.Ordinary;
-        var bestDistance = 0f;
         foreach (var pair in _asteroidEntities)
         {
             var entity = pair.Value;
@@ -440,30 +442,30 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                 best = entity;
                 bestPosition = world;
                 bestKind = cell.Kind;
-                bestDistance = distance;
             }
         }
 
+        var aimDir = aim.LengthSquared() > 0.01f ? Vector2.Normalize(aim) : Vector2.UnitX;
         if (best == default)
         {
-            var search = aim.LengthSquared() > 0.01f ? Vector2.Normalize(aim) : Vector2.UnitX;
             const float searchLength = 36f;
             LastMiningPresentation = new MiningPresentationState(
                 Active: true,
                 Hit: false,
                 Origin: origin,
-                HitPosition: origin + search * searchLength,
+                HitPosition: origin + aimDir * searchLength,
                 HitDistance: searchLength,
                 Kind: default);
             return;
         }
 
+        ResolveMiningBeamTip(origin, aimDir, bestPosition, out var tipDistance, out var tipPosition);
         LastMiningPresentation = new MiningPresentationState(
             Active: true,
             Hit: true,
             Origin: origin,
-            HitPosition: bestPosition,
-            HitDistance: bestDistance,
+            HitPosition: tipPosition,
+            HitDistance: tipDistance,
             Kind: bestKind);
 
         var damage = Math.Max(
@@ -491,10 +493,39 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
             }
 
             _brokenAsteroidBuffer.Add(new BrokenAsteroidPresentation(breakPosition, cell.Kind));
+            if (_obstacleByCellId.Remove(cell.CellId, out var obstacle))
+                Combat.DestroyEntity(obstacle);
         }
 
         var spawned = _loot.Spawn(_miningWorld, broken, _appliedModifiers.FractureLens);
         _ = spawned;
+    }
+
+    private static void ResolveMiningBeamTip(
+        Vector2 origin,
+        Vector2 aimDir,
+        Vector2 asteroidCenter,
+        out float tipDistance,
+        out Vector2 tipPosition)
+    {
+        if (FlightCombatMath.TryRayCircleEntry(
+                origin,
+                aimDir,
+                asteroidCenter,
+                AsteroidVisualRadius,
+                out tipDistance))
+        {
+            tipPosition = origin + aimDir * tipDistance;
+            return;
+        }
+
+        // Soft aim lock can select a rock the ray misses; tip the silhouette facing the player.
+        var towardPlayer = origin - asteroidCenter;
+        var surfaceOffset = towardPlayer.LengthSquared() > 0.0001f
+            ? Vector2.Normalize(towardPlayer) * AsteroidVisualRadius
+            : -aimDir * AsteroidVisualRadius;
+        tipPosition = asteroidCenter + surfaceOffset;
+        tipDistance = MathF.Max(0f, Vector2.Dot(aimDir, tipPosition - origin));
     }
 
     private void SyncCollector()
@@ -607,9 +638,8 @@ public sealed class ComposedRunOrchestrator : IWorldRunEventHost
                     Y = (int)MathF.Round(world.Y)
                 });
             _asteroidEntities[asteroid.CellId] = entity;
-            // Sparse combat obstacles for cover readability without exhausting entity capacity.
-            if (asteroid.ProvidesCompleteCover && asteroid.CellId % 3 == 0)
-                Combat.SpawnObstacle(world, 22f);
+            // One combat obstacle per rock so visuals match collision; torn down when mined.
+            _obstacleByCellId[asteroid.CellId] = Combat.SpawnObstacle(world, AsteroidVisualRadius);
         }
     }
 

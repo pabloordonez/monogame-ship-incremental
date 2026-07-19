@@ -161,12 +161,85 @@ public sealed class P5ComposedRunTests
             "Live Mine action should damage/break a resource cell or spawn/collect loot.");
     }
 
+    [Fact]
+    public void MiningBreakRemovesMirroredCombatObstacle()
+    {
+        var profile = ProfileAggregate.CreateNew(91);
+        profile.BeginRun("TX_BEGIN_OBSTACLE");
+        var run = new ComposedRunOrchestrator(
+            WorldRunIds.CinderBelt,
+            profile.Snapshot.ProfileSeed,
+            profile.Snapshot.RunIndex,
+            profile.ResolveLoadout(),
+            profile.DeriveStatistics(),
+            recoveryProtocols: false,
+            enableThreatDirector: false);
+
+        var liveAsteroids = run.Asteroids.Count(a => !a.Broken);
+        Assert.Equal(liveAsteroids, CountLiveNeutralObstacles(run));
+
+        var playerStart = run.Combat.Snapshot(run.Combat.Player).Position;
+        var target = run.Asteroids
+            .Where(a => !a.Broken)
+            .OrderBy(a => Dist2(playerStart, a.X, a.Y))
+            .First();
+        Assert.True(HasLiveNeutralNear(run, target.X, target.Y));
+
+        for (var i = 0; i < 2_400; i++)
+        {
+            var player = run.Combat.Snapshot(run.Combat.Player).Position;
+            var delta = new Vector2(target.X - player.X, target.Y - player.Y);
+            if (delta.Length() <= ComposedRunOrchestrator.MiningRangeWorldUnits * 0.8f)
+                break;
+            var dir = Vector2.Normalize(delta);
+            run.Step(new FlightCommandFrame(
+                run.Combat.Tick,
+                FlightCommandFrame.Quantize(dir.X),
+                FlightCommandFrame.Quantize(dir.Y),
+                FlightCommandFrame.Quantize(dir.X),
+                FlightCommandFrame.Quantize(dir.Y),
+                FlightAction.None));
+        }
+
+        for (var i = 0; i < 1_200; i++)
+        {
+            var player = run.Combat.Snapshot(run.Combat.Player).Position;
+            var delta = new Vector2(target.X - player.X, target.Y - player.Y);
+            var dir = delta.LengthSquared() < 0.001f ? Vector2.UnitX : Vector2.Normalize(delta);
+            run.Step(new FlightCommandFrame(
+                run.Combat.Tick,
+                FlightCommandFrame.Quantize(dir.X * 0.2f),
+                FlightCommandFrame.Quantize(dir.Y * 0.2f),
+                FlightCommandFrame.Quantize(dir.X),
+                FlightCommandFrame.Quantize(dir.Y),
+                FlightAction.Mine));
+            if (run.Asteroids.Any(a => a.CellId == target.CellId && a.Broken))
+                break;
+        }
+
+        Assert.Contains(run.Asteroids, a => a.CellId == target.CellId && a.Broken);
+
+        // Structural removal of Destroyed obstacles happens at the start of the next combat step.
+        run.Step(FlightCommandFrame.Neutral(run.Combat.Tick));
+        Assert.False(HasLiveNeutralNear(run, target.X, target.Y));
+        Assert.Equal(run.Asteroids.Count(a => !a.Broken), CountLiveNeutralObstacles(run));
+    }
+
     private static float Dist2(Vector2 origin, int x, int y)
     {
         var dx = origin.X - x;
         var dy = origin.Y - y;
         return dx * dx + dy * dy;
     }
+
+    private static int CountLiveNeutralObstacles(ComposedRunOrchestrator run) =>
+        run.LiveCombatSnapshots.Count(s => s.Faction == Faction.Neutral && !s.Destroyed);
+
+    private static bool HasLiveNeutralNear(ComposedRunOrchestrator run, int x, int y) =>
+        run.LiveCombatSnapshots.Any(s =>
+            s.Faction == Faction.Neutral &&
+            !s.Destroyed &&
+            Dist2(s.Position, x, y) <= 1f);
 
     [Fact]
     public void ReliabilityProbe_TenHarnessExtracts_NoDuplicateRewardCorruption()
